@@ -1,0 +1,204 @@
+start printcoreparts(...)
+corepart(N,nic) is the probability  to find state N
+in the manifold based on core orbital i=1,nicm
+partstN(N) is the probability to find state N
+in the manifold based on the core orbitals 
+   nic  ic=ncore(nic) lo(ic)    ko(ic)   e1r(ic,ic)
+    1         1         0         1     -0.20000E+01
+  N      l s par   E(N)a.u.     partstN(N)            corepart(N,nic)
+                                  nic=             1
+                                  l(i)=            0
+  1 s1S  0 0  1   -0.28725E+01   0.00000E+00   0.00000E+00
+  2 s2S  0 0  1   -0.21434E+01   0.00000E+00   0.00000E+00
+  3 t2S  0 1  1   -0.21742E+01   0.00000E+00   0.00000E+00
+  4 s3S  0 0  1   -0.20606E+01   0.00000E+00   0.00000E+00
+  5 t3S  0 1  1   -0.20685E+01   0.00000E+00   0.00000E+00
+  6 s4S  0 0  1   -0.20332E+01   0.00000E+00   0.00000E+00
+  7 t4S  0 1  1   -0.20364E+01   0.00000E+00   0.00000E+00
+  8 s5S  0 0  1   -0.20181E+01   0.00000E+00   0.00000E+00
+  9 t5S  0 1  1   -0.20207E+01   0.00000E+00   0.00000E+00
+ 10 s6S  0 0  1   -0.19978E+01   0.00000E+00   0.00000E+00
+ 11 t6S  0 1  1   -0.20020E+01   0.00000E+00   0.00000E+00
+ 12 s7S  0 0  1   -0.19662E+01   0.00000E+00   0.00000E+00
+ 13 t7S  0 1  1   -0.19725E+01   0.00000E+00   0.00000E+00
+ 14 s8S  0 0  1   -0.19182E+01   0.00000E+00   0.00000E+00
+ 15 t8S  0 1  1   -0.19278E+01   0.00000E+00   0.00000E+00
+ 16 s9S  0 0  1   -0.18453E+01   0.00000E+00   0.00000E+00
+ 17 t9S  0 1  1   -0.18597E+01   0.00000E+00   0.00000E+00
+ 18 s:S  0 0  1   -0.17288E+01   0.00000E+00   0.00000E+00
+ 19 t:S  0 1  1   -0.17524E+01   0.00000E+00   0.00000E+00
+ 20 s;S  0 0  1   -0.15329E+01   0.00000E+00   0.00000E+00
+ 21 t;S  0 1  1   -0.15718E+01   0.00000E+00   0.00000E+00
+ 22 s<S  0 0  1   -0.11628E+01   0.00000E+00   0.00000E+00
+ 23 t<S  0 1  1   -0.12363E+01   0.00000E+00   0.00000E+00
+ 24 s=S  0 0  1   -0.36327E+00   0.00000E+00   0.00000E+00
+ 25 t=S  0 1  1   -0.50047E+00   0.00000E+00   0.00000E+00
+ 26 s>S  0 0  1    0.19383E+01   0.00000E+00   0.00000E+00
+ 27 t>S  0 1  1    0.16294E+01   0.00000E+00   0.00000E+00
+ 28 s?S  0 0  1    0.13861E+02   0.00000E+00   0.00000E+00
+ 29 t?S  0 1  1    0.13490E+02   0.00000E+00   0.00000E+00
+There were   0 states with  partstN(N) > partN =.00000E+00
+******************************************
+rearranged s.p. functions: HE state overlaps
+Find major configuration for each state.
+major config.:    1    0    1    0    1   1.00000
+major config.:    2    0    2    0    1   1.00000
+major config.:    4    0    3    0    1   1.00000
+major config.:    6    0    4    0    1   1.00000
+major config.:    8    0    5    0    1   1.00000
+major config.:   10    0    6    0    1   1.00000
+major config.:   12    0    7    0    1   1.00000
+major config.:   14    0    8    0    1   1.00000
+major config.:   16    0    9    0    1   1.00000
+major config.:   18    0   10    0    1   1.00000
+major config.:   20    0   11    0    1   1.00000
+major config.:   22    0   12    0    1   1.00000
+major config.:   24    0   13    0    1   1.00000
+major config.:   26    0   14    0    1   1.00000
+major config.:   28    0   15    0    1   1.00000
+major config.:    3    0    2    0    1   1.00000
+major config.:    5    0    3    0    1   1.00000
+major config.:    7    0    4    0    1   1.00000
+major config.:    9    0    5    0    1   1.00000
+major config.:   11    0    6    0    1   1.00000
+major config.:   13    0    7    0    1   1.00000
+major config.:   15    0    8    0    1   1.00000
+major config.:   17    0    9    0    1   1.00000
+major config.:   19    0   10    0    1   1.00000
+major config.:   21    0   11    0    1   1.00000
+major config.:   23    0   12    0    1   1.00000
+major config.:   25    0   13    0    1   1.00000
+major config.:   27    0   14    0    1   1.00000
+major config.:   29    0   15    0    1   1.00000
+Nmax = 29
+s1S, N=  1  l=  0  s=  0 parity=  1, energy=    -2.87246, major config.:( 1s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.9604E+00  0.9223E+00
+    2    1     0   0   -0.2788E+00  0.7771E-01
+sum =  1.000000
+s2S, N=  2  l=  0  s=  0 parity=  1, energy=    -2.14345, major config.:( 2s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.1153E+00  0.1329E-01
+    3    1     0   0    0.9933E+00  0.9867E+00
+sum =  1.000000
+t2S, N=  3  l=  0  s=  1 parity=  1, energy=    -2.17425, major config.:( 2s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    4    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s3S, N=  4  l=  0  s=  0 parity=  1, energy=    -2.06057, major config.:( 3s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.5690E-01  0.3238E-02
+    5    1     0   0    0.9984E+00  0.9968E+00
+sum =  1.000000
+t3S, N=  5  l=  0  s=  1 parity=  1, energy=    -2.06848, major config.:( 3s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    6    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s4S, N=  6  l=  0  s=  0 parity=  1, energy=    -2.03325, major config.:( 4s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.3599E-01  0.1295E-02
+    7    1     0   0    0.9994E+00  0.9987E+00
+sum =  1.000000
+t4S, N=  7  l=  0  s=  1 parity=  1, energy=    -2.03642, major config.:( 4s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    8    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s5S, N=  8  l=  0  s=  0 parity=  1, energy=    -2.01813, major config.:( 5s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.3383E-01  0.1145E-02
+    9    1     0   0    0.9994E+00  0.9989E+00
+sum =  1.000000
+t5S, N=  9  l=  0  s=  1 parity=  1, energy=    -2.02073, major config.:( 5s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   10    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s6S, N= 10  l=  0  s=  0 parity=  1, energy=    -1.99781, major config.:( 6s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.4236E-01  0.1795E-02
+   11    1     0   0    0.9991E+00  0.9982E+00
+sum =  1.000000
+t6S, N= 11  l=  0  s=  1 parity=  1, energy=    -2.00199, major config.:( 6s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   12    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s7S, N= 12  l=  0  s=  0 parity=  1, energy=    -1.96619, major config.:( 7s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.5102E-01  0.2603E-02
+   13    1     0   0    0.9987E+00  0.9974E+00
+sum =  1.000000
+t7S, N= 13  l=  0  s=  1 parity=  1, energy=    -1.97249, major config.:( 7s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   14    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s8S, N= 14  l=  0  s=  0 parity=  1, energy=    -1.91817, major config.:( 8s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.6098E-01  0.3719E-02
+   15    1     0   0    0.9981E+00  0.9963E+00
+sum =  1.000000
+t8S, N= 15  l=  0  s=  1 parity=  1, energy=    -1.92780, major config.:( 8s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   16    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s9S, N= 16  l=  0  s=  0 parity=  1, energy=    -1.84528, major config.:( 9s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.7186E-01  0.5164E-02
+   17    1     0   0    0.9974E+00  0.9948E+00
+sum =  1.000000
+t9S, N= 17  l=  0  s=  1 parity=  1, energy=    -1.85974, major config.:( 9s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   18    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s:S, N= 18  l=  0  s=  0 parity=  1, energy=    -1.72880, major config.:(10s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.8534E-01  0.7284E-02
+   19    1     0   0    0.9964E+00  0.9927E+00
+sum =  1.000000
+t:S, N= 19  l=  0  s=  1 parity=  1, energy=    -1.75242, major config.:(10s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   20    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s;S, N= 20  l=  0  s=  0 parity=  1, energy=    -1.53292, major config.:(11s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.9874E-01  0.9750E-02
+   21    1     0   0    0.9951E+00  0.9902E+00
+sum =  1.000000
+t;S, N= 21  l=  0  s=  1 parity=  1, energy=    -1.57181, major config.:(11s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   22    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s<S, N= 22  l=  0  s=  0 parity=  1, energy=    -1.16283, major config.:(12s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.1109E+00  0.1229E-01
+   23    1     0   0    0.9938E+00  0.9877E+00
+sum =  1.000000
+t<S, N= 23  l=  0  s=  1 parity=  1, energy=    -1.23631, major config.:(12s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   24    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s=S, N= 24  l=  0  s=  0 parity=  1, energy=    -0.36327, major config.:(13s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.1062E+00  0.1129E-01
+   25    1     0   0    0.9943E+00  0.9887E+00
+sum =  1.000000
+t=S, N= 25  l=  0  s=  1 parity=  1, energy=    -0.50047, major config.:(13s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   26    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s>S, N= 26  l=  0  s=  0 parity=  1, energy=     1.93826, major config.:(14s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.6888E-01  0.4744E-02
+   27    1     0   0    0.9976E+00  0.9953E+00
+sum =  1.000000
+t>S, N= 27  l=  0  s=  1 parity=  1, energy=     1.62943, major config.:(14s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   28    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000
+s?S, N= 28  l=  0  s=  0 parity=  1, energy=    13.86125, major config.:(15s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+    1    1     0   0    0.1038E-01  0.1077E-03
+   29    1     0   0    0.9999E+00  0.9999E+00
+sum =  1.000000
+t?S, N= 29  l=  0  s=  1 parity=  1, energy=    13.48996, major config.:(15s 1s)    1.0000
+   n1   n2    l1  l2        -       CI weights
+   30    1     0   0    0.1000E+01  0.1000E+01
+sum =  1.000000

@@ -1,0 +1,10 @@
+
+      SUBROUTINE MEZERO(U,I1,I2,J1,J2,NPHS)
+c !!!
+c      SUBROUTINE MEZERO(U,I1,I2,J1,J2,NA,NB,NPHS)
+      REAL*8    U(NPHS,NPHS)
+      DO 1 I=I1,I2
+      DO 1 J=J1,J2
+    1 U(I,J)=0.
+      RETURN
+      END

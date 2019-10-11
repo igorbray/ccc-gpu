@@ -1,0 +1,17 @@
+      SUBROUTINE VAR1(Z,R,BET,H,ALFA,
+     * RO1,RO2,R1,NE,NE5)
+C  áAMEHA  èEPEMEHHOâ  R  HA  RO  (RO=ALFA*R+
+C  BET*LNR)  èO  METOÑì  HúûTOHA
+      REAL*8Z,R,BET,H,ALFA,RO1,RO2,AA,RT,
+     *ROT,R1(NE5 )
+      RT=(RO2-BET*LOG(RO2))/ ALFA
+      DO 1 IJ=1,NE
+      II=NE-IJ+1
+      ROT=RO1+DFLOAT(II)*H
+   11 AA=(ALFA*RT+BET*LOG(RT)-
+     *ROT)/(ALFA*RT+     BET)
+      RT=RT*(1.    -AA)
+      IF(ABS(AA).GT.1.D-06) GOTO 11
+    1 R1(II+2)=RT
+      RETURN
+      END

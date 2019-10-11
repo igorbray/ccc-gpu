@@ -1,0 +1,61 @@
+f90 -c -fast accobm.f 
+f90 -c -fast akvint.f 
+f90 -c -fast amod1.f 
+f90 -c -fast coef.f 
+f90 -c -fast cqd1.f 
+f90 -c -fast cqd11.f 
+f90 -c -fast cqd2.f 
+f90 -c -fast dh1.f 
+f90 -c -fast direct.f 
+f90 -c -fast exchen.f 
+f90 -c -fast f1.f 
+f90 -c -fast f3.f 
+f90 -c -fast f4.f 
+f90 -c -fast fchf.f 
+f90: Warning: fchf.f, line 39: Variable KSU is used before its value has been defined
+      IF(KSU.NE.1.AND.(IQ(I).EQ.1.
+---------^
+f90 -c -fast fcross.f 
+f90 -c -fast g1.f 
+f90 -c -fast g3.f 
+f90 -c -fast g5.f 
+f90 -c -fast ic.f 
+f90 -c -fast ifact.f 
+f90 -c -fast int.f 
+f90 -c -fast inver.f 
+f90 -c -fast invert.f 
+f90 -c -fast iot3.f 
+f90 -c -fast iot6.f 
+f90 -c -fast ipari.f 
+f90 -c -fast komon.f 
+f90 -c -fast komon1.f 
+f90 -c -fast komon2.f 
+f90 -c -fast mael1.f 
+f90 -c -fast mael2.f 
+f90 -c -fast mael3.f 
+f90 -c -fast mael4.f 
+f90 -c -fast mael5.f 
+f90 -c -fast maelcn.f 
+f90 -c -fast mm12.f 
+f90 -c -fast matr.f 
+f90 -c -fast mezero.f 
+f90 -c -fast mxmlt.f 
+f90 -c -fast offdia.f 
+f90 -c -fast phase.f 
+f90 -c -fast phoabs.f 
+f90 -c -fast pot.f 
+f90 -c -fast printm.f 
+f90 -c -fast rk.f 
+f90 -c -fast scatwr.f 
+f90 -c -fast scfhf.f 
+f90: Warning: scfhf.f, line 46: Variable KSU is used before its value has been defined
+      IF(KSU.NE.1.AND.(IQ(I).EQ.1.AND.
+---------^
+f90 -c -fast selfen.f 
+f90 -c -fast simps.f 
+f90 -c -fast simps1.f 
+f90 -c -fast tape.f 
+f90 -c -fast var1.f 
+f90 -c -fast yk.f 
+f90 -c -fast zero.f 
+ar crs hflib.a accobm.o akvint.o amod1.o coef.o cqd1.o cqd11.o cqd2.o dh1.o direct.o exchen.o f1.o f3.o f4.o fchf.o fcross.o g1.o g3.o g5.o ic.o ifact.o int.o inver.o invert.o iot3.o iot6.o ipari.o komon.o komon1.o komon2.o mael1.o mael2.o mael3.o mael4.o mael5.o maelcn.o mm12.o matr.o mezero.o mxmlt.o offdia.o phase.o phoabs.o pot.o printm.o rk.o scatwr.o scfhf.o selfen.o simps.o simps1.o tape.o var1.o yk.o zero.o

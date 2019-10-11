@@ -1,0 +1,92 @@
+helium
+    0                              */ lmax - max a.m. of helium states: s=0
+    15   14  13  12 11  6               */ nstate(l,0) - number of helium states
+    0                              */ lmax - max a.m. of helium states: s=1
+    14   14  13  12 11  6            */ nstate(l,1) - number of helium states
+    0                              */ lmax - max a.m. of atom states:s=0,ip=2
+    0  0   0   0                   */ nstate(l,0,2) - number of atom states
+    0                              */ lmax - max a.m. of atom states:s=1,ip=2
+    0  0   0   0                   */ nstate(l,1,2) - number of atom states
+    0  1   0   0    0  0.0 1.0     */ nhfo, i_dipmom, i_r_sq, i_ort, i_gsort, gamma, r0
+    1  0   0   0    0.0   1        */ inc, isubset, igorfunctions, i_exclude, partN, maxcoreshell
+    -1  1   1    0                 */ l_ion_core, nk_ion_core(lomax)
+    2.                             */ Z
+    5                              */ l1max - overall max
+    1.3817744255065917  1.4136180877685546  1.523657202720642 1.6490660905838012 1.793636441230774 0.9           */ al(l)   3.375    1.  0.67  0.5
+   15   14   13   12   11  6       */ nk1(l1) -  overall max
+    1                              */ ndif
+    5                              */ ldif
+    4.  4.   4.   4.  4.   4.0          */ aldif(l)
+    1   0    0    0  0      0          */ nkd(l)
+singlet-S
+    0   0   1                      */ ll, ls,lparity
+    5                              */ l1max
+   20   0   0   0  0  0                 */ nk1(l1)
+    5                              */ l2max
+    1  0   0   0  0  0                 */ nk2(l2) 
+triplet-S
+    0   1   1                      */ ll, ls,lparity
+    4                              */ l1max
+   20   0   0    0    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0    0             */ nk2(l2) 
+singlet-P
+    1   0   -1                     */ ll, ls,lparity
+    4                              */ l1max
+    1  20   0    0    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0    0             */ nk2(l2) 
+triplet-P
+    1   1  -1                      */ ll, ls,lparity
+    4                              */ l1max
+    0  20   0    0    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0    0             */ nk2(l2) 
+singlet-D
+    2   0   1                      */ ll, ls,lparity
+    4                              */ l1max
+    0   0  20    0    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0    0             */ nk2(l2) 
+triplet-D
+    2   1   1                      */ ll, ls,lparity
+    4                              */ l1max
+    0   0  20    0    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0    0             */ nk2(l2) 
+singlet-F
+    3   0   -1                     */ ll, ls,lparity
+    4                              */ l1max
+    0   0   0    20   0              */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0     0            */ nk2(l2) 
+triplet-F
+    3   1   -1                     */ ll, ls,lparity
+    4                              */ l1max
+    0   0   0   20    0             */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0   0              */ nk2(l2) 
+singlet-G
+    4   0   1                     */ ll, ls,lparity
+    4                              */ l1max
+    0   0   0    0  20                */ nk1(l1)
+    4                              */ l2max
+    1   0   0    0  0               */ nk2(l2) 
+triplet-G
+    4   1   1                     */ ll, ls,lparity
+    4                              */ l1max
+    0 0  0   0     20                 */ nk1(l1)
+    4                              */ l2max
+    1  0  0   0    0                 */ nk2(l2) 
+singlet-H
+    5   0   -1                     */ ll, ls,lparity
+    5                              */ l1max
+    0   0   0    0  0 20                */ nk1(l1)
+    5                              */ l2max
+    1   0   0    0  0  0             */ nk2(l2) 
+triplet-H
+    5   1   -1                     */ ll, ls,lparity
+    5                              */ l1max
+    0 0  0   0  0  20                 */ nk1(l1)
+    5                              */ l2max
+    1  0  0   0  0  0                 */ nk2(l2) 

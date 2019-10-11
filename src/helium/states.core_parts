@@ -1,0 +1,7 @@
+states not included in the scattering calculation have  -  in first row  or N = 30
+    Nc  N label l s par  E(eV)  partstN(N)         corepart(N,nic)
+                              nic =      1
+                              l(i) =     0
+    Nc  N label l s par  E(eV)  partstN(N)         corepart(N,nic)
+                              nic =      1
+                              l(i) =     0

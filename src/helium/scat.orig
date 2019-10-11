@@ -1,0 +1,405 @@
+      subroutine scattering(ispeed,ifirst,theta,nold,etotal,KJ,gridk,
+     >   enionry,npk,chil,minc,vdcore,dwpot,nchm,Nmax,namax,
+     >   nze,td,te1,te2,te3,vdon,vmat)
+      use CI_MODULE
+      use po_module
+      use DM_MODULE
+      include 'par.f'
+      integer sa, npk(nchm+1)
+      common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
+      common /ortog/  ortint(nspmax,nspmax)
+      common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
+      common /funLag/  fl(nmaxr,nspmax)
+      common /minmaxf/ maxf(nspmax),minf(nspmax)
+      common /CcoefsE/  E(KNM)
+      double precision E, ortint, Etot, Etot_nu, Etot_ve
+      common /meshrr/ nr, gridr(nmaxr,3)
+      common /increarrange/ inc
+c$$$      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
+      allocatable :: chiform(:,:),minchiform(:),maxchiform(:)
+      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1),df(maxr)
+      dimension gridk(kmax,nchan), dwpot(maxr,nchan),
+     >   vdcore(maxr,0:lamax),
+     >   vdon(nchan,nchan,0:1), vmat(npk(nchm+1)-1,npk(nchm+1)),
+     >   temp(maxr)
+      real  ortchil(npk(nchm+1)-1,nspm)
+      real  flchil(npk(nchm+1)-1,nspm)
+      integer na, nam
+      logical posi, posf, positron
+      common /CIdata/ na(nspmCI,KNM), nam(KNM)
+      common /corearray/ nicm, ncore(nspmCI)      
+      real, dimension(:,:), allocatable ::  ortchil_po
+      real:: theta, theta_ve
+      common /ionic_configurations/ l_ion_core, nk_ion_core(0:lomax)
+      integer, dimension(:), allocatable :: is_core_orb  
+
+c
+C  One electron continuum of Helium assumes the target He+ is left in
+C  the ground state. The ENIONRY is added in the mainhe routine, where the
+C  energies are defined. Etot is in a.u.
+      Etot = (etotal + enionry) / 2.0
+      Etot_ve = Etot
+      theta_ve = theta
+c
+      
+      if (ifirst.ne.0) then
+
+c     make array which tells if a function is a core orbital (=1 or 2) or not (0), 
+c     if it is a core orbital set value to 2 if this orbital is used for dicretization: l_ion_core, nk_ion_core(0:lomax)
+         if (allocated(is_core_orb)) deallocate(is_core_orb) 
+         allocate(is_core_orb(nspm))
+         is_core_orb(:) = 0
+         do nic=1,nicm
+            nsp = ncore(nic)
+            knsp = ko(nsp)
+            lnsp = lo(nsp)
+            if(l_ion_core .ge. 0) then
+               is_core_orb(nsp) = 1
+               if(lnsp .le. l_ion_core) then
+                  if(knsp .le. nk_ion_core(lnsp)) then
+                     is_core_orb(nsp) = 2
+                  endif
+               endif
+               elseif(l_ion_core .lt. 0) then
+                  is_core_orb(nsp) = 2
+               endif
+c     print*,'*** ion_core: ', nsp, is_core_orb(nsp), 
+c     >           ko(nsp),nk_ion_core(lnsp)
+         enddo
+c
+
+         if(abs(theta) .ge. 1000.0) then
+            print*, 'scat.f: Setting up D matrix'
+            Tspin = 0.5
+            iacc = nint(abs(theta-1000.0))
+            if(theta .le.-1000) then
+               iacc = -1
+            endif
+            call nonuniq(KJ,Tspin,nchm,iacc)
+         endif
+!
+
+         print*,'Making one-electron terms'
+         call update(6)
+         call clock(s1)
+         
+c     This block is to code the projection operator to fix nonuniqueness.
+c     Note: only arrays lo_po(:) and ortchil_po(:,:) are required in vmat routine
+c     in the part where nonuniqueness is dealt with.
+
+         if(theta .ne. 0.0) then
+            if (inc .eq. 0) then
+               nspm_po = nspm
+               if (allocated(lo_po)) deallocate(lo_po)                  
+               allocate(lo_po(nspm_po))               
+               if(nspm_po .ne. nspm) then
+                  print*,'Please make sure that all s.p.orbitals ',
+     >               'declared in ccc.in or F5 files are used in ',
+     >               'CI calculations'
+                  print*,'Can be changed later to account for more ',
+     >               'compex case'
+                  print*, 'scat.f: nspm_po .ne. nspm'
+                  stop
+               endif
+               lo_po(1:nspm) = lo(1:nspm)
+c     The aim is to copy ortchil(:,:)  array to  ortchil_po(:,:) array
+c     after ortchil(:,:) array is calculated in routine ortchilnsp(...)
+            else
+c     ortchil_po(:,:) array has to be calculated directly
+c     array lo_po(:) is already set up
+            endif
+            if (allocated(ortchil_po)) deallocate(ortchil_po)
+            allocate(ortchil_po(npk(nchm+1)-1,nspm_po))            
+         endif
+c     
+c     
+c     get overlap for projectile and s.p. functions
+         call ortchilnsp(KJ,npk,chil,minc,nchm,fl,maxf,
+     >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
+         if(theta .ne. 0.0) then
+            if(inc .eq. 0) then
+               ortchil_po = ortchil
+            else
+               call ortchilnsp_po(nr,KJ,npk,chil,minc,nchm,fl_po,
+     >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
+            endif
+         endif
+         call clock(s2)
+         print*,'Time (secs) for one-electron terms:',s2-s1
+         call update(6)
+      endif 
+
+
+      td  = 0.0
+      te1 = 0.0
+      te2 = 0.0
+      te3 = 0.0
+      s1 = 0.0
+      s2 = 0.0
+      s3 = 0.0
+      s4 = 0.0
+      print '(i4,":",$)', nchm
+c$doacross local(nchi,nqmi,nchf,k,i,nqmf,vmatt)
+c$& local(chiform,minchiform,maxchiform)
+c$& local(Ni,ei,lia,nia,li,Nf,ef,lfa,nfa,lf,temp,maxt,ns,s1,s2,s3,s4)
+c$& share(nchm,Nmax,la,sa,lpar,nspm,lo)
+c$& share(C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,flchil,KJ,gridk)
+c$& share(vmat,vdon,ifirst,td,te1,te2,te3,na,nam,namax)
+c$& share(is_core_orb)
+c$& share(nicm,ncore,nspm_po,ortchil_po,lo_po)
+c$& share(nchnsp_max,DD,get_nch,get_nsp,Etot_ve,theta_ve)     
+
+C     The following is for the SUN
+C$PAR  DOALL SCHEDTYPE(SELF(1))
+c$PAR& private(nchi,nqmi,nchf,k,i,nqmf,chiform,minchiform,maxchiform)
+c$PAR& private(Ni,ei,lia,nia,li,Nf,ef,lfa,nfa,lf,temp,maxt,ns)
+c$PAR& private(s1,s2,s3,s4,vmatt)
+c$PAR& shared(nchm,Nmax,la,sa,lpar,nspm,lo)
+c$PAR& shared(C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,flchil)
+c$PAR& shared(KJ,gridk,vmat,vdon,ifirst,td,te1,te2,te3,na,nam,namax)
+c$PAR& shared(is_core_orb)
+c$PAR& shared(nicm,ncore,nspm_po,ortchil_po,lo_po)
+c$PAR& shared(nchnsp_max,DD,get_nch,get_nsp,Etot_ve,theta_ve)
+      
+C     The following is for the IBM
+C$OMP PARALLEL DO
+C$OMP& SCHEDULE(dynamic)
+C$OMP& private(nchi,nqmi,nchf,k,i,nqmf,minchiform,maxchiform)
+C$OMP& private(Ni,ei,lia,nia,li,Nf,ef,lfa,nfa,lf,temp,maxt,ns)
+C$OMP& private(s1,s2,s3,s4,vmatt)
+C$OMP& private(chiform)
+C$OMP& shared(nchm,Nmax,la,sa,lpar,nspm,lo)
+C$OMP& shared(C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,flchil)
+C$OMP& shared(KJ,gridk,vmat,vdon,ifirst,td,te1,te2,te3,na,nam,namax)
+C$OMP& shared(is_core_orb)
+C$OMP& shared(nicm,ncore,nspm_po,ortchil_po,lo_po)
+C$OMP& shared(nchnsp_max,DD,get_nch,get_nsp,Etot_ve,theta_ve)
+
+      do nchi = 1, nchm
+C$OMP critical(print)	
+         print '(i3,$)', nchi
+         call update(6)
+C$OMP end critical(print)
+         nqmi = npk(nchi+1) - npk(nchi)
+         call getchinfo (nchi, Ni, KJ, temp, maxt, ei, lia, nia, Li)
+         posi = positron(nia,lia,nposi)
+         do nchf = nchi, nchm
+            nqmf = npk(nchf+1) - npk(nchf)
+            call getchinfo (nchf, Nf, KJ, temp, maxt, ef, lfa, nfa, Lf)
+            posf = positron(nfa,lfa,nposf)
+            if (ifirst.ne.0) then
+               allocate(chiform(maxr,kmax))
+               allocate(minchiform(kmax))
+               allocate(maxchiform(kmax))
+
+c$$$  do k = 1, nqmi
+c$$$                  do i = 1, maxr
+c$$$                     chiform(i,k) = 0.0
+c$$$                  enddo
+c$$$                  minchiform(k) = maxr
+c$$$                  maxchiform(k) = 0
+c$$$               enddo 
+               chiform(:,:) = 0.0
+               minchiform(:) = maxr
+               maxchiform(:) = 0
+c$$$               call clock(s1)
+               call ve2me(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >            C,fl,maxf,minf,npk,chil,minc,
+     >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >            C,fl,maxf,minf,npk,chil,minc,
+     >            ortint,ortchil,flchil,KJ,gridk,vmat,nchf,nchi,
+     >            chiform,minchiform,maxchiform,na,nam,namax)
+c$$$               call clock(s2)
+C  Store time for e2 matrix elements
+               te2 = te2 + s2 - s1
+               call ve1me(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >            C,fl,maxf,minf,npk,chil,minc,
+     >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >            C,fl,maxf,minf,npk,chil,minc,
+     >            ortint,KJ,vmat,nchf,nchi,
+     >            chiform,minchiform,maxchiform,na,nam,namax)
+               deallocate(chiform)
+               deallocate(minchiform)
+               deallocate(maxchiform)
+
+c$$$  call clock(s3)
+C  Store time for e1 matrix elements
+               te1 = te1 + s3 - s2
+c
+               if(abs(theta) .ge. 1000.0) then
+                  if(nchnsp_max .gt. 0) then
+                     call v_nu(nchm,nspm,npk,
+     >                    nchi,Ni,Li,sa(Ni), nqmi,
+     >                    nchf,Nf,Lf,sa(Nf),nqmf,
+     >                    ortchil,Etot,KJ,na,nam,namax,lo,
+     >                    nchnsp_max,DD,get_nch,get_nsp,vmat)
+                  endif
+                  Etot_ve = 0d0
+                  theta_ve = 0.0
+               endif
+c
+               call ve2me12(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >              C,fl,maxf,minf,npk,chil,minc,
+     >              nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >              C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,
+     >              flchil,Etot_ve,KJ,gridk,theta_ve,inc,vmat,nchf,nchi,
+     >              na,nam,namax,nspm_po,ortchil_po,lo_po,nicm,ncore,
+     >              is_core_orb)  
+c$$$               call clock(s4)
+C     Store time for both two electron exchange matrix elements
+               te3 = te3 + s4 - s3
+!               print*,'!!finish ve2me12'
+            endif 
+c$$$            call clock(s1)
+            if (.not.posi.and..not.posf)
+     >         call vdme(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >         C,fl,maxf,minf,npk,chil,minc,
+     >         nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >         C,fl,maxf,minf,npk,chil,minc,ortint,KJ,dwpot,
+     >         vdon,vmat,nchf,nchi,na,nam,namax)
+c$$$            call clock(s2)
+C  Store time for direct matrix elements
+            td = td + s2 - s1 
+c$$$            vdon(nchf,nchi,0) = vmat(npk(nchf),npk(nchi)) +
+c$$$     >         vdon(nchf,nchi,0)
+c$$$            vdon(nchf,nchi,1) = vmat(npk(nchi),npk(nchf)+1) +
+c$$$     >         vdon(nchf,nchi,1)
+c$$$            vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
+c$$$            vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+            if (.not.posi.and.posf) then
+            endif 
+         enddo
+      enddo 
+C$OMP END PARALLEL DO
+c     
+      return
+      end
+c--------------------------------------------------------------------------
+c
+      subroutine ortchilnsp(KJ,npk,chil,minc,nchm,fl,maxf,
+     >   minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
+      include 'par.f'
+      dimension  lo(nspmax), npk(nchm+1)
+      dimension  fl(maxr,nspmax),maxf(nspmax),minf(nspmax),temp(maxr)
+      dimension chil(nr,npk(nchm+1)-1), minc(npk(nchm+1)-1)
+      dimension ortchil(npk(nchm+1)-1,nspm),flchil(npk(nchm+1)-1,nspm)
+      double precision Z
+      common /Zatom/ Z
+      common /meshrr/ nr, gridr(nmaxr,3)
+      dimension dwpot(maxr,nchan),u(maxr),vdcore(maxr,0:lamax)
+      
+      ze = 2.0
+C     The following is for the SGI
+c$doacross local(nch,n,temp,maxt,ei,lia,nia,L,u,i,kqq,nsp,min1,max1)
+c$&  local(tmp,tmp1)
+c$& share(ze,ortchil,flchil,vdcore,dwpot,npk)
+C     The following is for the IBM
+C$OMP PARALLEL DO
+C$OMP& SCHEDULE(dynamic)
+C$OMP& private(nch,n,temp,maxt,ei,lia,nia,L,u,i,kqq,nsp,min1,max1)
+C$OMP& private(tmp,tmp1)
+C$OMP& shared(ze,ortchil,flchil,vdcore,dwpot,npk)
+      do nch=1,nchm
+         call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
+         if (dwpot(1,nch).eq.0.0) then
+            do i = 1, nr
+               u(i) = - 2.0 * vdcore(i,min(L,lamax)) * ze
+            enddo
+         else
+            do i = 1, nr
+               u(i) = dwpot(i,nch)
+            enddo
+         endif
+         
+         do kqq = npk(nch), npk(nch+1) - 1
+            do nsp=1,nspm
+               ortchil(kqq,nsp) = 0.0
+               flchil(kqq,nsp) = 0.0
+               if(lo(nsp).eq.L) then
+                  temp(:) = 0.0
+                  min1 = minf(nsp)
+                  max1 = maxf(nsp)
+                  do i = min1, max1
+                     temp(i) = fl(i,nsp) * gridr(i,3)
+                  enddo
+                  call tmpfcexch(temp,min1,max1,nr,chil(1,kqq),tmp1,L)
+c                  call fcexch(temp,nr,chil(1,kqq),tmp1,L)
+                  tmp = 0.0
+                  tmp1 = - tmp1 / ze
+                  do i = max(minf(nsp),minc(kqq)), maxf(nsp)
+                     tmp = tmp + chil(i,kqq) * fl(i,nsp)
+                     tmp1 = tmp1 + chil(i,kqq) * fl(i,nsp) *
+     >                  (u(i)/2.0/ze + 1.0/gridr(i,1))   ! division by 2 is to go from Ry to au.
+                  enddo 
+                  ortchil(kqq,nsp)=tmp
+                  flchil(kqq,nsp) = - ze * tmp1
+                  if(Z.eq.-80.0) then
+                     call relcorH12(lo(nsp),fl(1:nr,nsp),minf(nsp),
+     >                  maxf(nsp),chil(1:nr,kqq),minc(kqq),nr,
+     >                  flchil(kqq,nsp))
+                  end if
+
+               end if
+            end do
+
+         end do
+      end do
+C$OMP END PARALLEL DO
+      return
+      end
+
+c     Scattering from 2-electron atoms (2 el. above inert closed core).
+c     The number of valence electrons: ze=2, 
+c     Here we consider one electron in the field of a closed inert core.
+c     The total core potential is :
+c     V = V_{exchange} + Z/r + 2*V_{direct-core}.
+c     The factor "2"  is to account two spin directions for closed inert core electrons.
+c     The number of different electrons in the core 
+c     is equal to 2*n_c.
+c     The assymptotic charge of the target atom is 
+c     Z_ass = Z - ze - 2*n_c.    (= 0 for neutral target).
+c     The incident electron move in the potential of : (V(r) = V_{direct-core})
+c     1. exchange potential
+c     2. direct core potential = -Z/r + 2*V(r) = -(Z_ass +ze + 2*n_c)/r +2*V(r) =
+c                              = -Z_ass/r - ze/r + 2(V(r) - n_c/r)
+c     In Igor's programm: vdcore(r) = 2*(V(r) - n_c/r),
+c                         exchange potential =  fcexch(temp,nr,fl(1,n1),tmp1,L) routine.
+c     Potential -Z_ass/r is placed in Green function and therefore is removed from 
+c     the potential.
+c     This is valid for ions (Z_ass .not. 0) because Z_ass/r potential is accounted
+c     by Green function.
+
+c--------------------------------------------------------------------------
+c
+      subroutine ortchilnsp_po(nr,KJ,npk,chil,minc,nchm,fl,maxf,
+     >   minf,lo,nspm,ortchil)
+      include 'par.f'
+      dimension  lo(nspm),npk(nchm+1)
+      dimension  fl(nr,nspm),maxf(nspm),minf(nspm),
+     >   temp(maxr)
+      dimension chil(nr,npk(nchm+1)-1), minc(npk(nchm+1)-1)
+      dimension ortchil(npk(nchm+1)-1,nspm)
+      
+      do nch=1,nchm
+         call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
+         
+         do kqq = npk(nch), npk(nch+1) - 1
+            do nsp=1,nspm
+               ortchil(kqq,nsp) = 0.0
+               if(lo(nsp).eq.L) then
+                  min1 = minf(nsp)
+                  max1 = maxf(nsp)
+                  ortchil(kqq,nsp) =
+     >                 SUM(chil(min1:max1,kqq)*fl(min1:max1,nsp))
+                  if(kqq .eq. 2) then
+!                 print*,'po:', kqq,nsp,max1,
+!     >                    fl(max1-2,nsp),fl(max1-1,nsp),
+!     >                    fl(max1,nsp),ortchil(kqq,nsp)
+                  endif
+               end if
+            end do
+
+         end do
+      end do
+      return
+      end

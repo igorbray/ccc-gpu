@@ -1,0 +1,177 @@
+      SUBROUTINE DH1(ALFA,BET,H,Z,ZI,RO1,RO2,
+     *EPS,R,GAM,TETA,ALM3,R1,R2,R3,R4,R5,R6,
+     *R8,MU,C3,ALA,ALA1,ALA2,ALM7,
+c
+c
+     * NE,NE5,NE5IS,IS,NU,IZCH,IG,CH,KK,
+     *ISIGM1,ISIGM2,IN,IL,IQ,UD,KSU1,gamma,r0)
+
+      REAL*8ALFA,BET,H,Z,RO1,RO2,EPS,GAM( NU),
+     *TETA(IS),B,C,D,P,T,U,V,RR1,MU,ZI,
+     * SOST,XN1,QQ1,QQ2,QQ3,QQ4,QQ5,QQ6,
+     * QQ7,QQ8,PHS,XII,R, ALM7(IS),
+     *GAMA,TAU1,TAU2,ALM1,ALM2,TETMAX,A1,
+     *B1,A2,OMEGA,ALM3(IS),R2(NE5 ),
+     * R1( NE5), R3( NE5),R4( NE5),R5( NE5),
+     *R6( NE5),R8(NE5IS),C3(IS),ALA(IS),ALA1(IS),
+     *  ALA2(IS),EP1
+      INTEGER    CH,KK(NU),ISIGM1(NU),
+     *ISIGM2(NU),IN(IS),IL(IS),IQ(IS),UD(IS)
+
+      izon = 0  ! was undefined, Igor 10/4/2011
+       DO 7531 I=1,IS
+ 7531  ALM3(I)=0.0
+      MASHA=NE+2
+      IS1=0
+      R2(NE+4)=0.
+      DO 7028 I=1,IS
+7028  ALM7(I)=0.0
+   11 IS1=IS1+2
+      IF(IS1.GT.IS) IS1=IS1-1
+      DO 1 I=1,IS1
+      ISIGM=I
+      EP1=EPS*100.
+      CALL MAIN1(ALFA,BET,H,Z,EP1,GAM,TETA,
+     * R1,R2,R3,R4,R5,R6,R8,C3,ALA,ALA1,ALA2,
+     * ALM7,MU,IS,NE,NE5,NE5IS,IQ,ISIGM,IN,IL,
+     * IG,NU,ISIGM1,ISIGM2,KK,UD,KSU1,gamma,r0)
+      ALM3(I)=R5(1)
+      MSK= NE5  *(I-1)
+      DO 300 K8=1,MASHA
+  300 R8(K8+MSK)=R5(K8)
+    1 CONTINUE
+      IF(IS1.LT.IS) GOTO 11
+      DO 777 JJJ=1,2
+      DO 2 IJ=1,IS1
+      I=IS1-IJ+1
+      ISIGM=I
+      EP1=EPS*10.
+      CALL MAIN1(ALFA,BET,H,Z,EP1,GAM,TETA,
+     * R1,R2,R3,R4,R5,R6,R8,C3,ALA,ALA1,ALA2,
+     * ALM7,MU,IS,NE,NE5,NE5IS,IQ,ISIGM,IN,IL,
+     * IG,NU,ISIGM1,ISIGM2,KK,UD,KSU1,gamma,r0)
+      MSK= NE5  *(I-1)
+      DO 301 K8=1,MASHA
+  301 R8(K8+MSK)=R5(K8)
+      ALM3(I)=R5(1)
+    2 CONTINUE
+  777 CONTINUE
+      DO 747 JJJ=1,2
+      DO 748 IJ=1,IS1
+      ISIGM=IJ
+      CALL MAIN1(ALFA,BET,H,Z,EPS,GAM,TETA,
+     * R1,R2,R3,R4,R5,R6,R8,C3,ALA,ALA1,ALA2,
+     * ALM7,MU,IS,NE,NE5,NE5IS,IQ,ISIGM,IN,IL,
+     * IG,NU,ISIGM1,ISIGM2,KK,UD,KSU1,gamma,r0)
+      MSK= NE5 *(IJ-1)
+      DO 3017 K8=1,MASHA
+3017  R8(K8+MSK)=R5(K8)
+      ALM3(IJ)=R5(1)
+ 748  CONTINUE
+  747 CONTINUE
+      NKL=0
+   13 TETMAX=0.
+      DO 3 I =1,IS1
+C     I=IS1-IJ+1
+      ISIGM=I
+      IF(ABS(TETA(I)).GT.EPS.OR.NKL.EQ.1)GOTO 141
+      GOTO 142
+  141 CONTINUE
+      CALL MAIN1(ALFA,BET,H,Z,EPS,GAM,TETA,
+     * R1,R2,R3,R4,R5,R6,R8,C3,ALA,ALA1,ALA2,
+     * ALM7,MU,IS,NE,NE5,NE5IS,IQ,ISIGM,IN,IL,
+     * IG,NU,ISIGM1,ISIGM2,KK,UD,KSU1,gamma,r0)
+      IRA=NE+2
+      DO 4 IW1=1,IRA
+    4 R2(IW1)=R5(IW1)
+      MSK= NE5    *(I-1)
+      DO 302 K8=1,MASHA
+  302 R5(K8)=R8(K8+MSK)
+      IF(SIGN(1d0,R5(1)-ALM3(I)).EQ.
+     *SIGN(1d0,R2(1)-R5(1))) GOTO 202
+      C=(R2(1)-R5(1))/(R2(1)-2.*R5(1)+ALM3(I))
+      GOTO 201
+  202 C=0.
+201     IF(ABS(C).GT.0.99) C=C*0.99
+      R2(1)=C*R5(1)+(1.-C)*R2(1)
+      ALM3(I)=R5(1)
+      R5(1)=R2(1)
+      DO 5 IW1=1,NE
+    5 R5(IW1+2)=C*R5(IW1+2)+(1.-C)*R2(IW1+2)
+      R5(2)=0.
+      C=0.
+      D=0.
+      DO 6 IW1=1,NE
+      P=D
+      D=C
+      C=(R5(IW1+2)   *R1(IW1+2)/
+     *(ALFA*R1(IW1+2)+BET))**2
+      A1=5.*C
+      B=8.*D
+      A1=(A1+B-P)*H/12.
+    6 R5(2)=R5(2)+A1
+      MSK= NE5  *(I-1)
+      DO 303 K8=1,MASHA
+  303 R8(K8+MSK)=R5(K8)
+  142 TETMAX=ABS(TETA(I))+TETMAX
+    3 CONTINUE
+      NKL=0
+      IF((TETMAX/DFLOAT(IS)).GT.EPS) GOTO 13
+      DO 7 I=1,IS
+      ISIGM=I
+      CALL MAIN1(ALFA,BET,H,Z,EPS,GAM,TETA,
+     * R1,R2,R3,R4,R5,R6,R8,C3,ALA,ALA1,ALA2,
+     * ALM7,MU,IS,NE,NE5,NE5IS,IQ,ISIGM,IN,IL,
+     * IG,NU,ISIGM1,ISIGM2,KK,UD,KSU1,gamma,r0)
+      MSK= NE5   *(I-1)
+      DO 304 K8=1,MASHA
+  304 R8(K8+MSK)=R5(K8)
+      NKL=1
+      IF(ABS(TETA(I)).GT.EPS) GOTO 13
+    7 CONTINUE
+      IF(ABS(Z-ZI).GT.0.00001) RETURN
+      SOST=1.
+      XN1=Z
+      QQ1=ALFA
+      QQ2=RO1
+      QQ3=0.0
+      QQ4=QQ3
+      QQ5=QQ3
+      QQ6=QQ3
+      QQ7=DFLOAT(NE)
+      QQ8=DFLOAT(IS)
+      WRITE(1 ) SOST,R,QQ7,H,BET,EPS,Z,XN1,
+     * QQ8,QQ1,QQ2,QQ3,QQ4,QQ5,QQ6
+      ETOT=0.0
+      DO 8 I=1,IS
+      IA=I
+      MSK= NE5  *(I-1)
+      DO 305 K8=1,MASHA
+  305 R5(K8)=R8(K8+MSK)
+      DO 9 IW=1,NE
+    9 R5(IW+2)=R5(IW+2)/SQRT(R5(2))
+      R5(NE+3)=R5(2)
+      R5(2)=DFLOAT(  IL(I))
+      R5(1)=-R5(1)
+      IZCH=7
+      IA=I
+      MSK= NE5  *(I-1)
+      DO 306 K8=1,NE5
+306    R8(K8+MSK)=R5(K8)
+      XII=DFLOAT(IN(I))
+      PHS=0.0
+      IA=I+IZON-1
+      CALL  TAPE(R5,XII,PHS,IZCH,NE,IQ(I),1)
+      DO 1984 KK1=1,NE
+1984  R2(KK1+1)=R1(KK1+2)*(R5(KK1+2)/
+     *(ALFA*R1(KK1+2)+BET))**2
+      CALL SIMPS(ALFA,BET,H,RR1,R1,R1,R1,R2,NE,1)
+      ETOT=ETOT+1./3.*DFLOAT(IQ(I))*
+     *(R5(1)-2.*Z*RR1)
+8     CONTINUE
+      REWIND 19
+      write(66, 1985) ETOT
+1985  FORMAT(//1X,'Total atomic energy=',E15.8,
+     * '  Pida'//)
+      RETURN
+      END

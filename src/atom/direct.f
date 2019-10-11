@@ -1,0 +1,65 @@
+      SUBROUTINE DIRECT(ALFA,BET,H,GAM,R1,R5,
+     *R6,R8,NE,NE5,NE5IS,IS,IQ,IG,NU,
+     *ISIGM1,ISIGM2,KK,ISIGM,KSU)
+C    BõóàCãEHàE  Y(R)    èO  îOPMìãE  (4).
+      INTEGER IQ(IS),ISIGM1(NU),KK(NU),ISIGM2(NU)
+       REAL*8  ALFA,BET,H, GAM(NU ),  B,
+     *  U,V,GAMA,R8(NE5IS), R1(NE5),
+     *R6(NE5 ),R5(NE5),R52
+
+c$$$      write(*,*) ' DIRECT'
+
+      DO 21 J=1,IS
+      ISIGMT=J
+      IQ1=IQ(J)
+      IF(IQ1.EQ.1.AND.J.EQ.ISIGM) GOTO 21
+      MMM=(J -1)*NE5
+      DO 2001 I100=1,NE5
+2001  R5(I100)=R8(MMM+I100)
+      B=DFLOAT(IQ1)
+      IF(KSU.NE.3.AND.J.EQ.ISIGM) B=B-1.
+      B=B/R5(2)
+      DO 2 IW=1,NE
+      R6(IW+1)=R6(IW+1)+B*R5(IW+2)**2
+    2 CONTINUE
+21    CONTINUE
+      IA=0
+      CALL POTATOM(ALFA,BET,H,R1,R6,NE,IA,NE5)
+      DO 3 IW=1,NE
+      R6(IW)=R6(IW+1)
+    3 CONTINUE
+      IRA=IG+1
+      IF (IRA.GT.NU) GOTO 302
+      DO 4 J=IRA,NU
+      IF(ISIGM.EQ.ISIGM1(J)) GOTO 10
+      IF(ISIGM.EQ.ISIGM2(J)) GOTO 12
+      IA=0
+      GOTO 11
+   12 IA=ISIGM1(J)
+      GOTO 11
+   10 IA=ISIGM2(J)
+   11 CONTINUE
+      IF(IA.EQ.0) GOTO 111
+      MMM=(IA-1)*NE5
+      DO 2002 I100=1,NE5
+2002  R5(I100)=R8(MMM+I100)
+      R52=R5(2)
+      DO 5 IW=1,NE
+      R5(IW+1)=R5(IW+2)**2
+    5 CONTINUE
+      IW=KK(J)
+      CALL POTATOM(ALFA,BET,H,R1,R5,NE,IW,NE5)
+      IF(ISIGM.NE.IA) GOTO 13
+      GAMA=2.*GAM(J)/(R52*DFLOAT(IQ(ISIGM)))
+      GOTO 14
+   13 GAMA=GAM(J)/(R52*DFLOAT(IQ(ISIGM)))
+   14 CONTINUE
+      DO 6 IW=1,NE
+      R6(IW)=R6(IW)-GAMA*R5(IW+1)
+    6 CONTINUE
+  111 CONTINUE
+    4 CONTINUE
+  302 CONTINUE
+      RETURN
+      END
+

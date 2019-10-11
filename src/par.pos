@@ -1,0 +1,12 @@
+* igz is the size of the Gauss mesh for integral over z
+* igp2 is the size of the Gauss mesh for integral over p
+	parameter (igzm=100,igpm=200,igp2m=2*igpm)
+c	parameter (igz=36,igp=64,igp2=2*igp)
+
+* ich is the size of the Chebyshev mesh for the integral over p 
+* (ich fixed at 82; in order to change it one must change block data)
+* ipm is the number of points to be used in splining of f(p)
+	parameter (ich=82, ipm = 300)
+
+	parameter (iglp=4400) ! For Ravshan in posHevmat.f and scat.f
+

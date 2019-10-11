@@ -1,0 +1,30 @@
+      SUBROUTINE MATR(AL,BET1,H1,ME,R1,R2,
+     * FUNC,R5,R6,
+     * EN1,FF,MM,K2,F2,L2,M2,LV1,NE5,KF)
+      INTEGER  EN1,FF,MM,K2,F2,L2,M2,LV1,NE5,KF
+      REAL*8 AL,BET1,H1,ME(FF,MM),R1(NE5),R2(NE5),
+     * FUNC(KF,NE5),R5(NE5),R6(NE5),P
+      DO 1  I=1,FF
+      IS= K2
+      DO 2 II=1,NE5
+2     R2(II)=FUNC(IS,II)
+      IS= I+F2-1
+      DO 3 II=1,NE5
+3     R5(II)=FUNC(IS,II)
+      DO 4 II=1,EN1
+4     R6(II+1)=R5(II+2)*R2(II+2)
+      CALL POTATOM(AL,BET1,H1,R1,R6,EN1,LV1,NE5)
+      IS= L2
+      DO 5 II=1,NE5
+5     R2(II)=FUNC(IS,II)
+      DO 10 J=1,MM
+      IS= J+M2-1
+      DO 6 II=1,NE5
+6     R5(II)=FUNC(IS,II)
+      CALL SIMPS(AL,BET1,H1,P,R1,R2,
+     * R5,R6,EN1,0)
+      ME(I,J)=P
+10    CONTINUE
+1     CONTINUE
+      RETURN
+      END

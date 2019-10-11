@@ -1,0 +1,42 @@
+      SUBROUTINE EXCHAN(ALFA,BET,H,R1,
+     *R2,R4,R5,R6,R8,ALM3,GAM,NE,NE5,ISIGM,
+     *IG,IQ,KK,ISIGM1,ISIGM2)
+c
+      include 'paratom.f'
+c
+      REAL*8 ALFA,BET,H,R1(NE5),R2(NE5),P,R8(nsize*nsizeis),
+     *R4(NE5),R5(NE5),R6(NE5),ALM3(max10),GAM(NSIZEqf),GAMA
+      INTEGER KK(NSIZEqf),ISIGM1(NSIZEqf),ISIGM2(NSIZEqf),IQ(max10)
+c$$$      write(*,*) ' EXCHAN'
+      IF(IG.LT.1) RETURN
+      DO 3 IW=1,IG
+      IF(ISIGM1(IW).EQ.ISIGM) GOTO 81
+      IF(ISIGM2(IW).EQ.ISIGM) GOTO 82
+      IA=0
+      GOTO 83
+81    IA=ISIGM2(IW)
+      GOTO 83
+82    IA=ISIGM1(IW)
+83    CONTINUE
+      IF(IA.EQ. 0 ) GOTO 110
+      MMM=(IA    -1)*NE5
+      DO 2001 I100=1,NE5
+2001  R5(I100)=R8(MMM+I100)
+      DO 50 JJ=1,NE
+      R6(JJ+1)=R5(JJ+2)*R2(JJ+2)
+   50 CONTINUE
+      CALL POTATOM(ALFA,BET,H,R1,R6,NE,KK(IW),NE5)
+      GAMA=2.*GAM(IW)/(R5(2)*DFLOAT(IQ(ISIGM)))
+      DO 51 JJ=1,NE
+      R4(JJ+1)=R4(JJ+1)+(GAMA*R6(JJ+1)+ALM3(IA)/
+     *R5(2)*R1(JJ+2))*R5(JJ+2)
+   51 CONTINUE
+  110 CONTINUE
+    3 CONTINUE
+      P=H*H /12.
+      DO 305 J=1,NE
+      R4(J+1)=P*R1(J+2)*R4(J+1)/(ALFA*R1(J+2)+BET)**2
+  305 CONTINUE
+      RETURN
+      END
+

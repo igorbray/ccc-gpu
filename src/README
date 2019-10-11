@@ -1,0 +1,21 @@
+setenv MODULEPATH /group/gpuhack01/.usr/local/modulefiles:$MODULEPATH
+module load intel
+module load pgi
+module load mpich
+module load forge
+setenv LD_LIBRARY_PATH /group/gpuhack01/acc/trunk:$LD_LIBRARY_PATH
+alloc.f90 - has the OpenACC code
+#Compile code using pgfortran for a GPU
+pgfortran -shared -fPIC -ta=tesla:cc60 -Minfo=all -acc alloc.f90 -o libcuDOT.so
+
+#Compile for a CPU
+pgfortran -shared -fPIC alloc.f90 -o libcuDOT_CPU.so
+
+#Run on a GPU:
+./clean.sh
+./cccd > results_gpu.log
+
+
+#Run on a CPU:
+LD_PRELOAD=libcuDOT_CPU.so ./cccd > results_cpu.log
+
