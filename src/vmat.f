@@ -647,7 +647,7 @@ c
        
 c         
 C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
-         if (lt.eq.0.and..not.pos.and.ni.eq.nf) then
+         if (lt.eq.0.and..not.pos.and.nchi.eq.nchf) then
 cCCC  if (lt.eq.0) then
 
 c$$$            if (alkali) then
