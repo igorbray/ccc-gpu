@@ -353,7 +353,7 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       do while (swapped)
          swapped = .false.
          do n = 2, nchpmax
-            if (states(n-1)%energy.gt.states(n)%energy*0.999) then
+            if (states(n-1)%energy.gt.states(n)%energy*0.99999) then
                swapped = .true.
                staten = states(n-1)
                states(n-1) = states(n)

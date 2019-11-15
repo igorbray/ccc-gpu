@@ -34,6 +34,7 @@ else
 endif
 
 a := $(a) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
+aO1 := $(aO1) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
 
 OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o)
 
@@ -51,9 +52,9 @@ export OBJDIR
 .PHONY: helium/$(OBJDIR)/helib.a  atom/$(OBJDIR)/hflib.a ccc 
 ccc:  atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $(OBJS)
       ifeq ($(PRECISION),double)
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccd
+	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccd.${HOST}
       else
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccs
+	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccs.${HOST}
       endif
 
 cco: $e tmatcco.o de.o atom/hflib.a helium/helib.a
