@@ -331,8 +331,6 @@ C  we have positronium-positronium matrix element, hence a factor of 2
 C  overall.
 c$$$            const = const * (1-(-1)**lt)
               const = 2.0 * const * (1-(-1)**lt) * (zasym+1.0) !latter for He+
-!               const = 2.0 * const * (zasym+1.0)
-!               write(*,*) 'CONST0',const,lt,zasym
 c$$$               const = - const !Rav's derivation, but not Alisher's
                do i = i1, i2
                   xin(i-i1+1) = rmesh(i,1)
@@ -349,7 +347,6 @@ c$$$            nnn = nnn + 1
                   if (xout(i-i1+1).gt.xin(i2-i1+1))
      >                 yout(i-i1+1) = yin(i2-i1+1) 
                   temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
-!                  write(*,*) 'TEMP1',i,temp(i)
                   
 c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
 c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1),
@@ -397,7 +394,6 @@ C                    res = ubb_res(j,i,lt)
 C     interpolation: minus: alisher uses (1-(-1)**lt):
                      res = -ubbb(j)/max(rho,r/2.)
                      temp(i) = temp(i)+res*fun(j)
-!                    write(*,*) 'TEMP2',i,temp(i)
                   end do        ! j
                end do           ! i
             end if              ! alkali or hydrogen
@@ -406,7 +402,6 @@ C  Multiply by -1 for positron scattering as then NZE = 1, for non
 C  pos-pos
 C  channels
             const = - nze * const
-!            write(*,*) 'CONST',const
          endif ! pos
 
 
@@ -441,7 +436,6 @@ C  As both CHII and CHIF contain the integration weights, we divide TEMP by
 C  them.
       do i = mini, maxi
          temp3(i,nchf) = rnorm * temp3(i,nchf) / rmesh(i,3)
-!         write(*,*) 'TEMP3',i,nchf,temp3(i,nchf),rnorm,rmesh(i,3)
       end do
       mintemp3(nchf) = mini
       maxtemp3(nchf) = maxi
@@ -457,7 +451,6 @@ C  them.
      >     nchan,vmati,childim,ngpus,nchii,second,pos)
 
 
-!      write(*,*) 'VMATI',nchi,vmati(1,1,nchi)
 
 ! !$acc wait
 ! !$omp critical
@@ -485,9 +478,7 @@ C  tail integrals still need to be incorporated
                enddo
             enddo
          enddo
-        write(*,*) 'VMATT0',nchi,vmatt(1,1,0,nchi)
         else
-               write(*,*) 'VMATT1',nchi,vmatt(1,1,0,nchi)
                do ns = 0, nsmax
                 do ki = 1, nqmi
                   do kf = 1, nqmf
@@ -516,7 +507,6 @@ C  tail integrals still need to be incorporated
       end do
 !!$omp end parallel do
 
-      write(*,*) 'VMATT2',nchi,vmatt(1,1,0,nchi)
 
       call clock(s2)
       td = td + s2 - s1
@@ -537,7 +527,6 @@ C Define exchange terms if IFIRST = 1
 !     >         second,npk,vmatt,nchtop)
 !            call makev3e(chil(:,:,1),psii,maxpsii,lia,nchi,psi_t,
 
-            write(*,*) 'VMATT3',nchi,vmatt(1,1,0,nchi)
 
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil(npk(nchi),1),nqmi,
@@ -566,13 +555,11 @@ C  Define energy dependent exchange terms
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
      >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
      >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
-         write(*,*) 'VMATT4',nchi,vmatt(1,1,0,nchi)
          call clock(s4)
          te2 = te2 + s4 - s3
 C  End of exchange
       end if            
       end do
-      write(*,*) 'VMATT5',nchi,vmatt(1,1,0,nchi) 
       do 200 nchf = nchi, nchtop 
          nqmf = npk(nchf+1) - npk(nchf)
             if (npk(2)-npk(1).eq.1.or.
