@@ -52,9 +52,9 @@ export OBJDIR
 .PHONY: helium/$(OBJDIR)/helib.a  atom/$(OBJDIR)/hflib.a ccc 
 ccc:  atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $(OBJS)
       ifeq ($(PRECISION),double)
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccd.${HOST}
+	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccd
       else
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccs.${HOST}
+	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccs
       endif
 
 cco: $e tmatcco.o de.o atom/hflib.a helium/helib.a
@@ -112,7 +112,7 @@ $(OBJDIR)/gpuvdirect.o : gpuvdirect.f
 
 $(OBJDIR)/first.o : first.f
 #	pgf90 $(pga)  -Mnoinline -O2 -Minfo=accel -mcmodel=medium -c  first.f -o $@
-	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -c  first.f -o $@
+	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -c  first.f -o $@
 
 $(OBJDIR)/form.o : form.f
 #	pgf90 $(pga)  -mp -O2 -Mnoinline -Minfo=accel -acc -ta=tesla:cc35,cc60,nordc -mcmodel=medium -c  form.f -o $@

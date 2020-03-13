@@ -5,9 +5,11 @@
      >   vmatp,nsmax,
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid,pos)
+     >   vni,vnf,vnd,nodes,myid,alkali)
       use openacc
-
+      use ubb_module
+      use apar
+      use chil_module
 C      use vmat_module
       include 'par.f'
 
@@ -41,14 +43,15 @@ C      common/meshrr/ rmesh(maxr,3)
       common /radpot/ ucentr(maxr)
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut,regcut,expcut,fast,match,analyticd,packed
-      logical fast,second,posi,posf,pos,positron,match,analyticd,packed
+      logical fast,second,posi,posf,positron,match,analyticd,packed
+      logical alkali
       dimension psii(maxr), psif(maxr), ovlp(kmax),temp(maxr),fun(maxr),
      >   psislow(maxr), psifast(maxr), slowery(ncmax)
      >   ,vmatt(kmax,kmax,0:1,nchtop)
 
       dimension psi_t(maxr,nchtop)
       dimension maxpsi_t(nchtop),la_t(nchtop),e_t(nchtop),
-     >          na_t(nchtop),l_t(nchtop)
+     >          na_t(nchtop),l_t(nchtop),npos_t(nchtop)
 
 C  Note that ve2eon will not be defined correctly due to the declaration
 C  in makev31d. However, ve2eon is not used.
@@ -59,9 +62,13 @@ C  in makev31d. However, ve2eon is not used.
 C      allocatable :: chitemp(:,:), temp3(:,:),vmati(:,:,:)
 C      allocatable :: chitemp(:,:)
       real,allocatable :: vmati(:,:,:),temp3(:,:)!,vmatt(:,:,:,:)
-      data pi/3.14159265358979/
+!      data pi/3.14159265358979/
       data uplane/maxr*0.0/
  
+      real*8, dimension (meshr) :: ubbb ! ANDREY
+      real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
+      logical, dimension (nchtop) :: pos
+
       integer ngpus,ntpg,nnt,gpunum
       integer childim
       integer, external :: omp_get_max_threads
@@ -145,6 +152,8 @@ CC GPU ONLY
       do nchf = nchii, nchtop
          call getchinfo (nchf,nt,lg, psi_t(1,nchf), maxpsi_t(nchf), 
      >                 e_t(nchf), la_t(nchf), na_t(nchf),l_t(nchf))
+         npos_t(nchf)=0
+         pos(nchf)=positron(na_t(nchf),la_t(nchf),npos_t(nchf)) 
       end do
 !$omp end parallel do
 
@@ -166,9 +175,10 @@ CC GPU ONLY
 !$omp& shared(ve2ee,childim,ngpus,rpow1,rpow2,ni,pos,u,minrp,nf)
 !$omp& shared(maxrp,vdon,nze)
 !$omp& shared(nchan,maxr,kmax,formcut,gamma,pol)
-!$omp$ shared(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,nnt)
+!$omp$ shared(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,nnt,npos_t)
+!$omp$ shared(zasym,alkali,ubb_max3,ubb_max1,arho)
 !$omp& private(temp3,mintemp3,maxtemp3)
-!$omp& private(vmatt,temp,vmati)
+!$omp& private(vmatt,temp,vmati,lm)
 
       do nchi = nchii, nchif
          gpunum=mod(omp_get_thread_num(),ngpus)
@@ -215,6 +225,7 @@ C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(lamax,ltmax,pos,ni,nf)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
+C$OMP& SHARED(zasym,alkali,maxr,ubb_max3,ubb_max1,arho)
         do nchf = nchi, nchtop
 !            call getchinfo (nchf,nt,lg, psif, maxpsif, ef, lfa, nfa,lf)
             ef=e_t(nchf)
@@ -222,9 +233,11 @@ C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
             nfa=na_t(nchf)
             lf=l_t(nchf)
 
-            nposf=0
-            posf = positron(nfa,lfa,nposf)
+!            nposf=0
+!            posf = positron(nfa,lfa,nposf)
             nqmf = npk(nchf+1) - npk(nchf)
+
+            if(pos(nchf).neqv.pos(nchi)) cycle
 
             if (lf.gt.ldw) then
 C  UF has to be added to the kinetic energy operator K in order
@@ -302,9 +315,100 @@ c$$$            stop 'CJ6 and W do not agree in D'
      >      minrp(lt),maxrp(lt),meshr,temp,i1,i2)
 
 C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
-         if (lt.eq.0.and..not.pos.and.ni.eq.nf) then
-            call nuclear(fun,.not.pos,minfun,maxfun,i2,u,nznuc,temp)
+         if (lt.eq.0.and..not.pos(nchf).and.ni.eq.nf) then
+          call nuclear(fun,.not.pos(nchf),minfun,maxfun,i2,u,nznuc,temp)
          endif
+
+       if(pos(nchf)) then 
+!         if(0) then
+C     ANDREY: Hydrogen: ssalling + interpolation:
+            if (.not.alkali) then
+C  The factor of two below is the reduced mass. We are working with
+C  matrix
+C  elements whose channels are multiplied by sqrt of the reduced mass.
+C  Here
+C  we have positronium-positronium matrix element, hence a factor of 2
+C  overall.
+c$$$            const = const * (1-(-1)**lt)
+              const = 2.0 * const * (1-(-1)**lt) * (zasym+1.0) !latter for He+
+!               const = 2.0 * const * (zasym+1.0)
+!               write(*,*) 'CONST0',const,lt,zasym
+c$$$               const = - const !Rav's derivation, but not Alisher's
+               do i = i1, i2
+                  xin(i-i1+1) = rmesh(i,1)
+                  yin(i-i1+1) = temp(i) * xin(i-i1+1) ** (lt+1)
+                  xout(i-i1+1) = rmesh(i,1) * 2d0
+               enddo
+               if (i2-i1+1.gt.maxr) then
+                  print*,'I2,I1,LT:',i2,i1,lt
+                  stop 'problem in call to intrpl'
+               endif
+               call intrpl(i2-i1+1,xin,yin,i2-i1+1,xout,yout)
+c$$$            nnn = nnn + 1
+               do i = i1, i2
+                  if (xout(i-i1+1).gt.xin(i2-i1+1))
+     >                 yout(i-i1+1) = yin(i2-i1+1) 
+                  temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
+!                  write(*,*) 'TEMP1',i,temp(i)
+                  
+c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
+c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1),
+c$$$     >            xin(i-i1+1), yin(i-i1+1) / xin(i-i1+1)**(lt+1), i
+               enddo
+            else ! alkali
+C     ANDREY: pos-alkali case: radial integrals with Ubb
+               if (lt.gt.ubb_max3) stop
+     $              'stopped: vmat: Ubb with larger lt are needed'
+               const=2d0*const
+C              some constants from get_ubb:
+               rlgmin = log10(rmesh(1,1))
+               rlgmax = log10(rmesh(meshr,1))
+               drlg = (rlgmax-rlgmin)/real(ubb_max1-1)
+
+c---- find irmin and irmax needed for interpolation
+               irmin = 1;
+               rmin = rmesh(minfun, 1);
+               ir = 2;
+               do while (arho(ir).lt.rmin)
+                  ir = ir+1
+               end do
+               irmin = ir-1
+C     ----------------------------------------------
+               rmax = rmesh(maxfun, 1)
+               irmax = ubb_max1; ir = irmax;
+               do while (arho(ir).gt.rmax)
+                  ir = ir-1
+               end do
+               irmax = ir+1
+               maxir = irmax-irmin+1
+C---------------------------------------------------
+
+               do i = 1, i2
+                  rho = rmesh(i,1);
+                  call get_ubb(minfun,maxfun,irmin,irmax,maxir,drlg,lt,
+     $                 rho,ubbb)
+                  temp(i) = 0.0
+                  do j = minfun, maxfun
+                     r = rmesh(j,1)
+c     explicit integration of Ubb (Eq. 23):
+C                    call Ubb0(lt, r, rho, res0, res)
+C     Ubb integrals computed outside:
+C                    res = ubb_res(j,i,lt)
+C     interpolation: minus: alisher uses (1-(-1)**lt):
+                     res = -ubbb(j)/max(rho,r/2.)
+                     temp(i) = temp(i)+res*fun(j)
+!                    write(*,*) 'TEMP2',i,temp(i)
+                  end do        ! j
+               end do           ! i
+            end if              ! alkali or hydrogen
+         else                   ! pos
+C  Multiply by -1 for positron scattering as then NZE = 1, for non
+C  pos-pos
+C  channels
+            const = - nze * const
+!            write(*,*) 'CONST',const
+         endif ! pos
+
 
          do i = i1, i2
             temp3(i,nchf) = const * temp(i) + temp3(i,nchf)
@@ -337,6 +441,7 @@ C  As both CHII and CHIF contain the integration weights, we divide TEMP by
 C  them.
       do i = mini, maxi
          temp3(i,nchf) = rnorm * temp3(i,nchf) / rmesh(i,3)
+!         write(*,*) 'TEMP3',i,nchf,temp3(i,nchf),rnorm,rmesh(i,3)
       end do
       mintemp3(nchf) = mini
       maxtemp3(nchf) = maxi
@@ -345,19 +450,24 @@ C  them.
 
       mini1 = mintemp3(nchtop)
 
+! create an array of pos to have all posf and 
+
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,vmati,childim,ngpus,nchii,second)
+     >     nchan,vmati,childim,ngpus,nchii,second,pos)
 
+
+!      write(*,*) 'VMATI',nchi,vmati(1,1,nchi)
 
 ! !$acc wait
 ! !$omp critical
 
 !!$omp parallel do num_threads(2) schedule(dynamic)
       do nchf = nchi, nchtop
+        if(pos(nchi).eqv.pos(nchf)) then
          vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmati(1,1,nchf)
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
-      end do
+!      end do
 !!$omp end parallel do
 
 C  Define the direct on shell V matrix used for analytic Born subtraction
@@ -366,7 +476,7 @@ C  tail integrals still need to be incorporated
 !!$omp parallel do num_threads(2) schedule(dynamic)
 !!$omp& shared(vdon,nchi,nchtop,vmatt,vmati,npk,nsmax,nqmi)
 !!$omp& private(ns,ki,kf,nqmf)
-      do nchf=nchi,nchtop
+!      do nchf=nchi,nchtop
          nqmf = npk(nchf+1) - npk(nchf)
          do ns = 0, nsmax
             do ki = 1, nqmi
@@ -375,8 +485,38 @@ C  tail integrals still need to be incorporated
                enddo
             enddo
          enddo
+        write(*,*) 'VMATT0',nchi,vmatt(1,1,0,nchi)
+        else
+               write(*,*) 'VMATT1',nchi,vmatt(1,1,0,nchi)
+               do ns = 0, nsmax
+                do ki = 1, nqmi
+                  do kf = 1, nqmf
+                    vmatt(kf,ki,ns,nchf) = 0.0
+                  enddo
+                enddo
+               enddo
+               ef=e_t(nchf)
+               lfa=la_t(nchf)
+               nfa=na_t(nchf)
+               lf=l_t(nchf)
+               nposf=npos_t(nchf)
+               lm=min0(Lf+lfa+lia,Li+lfa+lia) ! additional argument
+               if (pos(nchf)) then
+                call posvmat(nqmi,lia,li,nia,gk(1,nchi),
+     >               npk(nchtop+1)-1,nchi,nqmf,lfa,lf,nposf,nfa,
+     >               gk(1,nchf),nchf,lg,npk,etot,vmatt(1,1,0,nchf),lm)
+               else
+                call posvmat(nqmf,lfa,lf,nfa,gk(1,nchf),
+     >               npk(nchtop+1)-1,nchf,nqmi,lia,li,nposi,nia,
+     >               gk(1,nchi),nchi,lg,npk,etot,vmatt(1,1,0,nchf),lm)
+
+!posvmat
+               endif
+        endif
       end do
 !!$omp end parallel do
+
+      write(*,*) 'VMATT2',nchi,vmatt(1,1,0,nchi)
 
       call clock(s2)
       td = td + s2 - s1
@@ -396,6 +536,8 @@ C Define exchange terms if IFIRST = 1
 !     >         chil(1,npk(nchf),1),minchil(npk(nchf),1),nqmf,lg,rnorm,
 !     >         second,npk,vmatt,nchtop)
 !            call makev3e(chil(:,:,1),psii,maxpsii,lia,nchi,psi_t,
+
+            write(*,*) 'VMATT3',nchi,vmatt(1,1,0,nchi)
 
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil(npk(nchi),1),nqmi,
@@ -424,12 +566,13 @@ C  Define energy dependent exchange terms
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
      >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
      >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
+         write(*,*) 'VMATT4',nchi,vmatt(1,1,0,nchi)
          call clock(s4)
          te2 = te2 + s4 - s3
 C  End of exchange
       end if            
       end do
-
+      write(*,*) 'VMATT5',nchi,vmatt(1,1,0,nchi) 
       do 200 nchf = nchi, nchtop 
          nqmf = npk(nchf+1) - npk(nchf)
             if (npk(2)-npk(1).eq.1.or.
