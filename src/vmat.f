@@ -1612,7 +1612,7 @@ cCCC      print*,'Number of tail integral calculations:',it
       common /charchan/ chan
       common /chanen/ enchan(knm)
 
-      data lprint,pi,ucentr/-1,3.1415927,maxr*0.0/
+      data lprint,pi,ucentr/0,3.1415927,maxr*0.0/
 
 C     Added by alex
 c$$$      logical analytic
@@ -1644,7 +1644,6 @@ C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
 C  The following is a loop of the form REPEAT ... UNTIL(condition)
  10   e = etot - ea ! Ry
       EeV = e * 13.6058
-      write(*,*) "EeV",EeV,e,etot,ea
       posfac = 1.0
       if (positron(na,la,npos)) posfac = 2.0
       e = e * posfac
@@ -1653,12 +1652,13 @@ C  The following is a loop of the form REPEAT ... UNTIL(condition)
       else
          rk = - sqrt(-e)
       end if
-      analytic = nanalytic.le.-2.and.e.ge.aenergyswitch
-      print'(a3, " channel energy (eV):",1p,e15.6)', chan(ntmp), EeV
+      analytic = nanalytic.le.-2.and.e.ge.aenergyswitch !aenergyswitch is in modules.f
+      print'(a3, " channel energy (eV):",1p,2e15.6)', chan(ntmp), EeV,rk
 c$$$      if (analytic.and.EeV.ge.0.0.and.EeV.lt.1e-3) then !+ve energies for extract_J
 C analytic tail integrals have not been implemented for zero energy
 c$$$      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0).and.itail.ge.0)then
-      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0)) then !.and.nch.gt.1)then         
+c$$$      if (analytic.and.abs(EeV).lt.1e-3*(2.0*li+1.0).and.ea.lt.0.0) then !.and.nch.gt.1)then         
+      if (analytic.and.ea.lt.0.0.and.-e/ea.lt.1e-4) then !.and.nch.gt.1)then    
          print'("CAUTION: for NCH =",i3," L =",i2,
      >   " setting on-shell E (eV) to zero:",1p,e10.2)',nch,li,EeV
          rk = 0d0
@@ -1698,6 +1698,7 @@ c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
       if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
+      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
       usetrapz = nkor(4,lset,ispeed).lt.0
 c$$$      if (width.lt.0.0) then
 c$$$         dstart = 0d0
@@ -1730,9 +1731,7 @@ c$$$      end if
       mint = 3
       nk(mint) = nendk
       gridk(:) = 1.0
-      write(*,*) 'MINT',enk,width,endk2
-!mint,sk,nk,rk,npoints,width,midnp,enk,nendk,
-!     >           endp,npoints2,endk2
+
 C Define the intervals and the number of points in each interval
 c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       call makeints(mint,sk,nk,rk,npoints,width,
@@ -1863,8 +1862,7 @@ c$$$            endif
                if (gridk(i).eq.0.0) weightk(i) = 0.0
                ecmn = gridk(i) ** 2
                eta = 0.0
-               if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1
-     >             .and.lg.le.lprint) then
+               if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1) then
                   call regular(la,ecmn,eta,ucentr,cntfug(1,la),-1,
      >               rmesh(1,1),meshr,jdouble,njdouble,regcut,expcut,
      >               reg,jstart,jstop,phase,sigc)
@@ -1888,7 +1886,7 @@ c$$$            endif
       end do 
 C  Here we have the last interval
       nt=nk(mint)
-      if (nt.ge.0) then
+      if (nt.gt.0) then
          if (dstop.lt.rk) then
             print*,'The last interval must start > than RK',nt,rk,dstop
             stop 'The last interval must start > than RK'
@@ -1902,14 +1900,17 @@ C  Here we have the last interval
          niwf=2*nt
          call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,0,nwf,wf,niwf,iwf,
      >      ier)
-         if (ier.ne.0) print*,'KGRID IER:',ier
+         if (ier.ne.0) then
+            print*,'KGRID IER, nt, dstart, dstop:',ier,
+     >        nt, dstart, dstop
+            error stop "KGRID IER not zero"
+         endif
          do j=nt,1,-1
             jj=nqk-j+1
             gridk(jj)=xx(j)**(1d0/(1d0-p))
             weightk(jj)=ww(j)/(p-1d0)*dble(gridk(jj))**p
             ecmn = gridk(jj) ** 2
-            if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1
-     >         .and.lg.le.lprint) then
+            if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1) then
                eta = 0.0
                call regular(la,ecmn,eta,ucentr,cntfug(1,la),-1,
      >            rmesh,meshr,jdouble,njdouble,regcut,expcut,
@@ -1934,6 +1935,8 @@ c$$$         endif
             print'(''fall off power:'',f5.1,23x,''= '',f7.5)',sk(mint),
      >         sumi
          endif 
+         print*,'last n, k:',jj,gridk(jj)
+
 c$$$         if (abs(sumi - 1.0).gt.1e-2.and.la.eq.li) nbad = nbad + 1
          if (abs(sumi - 1.0).gt.1e-2) nbad = nbad + 1
       end if
@@ -1958,7 +1961,7 @@ C  Check that the integration rule will handle the principle value singularity
             end do
             j=mint-1
             tsum=0.0
-            do while (sk(j).gt.rk+0.01.and.j.ge.1)
+            do while (j.ge.1.and.sk(j).gt.rk+0.01)
                tsum = - 2.0 * acoth(sk(j)/rk) / rk
                j=j-1
             end do
@@ -1972,8 +1975,8 @@ C  Check that the integration rule will handle the principle value singularity
             sum = 0.0
          endif 
          if (lg.le.lprint)
-     >      print '(''State, NCH, NST, NA, LA, L, K, EA:'',a4,3i3,
-     >      2i2,1p,2e13.4)',chan(ntmp),nch,ntmp,na,la,li,rk,ea
+     >      print '(''State, NCH, NST, NA, LA, L, K, EA:'',a4,2i4,
+     >      3i3,1p,2e13.4)',chan(ntmp),nch,ntmp,na,la,li,rk,ea
       else
          if (nqm.gt.1) then
             sum = 0.0
@@ -1984,10 +1987,10 @@ C  Check that the integration rule will handle the principle value singularity
      >         atan(sk(2)/sqrt(-e)) / sum, sum
          endif 
          if (lg.le.lprint)
-     >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,3i3,2i2,
+     >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,2i4,3i3,
      >      1p,e13.4,''    closed'')',chan(ntmp),nch,ntmp,na,la,li,e
       end if 
-      if (nqm.le.0.and.lg.le.lprint.and.ifirst.ne.0.and.hlike
+      if (nqm.le.0.and.lg.le.1.and.ifirst.ne.0.and.hlike
      >   .and.theta.ne.0.0.and.nze.eq.-1.and.nodes.eq.1) then
          nchp = 1
          call getchinfo (nchp, ntm, lg, psin, mpsn, eat, lat,nt,lit)
@@ -2006,14 +2009,14 @@ c$$$               call getchnl(chan(nchp),n,l,nc)
             if (lat.eq.li) then
                sumi = 0.0
                eta = 0.0
-c$$$C$doacross LOCAL(ecmn,jstart,jstop,tmp,reg,phase,sigc,i)
-c$$$C$& SHARE(sumi,pi,mpsn,ntm,la,eta,weightk,rmesh,jdouble)
-c$$$C$& SHARE(njdouble,regcut,expcut,cntfug,ucentr)
-c$$$C$& SHARE(gridk,psin,lat,meshr,tmpk) 
-c$$$C$PAR DOALL PRIVATE(ecmn,jstart,jstop,tmp,reg,phase,sigc,i)
-c$$$C$PAR& SHARED(sumi,pi,mpsn,ntm,la,eta,weightk,rmesh,jdouble)
-c$$$C$PAR& SHARED(njdouble,regcut,expcut,cntfug,ucentr)
-c$$$C$PAR& SHARED(gridk,psin,lat,meshr,tmpk) SCHEDTYPE(SELF(1))
+C$doacross LOCAL(ecmn,jstart,jstop,tmp,reg,phase,sigc,i)
+C$& SHARE(sumi,pi,mpsn,ntm,la,eta,weightk,rmesh,jdouble)
+C$& SHARE(njdouble,regcut,expcut,cntfug,ucentr)
+C$& SHARE(gridk,psin,lat,meshr,tmpk) 
+C$PAR DOALL PRIVATE(ecmn,jstart,jstop,tmp,reg,phase,sigc,i)
+C$PAR& SHARED(sumi,pi,mpsn,ntm,la,eta,weightk,rmesh,jdouble)
+C$PAR& SHARED(njdouble,regcut,expcut,cntfug,ucentr)
+C$PAR& SHARED(gridk,psin,lat,meshr,tmpk) SCHEDTYPE(SELF(1))
 C  The following directives are for the IBM
 C$OMP PARALLEL DO
 C$OMP& SCHEDULE(dynamic)
@@ -2066,7 +2069,7 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
             if (analytic) wk(kp)=cmplx(0.0,imag(wk(kp))) !needed for PHOTO (0.0,0.0)
             if (lg.le.lprint) print*,'On-shell weight:',wk(kp)
             if (abs(real(wk(kp))).gt.1e-2) then
-               stop 'Real part of on shell weight must be < 1e-2'
+               error stop 'Real part of on shell weight must be < 1e-2'
             endif 
          else
             gk(i,nch) = gridk(i-1)
@@ -2124,7 +2127,6 @@ c$$$         endif
       if (lg.le.lprint.and.nodes.eq.1) print*,'NBAD:', nbad
       return
       end
-      
 c-----------------------------------------------------------------
 c***************** Wigner coefficients ***************************
 c-----------------------------------------------------------------

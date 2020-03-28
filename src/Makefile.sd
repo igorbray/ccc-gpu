@@ -9,14 +9,16 @@ SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f f
      newcoefs7.f newcoefs8.f newcoefs9.f newcoefs10.f\
     newcoefs11.f newcoefs12.f newcoefs13.f newcoefs14.f newcoefs15.f \
     newcoefs16.f newcoefs17.f newcoefs18.f newcoefs19.f newcoefs20.f \
-    andrey.f tmatccc.f lithium.f sbt.f redistribute.f alex.f logam.f
+    andrey.f tmatccc.f lithium.f sbt.f redistribute.f alex.f logam.f eremenko.f90
 
 OBJDIR=obj/$(PRECISION)
 
 HOST = $(shell uname -n | cut -c1-4)
 FC := mpifort
-a :=  -Mllvm -mp -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
-aO1 :=  -Mllvm -mp -Mpreprocess -O1 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+#a := -C -g -Ktrap=fp -traceback -Mllvm -mp -Mpreprocess -O0 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+#aO1 := -C -g -Ktrap=fp -traceback -Mllvm -mp -Mpreprocess -O0 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+a := -Mllvm -mp -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+aO1 := -Mllvm -mp -Mpreprocess -O1 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
 anomp := -Mllvm -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium 
 
 l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
@@ -124,8 +126,8 @@ $(OBJDIR)/int.o : int.f par.f paratom.f
 $(OBJDIR):
 	if ( test ! -d $@ ) then ( mkdir -p $@ ) fi
 
-#$(OBJDIR)/%.o : $.f90
-#	$(FC) $a -c $< -o $@ 
+#$(OBJDIR)/eremenko.o : eremenko.f90
+#	$(FC) $a -c eremenko.f90 -o $@
 
 $(OBJDIR)/%.o : %.f par.f par.for 
 	$(FC) $a -c $< -o $@

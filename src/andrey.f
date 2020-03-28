@@ -3207,7 +3207,8 @@ c     series expansion
 c         zn = 1/z**(l+1)
          do j = jmaxC, 0, -1                                
             n = l+2*j+1
-            zn = 1.0d0/z**n
+            zn = exp(-n*log(z)) !1.0d0/z**n
+!            print*,'zn:',zn,exp(-n*log(z))
             Q = Q + c(l,j) * zn
          end do         
 c$$$    end if                    ! z
