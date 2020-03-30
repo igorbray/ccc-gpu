@@ -35,7 +35,7 @@
       parameter (maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
 
-      common/gausp/xgp(igpm),wgp(igpm),igp 
+      common/gausp/xgp(igpm),wgp(igpm),igp
       common /laguercoeffs/ cknd(ncmax,ncmax,0:lnabmax),
      $    rlambda(2,0:lnabmax), npsstates(2,0:lnabmax)      
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
@@ -44,7 +44,7 @@
       common/gausz/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR 
        common/numericalpotential/ numericalv, lstoppos
       logical numericalv
-      dimension fpqb(2*nqmi*igpm+nqmi,0:ltmax)      
+      dimension fpqb(2*nqmi*igpm+nqmi,0:ltmax+lamax)      
       dimension x(ipm),ylam(0:lm,ipm),y2lam(0:lm,ipm)
       real gki,gkf,etot,vmatt
       dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(kmax,kmax,0:1)
@@ -60,6 +60,7 @@
       dimension xp(2*nqmi*igpm+nqmi),wp(2*nqmi*igpm+nqmi)      
       dimension Qlp(nqmi,2*nqmi*igpm),Q0p(nqmi,2*nqmi*igpm)
       dimension f0z(igzm),f1z(igzm,2*nqmi*igpm+nqmi)
+     >   ,f1zC(igzm,2*nqmi*igpm+nqmi)
       
 C     ANDREY: new variables -----------------------------------
 C     dimension dQlp(nqmi,2*nqmi*igpm), dQlp2(nqmi, 2*nqmi*igpm)
@@ -85,9 +86,19 @@ C      real qa
 C     ANDREY: end my variables ---------------------------------
       real tmp
       dimension dQ(nqmi,2*nqmi*igpm)
+      common/cheb/xc(ich),wc(ich)
+      common/funQl/Qlarray(0:ltmax,ich)
+!Charlie Variables for Charged targets
+      real zasym
+      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
+     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
+     >   npbot(0:lamax),nptop(0:lamax)
+      dimension coulm(nqmi,2*nqmi*igpm),subc(nqmi,2*nqmi*igpm),!Cfactor(nqmi),
+     >   fpqbC(2*nqmi*igpm+nqmi,0:ltmax+lamax)
+      dimension res2aC(1:2,1:nqmi),res2bC(1:2,1:nqmi)
 
-      
       if (lg.gt.lstoppos) return
+!      print*,'nchi,nqmi,nchf,nqmf:',nchi,nqmi,nchf,nqmf
 c$$$      if(nqmi.eq.1) return      ! no need to calculate Born separately
      
       !PRINT*,'ENTERED POSVMAT with nqmi=',nqmi
@@ -111,6 +122,7 @@ C            go to 444
       Lla=li                  ! L_positron
       lb=lfa                  ! positronium orb. mom. (OM)
       la=lia                  ! target OM
+c$$$      print*,'1,J,Llb,Lla,lb,la:',J,Llb,Lla,lb,la
       fJ=float(J)
       fLlb=float(Llb)
       fLla=float(Lla)
@@ -119,9 +131,7 @@ C            go to 444
       nb=nposf                ! positronium princ. q. num. (PQN)
       na=nia                  ! atomic PQN
       nbi = nfa               ! used to get w. f. (see gnlp)
-      
       En = dble(etot)/2.0d0   ! total three-particle energy (atomic units)
-
 C     ANDREY: START: -----------------------------------------
       nqmi2 = 2 * nqmi
       lg2 = Log(2.)
@@ -142,6 +152,7 @@ C     ANDREY: END: -------------------------------------------
 * elements in dirVmat.
       
       iphase=lb-la -(Lla-Llb)
+c$$$      print*,'2,J,Llb,Lla,lb,la:',J,Llb,Lla,lb,la
       ic0=(-1)**(iphase/2+J+Llb)*(2*lb+1)*(2*la+1)
       c0=dble(ic0)*hat(Llb)*hat(Lla)*sqrfct(2*lb)*sqrfct(2*la)/pi
 
@@ -149,7 +160,11 @@ C     ANDREY: END: -------------------------------------------
       
       alfa=1.d0
       alfa2=alfa*alfa
+      if (zasym.eq.1.0) then !HeII
+      bohr1=0.5d0
+      else  !H
       bohr1=1.d0
+      endif
       bohr2=2.d0
       Nl1=npsstates(1,la)
       Nl2=npsstates(2,lb); ! print*, 'posvmat, Nl2: ', Nl2
@@ -359,10 +374,11 @@ C     wp(j2)=qq(nqgen)*wgp(igp+1-ji)/xgp(igp+1-ji)/xgp(igp+1-ji)
       end do
 *     composite mesh is ready
       
+
 C     Calculate Q0p(iqa,i) & Qlp(iqa,i) for integration in (44).
 c     Very slow for direct integration so interpolation is used.
 c     dQls are calculated in main.f     
-      xp2 = xp*xp
+      xp2(:) = xp(:)*xp(:)
       if (alkali) then
          iii = 2*nqgen*igp     
          do while (xp(iii).gt.qmax)
@@ -373,11 +389,20 @@ c     dQls are calculated in main.f
       dQl1(:) = 0d0
 
       !print'("posvmat: test: 1",i6)', Lla
-           
+      
       do iqa=1, nqmi         
          qa = gki(iqa)
-!         if(qa.lt.0.0) cycle
-         if(qa.le.0.0) cycle ! not sure what to do for zero on-shell energy
+         if(qa.lt.0.0) cycle
+c$$$         if (qa.eq.0.0) then
+c$$$            print*,'iqa,nqmi,qa:',iqa,nqmi,qa
+c$$$            stop 'cannot have qa=0'
+c$$$         endif
+                           ising=iqa
+                           if(iqa.le.ionsh) ising=iqa-1
+                           if(iqa.eq.1) ising=ionsh
+                        if(gki(1).lt.0.) ising=iqa-1
+                           ising1 = ising - 1
+
          qa2 = qa*qa         
          if (alkali) then       ! ANDREY
             ! if (iqa.eq.1) print'("posvmat: test: 2: iii = ", i6)', iii
@@ -392,15 +417,50 @@ c     dQls are calculated in main.f
                pp = xp(jj)      ! inserted
                call funleg2(Lla,qa,pp,ql2)
                dQl1(jj) = (qa*pp/pi8)*ql2              
-            end do                                    
-         end if                 ! alkali         
-         do i=1,2*nqgen*igp            
-            pp=xp(i)
-            pp2=xp2(i)
-            arg=(pp2+qa2)/(2.0*pp*qa)
-            call funleg(arg,Lla,Q0p(iqa,i),Qlp1)
-            Qlp(iqa,i) = Qlp1 + dQL1(i)                           
-         enddo                  ! i   
+            end do  
+         endif                                  
+         if (abs(zasym).gt.0.d0) then !Charged target (needs checking for alkalis)
+            eta=zasym/qa
+            if ((eta.gt.6.0d0).or.
+     >           (eta.lt.-1000.d0)) then !where subtraction is inaccurate
+               coulm(iqa,:)=0.d0
+               subc(iqa,:)=0.d0
+               res2aC(:,iqa)=0.d0
+               res2bC(:,iqa)=0.d0
+            else
+               do i=1,2*nqgen*igp            
+                  pp=xp(i)
+!Wave function
+                  call cwfnFull(pp,qa,Lla,eta,wavec)
+                  coulm(iqa,i)=wavec
+!Subtracting function
+                  dp=pp-qa
+                  call RegCharge(qa,dp,Lla,eta,subr,sub)
+                  subc(iqa,i)=sub
+        !print*,qa,pp,wavec
+               enddo 
+               call RegCharge(qa,aq(ising1)-qa,Lla,eta,res2a,subiii)
+               call SubCharge(aq(ising1),qa,eta,Lla,res2aa)
+               call RegCharge(qa,aq(ising)-qa,Lla,eta,res2b,subiiii)
+               call SubCharge(aq(ising),qa,eta,Lla,res2bb)
+               res2aC(1,iqa)=res2a
+               res2aC(2,iqa)=res2aa
+               res2bC(1,iqa)=res2b
+               res2bC(2,iqa)=res2bb
+            endif               !Coulomb accuracy
+         else !here for all neutral targets, including alkalis
+            do i=1,2*nqgen*igp         
+c$$$               if (xp(i)*qa.ne.0.0) then
+                  pp=xp(i)
+                  pp2=xp2(i)
+                  arg=(pp2+qa2)/(2.0*pp*qa)
+                  call funleg(arg,Lla,Q0p(iqa,i),Qlp1)
+                  Qlp(iqa,i) = Qlp1 + dQL1(i)
+c$$$               else
+c$$$                  print*,'xp(i)*qa=0.0:',i,xp(i),qa
+c$$$               endif
+            enddo
+         endif
       enddo                     ! iqa
 
 
@@ -631,13 +691,16 @@ c$$$!$omp end critical
 !        WRITE(17,'(5e20.10)') pa2, resH0,resH1,resP0,resP1 
 !        ENDDO
 
+
+
       do iqb=1, nqmf 
          qb=dble(gkf(iqb));
          if(qb.lt.0.0) cycle
          qb2=qb*qb
          qb24En=qb2/4.-En
-         
-         iq=0         
+         !print*,iqb,qb,na,nb
+         iq=0
+
          do iqa=1, nqmi 
             qa=dble(gki(iqa));  
             if(qa.lt.0.0) cycle
@@ -705,8 +768,10 @@ C-----ANDREY: mitroy simplification ---------------------------------
                else           !  use Eq (34)
 *     A general (off-shell, eigen/pseudostate) case           
                   efactor = qb24En+pb2 !qa2/2. - En   !  = qa2/2 + pa2/2 - En = qb2/4 + pb2 - En               
-                  f0z(iz) = efactor*resP1*resH1-resP0*resH1-resP1*resH0
-             
+
+                  f0z(iz) = efactor*resP1*resH1-resP0*resH1-
+     $                 resP1*resH0
+
 !       IF(abs(qa-qb).le.0.001.and.qa.gt.2.and.lb.gt.2) 
 !     >WRITE(17,'(i6,3e20.10)') iz,xgzR(iz), f0z(iz),plR(lb,iz)/wgzR(iz)
 
@@ -719,7 +784,7 @@ C-----ANDREY: end mitroy simplification ------------------------------
             end do            !iz
 
             iq=iq+1
-
+            
             if(iq.eq.1) then
                do i=1,imax
 C                 pp2 = xp(i)*xp(i)
@@ -731,16 +796,22 @@ C                 pp2 = xp(i)*xp(i)
                   do iz=1,igz
                      pb2=bb - qbpp * xgz(iz)
                      pa2 = aa - qbpp2 * xgz(iz)
+!Charlie, Hamiltonian for Charged targets
+                     efactorC=qb24En+pb2
                      pa = sqrt(pa2)
 !     calculates w.f.                                         
                      pb = sqrt(pb2)                        
                      if (numericalv) then                           
                         call gnlp(bohr1,la,pa2,na,res0sk0,sk1) 
                         call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
+
                      else
                         if(interpol.or.alkali) then ! target
                            call getftps(pa, na, la, sk1, res0sk0)                           
 c                          call getftps(pb,nbi,lb,sk2,res0sk0) 
+                        elseif (abs(zasym).gt.0.d0) then ! Charged target
+                        call f0zpart(Nl1,rlam1,bohr1,na,la,na,
+     $                            pa2,sk11,sk1,pc0,pc1)
                         else    ! only for hydrogen
 !                          call f0zpart(Nl1,rlam1,bohr1,na,la,na,
 !     $                            pa2,res0sk0,sk1,pc0,pc1)                  
@@ -757,6 +828,10 @@ c                          call getftps(pb,nbi,lb,sk2,res0sk0)
                            end if ! Nl1                         
                         end if  ! interpol.or.alkali                          
 c     this is for positronium
+                        if (abs(zasym).gt.0.d0) then !Charged target
+                       call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,sk22,
+     $                    sk2, pc0,pc1)
+                        else
                         if(Nl2.eq.0) then
                            call geigen(bohr2,nb,lb, pb2,sk2)
                         else
@@ -768,8 +843,15 @@ c     this is for positronium
                            end do
                            sk2=sk2*bsp2/brap2**(lb+2)
                         end if  ! Nl2
+                        endif !Charge
                      end if     !numericalv                                                
-                     f1z(iz,i)=sk2*sk1 ! (Eq. 42)                     
+                     if (abs(zasym).gt.0.d0) then !Charged target
+                     f1zC(iz,i)=sk2*sk1*efactorC
+     >          -dble(zasym+1d0)*sk2*sk11-sk22*sk1
+                     else
+                     f1zC(iz,i)=0.d0
+                     endif
+                     f1z(iz,i)=(zasym+1d0)*sk2*sk1 ! (Eq. 42)                     
                   end do        ! iz
                end do           ! i
             end if              !if(iq.eq.1) 
@@ -829,22 +911,25 @@ C-----ANDREY: calculate f1z for dQl -------------------------------
                               res0(lam)=resz                                  
                               if(iq.eq.1) then
 *                                calculating f(p)----------------------------
-                                 do i=1,imax !                           II
+                                 do i=1,imax !                        
+                                    reszC=0.d0                       !   II
                                     resz=0.d0 ! same as Eq.(37) but for F
                                     do iz=1,igz !                        lam
                                        resz=resz+f1z(iz,i) * pl(lam,iz)
+                                       reszC=reszC+f1zC(iz,i)*pl(lam,iz)
+!Charlie: additional charge term
                                     end do
-                                    fpqb(i,lam)=resz 
+                                    fpqb(i,lam)=resz
+                                    fpqbC(i,lam)=reszC
                                  end do
-                                 
+                              elseif(iq.eq.2) then
 *     f(p) is ready
-                                 
-c     call zintegc(lam,x,y,y2,qb,lb,la,nb,na,nbi,pc1)
-c     do ips=1,ipm
-c     ylam(lam,ips)=y(ips)
-c     y2lam(lam,ips)=y2(ips)
-c     enddo
-
+!      call zintegc(lam,x,y,y2,qb,lb,la,nb,na,nbi,pc1)
+!      do ips=1,ipm
+!      ylam(lam,ips)=y(ips)
+!      y2lam(lam,ips)=y2(ips)
+      !print*,x(ips),ylam(lam,ips),y2lam(lam,ips)  
+!      enddo
                               endif
                               icalam(lam)=1
                            endif
@@ -853,13 +938,160 @@ c     enddo
 c     call transc(lam,lab2,res1,qb,qa,
 c     >                  Lla,lb,la,nb,na,nbi,pc1)
 
-
+c     ***** calculations of the p-integral using chebyshev mesh
+c     open(33,file='fpold.dat')
+!       call transc(lam,lab2,res1,qb,qa,Lla,lb,la,nb,na,nbi,pc1)
+*     calculations using spline (10 to 20 times faster than trans)
+!       y(:)=ylam(lam,:)
+!       y2(:)=y2lam(lam,:)
+!      call transpl(lam,lab2,res1,x,y,y2,qa,Lla,lm)
+c      pause ' wrote to unit 10'
+      !print*,' trans0 and trans1: ',res0(lam),res1,res1t
+!        else
 *     calculating p-integral using composite mesh
 !                           if(gki(1).gt.0.d0) then ! Rav: subtraction
 !                           method must be used for both open and closed
 !                           channels. Some changes have been made to
 !                           make it work. 
 *     this is where singular point is
+             if (abs(zasym).gt.0.d0) then
+
+
+                           ising=iqa
+                           if(iqa.le.ionsh) ising=iqa-1
+                           if(iqa.eq.1) ising=ionsh
+                        if(gki(1).lt.0.) ising=iqa-1
+                           ising1 = ising - 1
+                           
+*     calculation of p integral                           
+               eta=zasym/qa            
+        
+        i1=(2*ising-1)*igp
+        i2=(2*ising-1)*igp+1
+        q1=xp(i1)
+        q2=xp(i2)
+
+        Fqa =fpqbC(nqmi2*igp+ising,lam)*qa**(lab21) 
+        Fqaq1=(fpqbC(i1,lam)+fpqb(i1,lam)*
+     >          (qa**2.d0-q1**2.d0)/(2.d0*dble(zasym)))*q1**(lab21)
+        Fqaq2=(fpqbC(i2,lam)+fpqb(i2,lam)*
+     >          (qa**2.d0-q2**2.d0)/(2.d0*dble(zasym)))*q2**(lab21)
+        FqaC=Fqa*2.0*pi!*exp(-pi*eta/2.0)/qa!2A*F*qa
+        Fq1C=Fqaq1*2.0*pi
+        Fq2C=Fqaq2*2.0*pi
+        Fgrad=(Fq2C-Fq1C)/(q2-q1)
+
+                           if(ising.ne.nqim) then
+*     i.e. if singularity is not at last k-mesh point                              
+                              res1 = 0.0d0
+*     integrals coming before singularity
+                              do i=1,2*ising1*igp
+                                 pp=xp(i)
+c                dp=pp-qa
+c        call RegCharge(qa,dp,Lla,eta,subr,sub)
+                          fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)!Coulomb wave
+                                 res1 = res1 + wp(i) * fp
+                              end do
+                              
+*     integrals with singularities
+               res2=0.d0
+               
+                              do i=2*ising1*igp+1,(2*ising-1)*igp
+                                 pp=xp(i)
+        dp=pp-qa
+c        call RegCharge(qa,dp,Lla,eta,subr,sub)
+                fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+         
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)+
+     >           2.d0*(Fgrad+FqaC/dp)*subc(iqa,i)/(pp+qa)!*exp(2.d0*pi*eta)/qa
+
+                                 res2 = res2 + wp(i)*fp
+                              end do                              
+
+        res2a=2.d0*Fgrad*res2aC(2,iqa)+FqaC*res2aC(1,iqa)/dble(zasym)
+        res2b=2.d0*Fgrad*res2bC(2,iqa)+FqaC*res2bC(1,iqa)/dble(zasym)
+
+                              res3=0.d0
+                              do i= (2*ising-1)*igp+1, 2*ising*igp
+                                 pp=xp(i)
+        dp=pp-qa
+c        call RegCharge(qa,dp,Lla,eta,subr,sub)
+                fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+         
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)+
+     >                   2.d0*(Fgrad+FqaC/dp)*subc(iqa,i)/(pp+qa)
+                                 res3 = res3 + wp(i)*fp
+                              end do
+                              
+*     integrals coming after singularity
+                              res4=0.d0
+                              do i=2*ising*igp+1,nqmi2*igp
+                                 pp=xp(i)
+c        dp=pp-qa
+c        call RegCharge(qa,dp,Lla,eta,subr,sub)
+                        fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)!Coulomb wave
+                                 res4 = res4 + wp(i) * fp
+                              end do
+
+!        print*,res1,res2,res3,res4,res2a,res2b
+        res1=res1+res2+res3+res4
+     >           +res2a-res2b
+c        print*,res1,qa*qb*sqrt(2.d0)*res1/(2.d0*pi**3.d0)
+c     >    ,'Current Idea'
+        
+                        else
+*     i.e. if singularity is at last k-mesh point then
+
+                              !nqmi1 = nqim-1
+                              res1 = 0.0d0
+                              
+*     integrals coming before singularity
+                              do i=1,2*(nqmi)*igp
+                                 pp=xp(i)                              
+                          fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)!Coulomb wave
+
+                                 res1 = res1 + wp(i) * fp                                                                
+                              end do
+                           
+*     integrals with singularities
+                              Fqa = fpqbC(nqmi2*igp+nqim,lam)*qa**lab21
+                              FqaC=Fqa*2.0*pi/qa!*exp(pi*eta/2.0)/qa
+                                eta=zasym/qa
+
+                              res2=0.d0
+                              do i=2*(nqmi)*igp+1,(nqmi2)*igp
+                                 pp=xp(i)
+        dp=pp-qa
+*        call RegCharge(qa,dp,Lla,eta,subr,sub)
+                fpp=fpqbC(i,lam)+
+     >            fpqb(i,lam)*(qa**2.d0-pp**2.d0)/(2.d0*dble(zasym))
+         
+                                fp=fpp*pp**(lab21+1)*coulm(iqa,i)+
+     >                           (2.d0*FqaC/dp)*subc(iqa,i)/(qa+pp)!*exp(2.0*pi*eta)/qa
+
+                                 res2 = res2 + wp(i)*fp                                 
+                              end do
+         dp=10E-6
+        call RegCharge(qa,aq(nqim)-qa,Lla,eta,res2a,subiii)
+        call RegCharge(qa,dp,Lla,eta,res2b,subiiii)
+
+        res2a=res2a*FqaC/dble(zasym)
+        res2b=res2b*FqaC/dble(zasym)
+
+                                 
+                              res1=res1+res2+res2a-res2b
+
+                         endif
+             else !neutral
                            ising=iqa
                            if(iqa.le.ionsh) ising=iqa-1
                            if(iqa.eq.1) ising=ionsh
@@ -1234,23 +1466,35 @@ c$$$                           continue
 c$$$                        end if  ! alkali
                         
 C     res1=res1+res5
-                              
+        endif !Charge check
 ***** calculations of the p-integral using chebyshev mesh
 c     open(33,file='fpold.dat')
 c                           call transc(lam,lab2,res1test,qb,qa,Lla,lb,
 c     >                        la,nb,na,nbi,pc1)
-c                           print*,' chebyshev  =',res1test
+                           !print*,' chebyshev  =',res1test
 c     close(33)
 c     close(22)
 c                           if(ising.eq.nqmi) pause'chto delat?'
                            
 *     calculations using spline (10 to 20 times faster than trans)
-c     call transpl(lam,lab2,res1,x,ylam,y2lam,qa,Lla,lm)
-c     print*,' trans0 and trans1: ',res0(lam),res1,res1t
-
-                           result = qal2 * res0(lam) + res1 / pi
-                           reslam=reslam+(2*lam+1)*wigner*result
-                           
+c      call transpl(lam,lab2,res1t,x,ylam,y2lam,qa,Lla,lm)
+      !print*,' trans0 and trans1: ',res0(lam),res1,res1t
+        !if (iqb.eq.2) then
+        !if (lam.gt.0) then
+        !open(556, file='t-check')
+        !write(556,*)qa,res1
+        !endif
+        !endif
+        if (abs(zasym).gt.0.d0) then
+           result=qa*res1/(2.d0*pi**2.d0)
+           if ((eta.gt.6.0d0).or.(eta.lt.-1000.d0)) then !where subtraction is inaccurate
+              result=0.d0
+           endif
+        else   
+           result = qal2 * res0(lam) + res1 / pi
+        endif
+        !print*,qa,qb,result/qa
+        reslam=reslam+(2*lam+1)*wigner*result
 c$$$c$$$C_TEST________________________________________________________________
 c$$$!$omp critical  
 c$$$            if(isnan(reslam).or.isnan(result)) then
@@ -1263,9 +1507,9 @@ c$$$               close (90)
 c$$$            end if
 c$$$!$omp end critical 
 c$$$c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                           
-                        end do
+      end do
                         
-                        suml2=suml2+(2*l2+1)*reslam*w3j2
+      suml2=suml2+(2*l2+1)*reslam*w3j2
                         
 c$$$c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1332,6 +1576,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 c            close (90)
 c            stop
             result=sumlb1*c0*qb*sqrt(2.0d0)
+c            print*,'posv',result
 
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical  
@@ -1400,8 +1645,9 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       parameter (maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
-      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
+     >   Qlfactor(0:ltmax+lamax)
+      dimension pc0(0:ncmax-1,ncmax,0:lamax),
+     >     pc1(0:ncmax-1,ncmax,0:lamax)
 
       if(Nl.eq.0) then
          call geigen(bohr,nn,ll,pp2,res1)
@@ -1446,8 +1692,8 @@ c--
       parameter (maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
-      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
+     >   Qlfactor(0:ltmax+lamax)
+c$$$      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
       
       call gnlp(bohr,ll,pp2,nni,res0,res1) !,res2,res3)
       
@@ -1467,9 +1713,9 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
-      dimension pc1(0:19,20,0:3)
-
+     >   Qlfactor(0:ltmax+lamax)
+      dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
+        
       qb2=qb*qb
       pp2=pp*pp
       qbpp=qb*pp
@@ -1526,8 +1772,8 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
-      dimension pc1(0:19,20,0:3)
+     >   Qlfactor(0:ltmax+lamax)
+      dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
       dimension x(ipm),y(ipm),y2(ipm),u(ipm)
       data yp1,ypn /0.d0,0.d0/
 
@@ -1623,7 +1869,7 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
 *--------------------------------------------------------------------
 
 
-      subroutine transpl(lam,lab2,result,xa,ylam,y2lam,qa,Lla,lm)
+      subroutine transpl(lam,lab2,result,xa,y,y2,qa,Lla,lm)
 
       include 'par.f'
       include 'par.pos'
@@ -1633,6 +1879,8 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
       dimension xa(ipm),ylam(0:lm,ipm),y2lam(0:lm,ipm)
       dimension y(ipm),y2(ipm)
 
+        !open(555,file="t-test")
+        !write(555,*)"#qa",qa
       result = 0.0d0
       do i=1,ich
          t = x(i)
@@ -1640,15 +1888,14 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
          QlQ0=Qlarray(Lla,i)
          p1=qa*t
          p2=qa/t
-
 * spline interpolating
 
-         do ips=1,ipm
-            y(ips)=ylam(lam,ips)
-            y2(ips)=y2lam(lam,ips)
+c         do ips=1,ipm
+c            y(ips)=ylam(lam,ips)
+c            y2(ips)=y2lam(lam,ips)
 c            write(6,9) xa(ips),y(ips),ips,lam
 c 9          format('po',2e16.7,2i4)
-         end do
+c         end do
 
          klo=1
          khi=ipm
@@ -1685,13 +1932,12 @@ c 9          format('po',2e16.7,2i4)
          b=(p2-xa(klo))/h
          fp2=a*y(klo)+b*y(khi)+
      >      ((a**3-a)*y2(klo)+(b**3-b)*y2(khi))*(h**2)/6.d0
-
          ft = (fp1*p1**lab2 + fp2*p2**lab2) * QlQ0 / t
+        
+        !write(555,*)sngl(t),sngl(p1),sngl(p2),sngl(fp1),sngl(fp2)
 * function ft is regular (=0) when t is going to 0
 c         write(10,*) t,ft
          result = result + w(i) * ft
-
- 10      continue
       end do
 c      pause ' wrote to unit 10'
       return
@@ -1712,10 +1958,10 @@ c      pause ' wrote to unit 10'
       common/gausp/xgp(igpm),wgp(igpm),igp
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
-      dimension pc1(0:19,20,0:3)
+     >   Qlfactor(0:ltmax+lamax)
+      dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
       external f1z
-
+        
 ***** calculations of the p-integral using chebyshev mesh without spline
       result = 0.0d0
       pi = acos(-1d0)
@@ -1724,13 +1970,131 @@ c$$$      common/const/pi
          QlQ0=Qlarray(Lla,i)
          p1=qa*t
          p2=qa/t
-
          resz1=0.d0
          resz2=0.d0
          do iz=1,igz
             z=xgz(iz)
             resz1=resz1+f1z(p1,z,qb,lb,la,nb,na,nbi,pc1)*pl(lam,iz)
             resz2=resz2+f1z(p2,z,qb,lb,la,nb,na,nbi,pc1)*pl(lam,iz)
+        !print*,iz,f1z(p1,z,qb,lb,la,nb,na,nbi,pc1),pl(lam,iz)
+         end do
+* to be done: f1z doesn't depend on lambda - save!
+         fp1=resz1*p1**(lab2+1)
+         fp2=resz2*p2**(lab2+1)
+
+c         write(33,*) p1,fp1!*log((p1+qa)/(qa-p1))
+c         write(33,*) p2,fp2!*log((p2+qa)/(p2-qa))
+
+         fts = fp1*p1 + fp2*p2
+         result = result + w(i) * fts * QlQ0 / t
+      end do
+
+c      print*,' at  qa qb:',qa,qb
+c      print*,'chebyshev result=',result,'is used'
+      return
+      end
+*---------------------------------------------
+
+      subroutine transcnew(lam,lab2,result,qb,qa,
+     >   Lla,lb,la,nb,na,nbi,pc1)
+
+      include 'par.f'
+      include 'par.pos'
+      parameter (maxl=2*ltmax+1)
+      implicit real*8 (a-h,o-z)
+      common/cheb/x(ich),w(ich)
+      common/funQl/Qlarray(0:ltmax,ich)
+      common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
+      common/gausp/xgp(igpm),wgp(igpm),igp
+c$$$      common/const/pi
+      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
+     >   Qlfactor(0:ltmax+lamax)
+      common /laguercoeffs/
+     >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
+     >   npsstates(2,0:lnabmax)
+      dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
+      external f1z
+       !Charlie 
+***** calculations of the p-integral using chebyshev mesh without spline
+      result = 0.0d0
+      pi = acos(-1d0)
+      qb2=qb*qb
+
+      do i=1,ich
+         t = x(i)
+         QlQ0=Qlarray(Lla,i)
+         p1=qa*t
+         p2=qa/t
+         pp1=p1*p1
+         pp2=p2*p2
+         qbp1=qb*p1
+         qbp2=qb*p2
+
+         resz1=0.d0
+         resz2=0.d0
+         do iz=1,igz
+
+            z=xgz(iz)
+
+            
+              pb12=0.25d0*qb2 + pp1 - qbp1*z
+              pb22=0.25d0*qb2 + pp2 - qbp2*z
+              pa12=qb2 + pp1 - 2.d0*qbp1*z
+              pa22=qb2 + pp2 - 2.d0*qbp2*z
+
+              Nl=npsstates(1,la)
+              if(Nl.eq.0) then
+                 bohr=1.d0
+                 call geigen(bohr,na,la,pa12,resH11)
+                call geigen(bohr,na,la,pa22,resH12)
+              else
+                 rlam1=rlambda(1,la)
+                 brap11=4d0*pa12/rlam1/rlam1+1.d0
+                 x11=(brap11-2d0)/brap11
+
+                brap12=4d0*pa22/rlam1/rlam1+1.d0
+                 x12=(brap12-2d0)/brap12
+
+                 sk11=pc1(Nl-1,na,la)
+                 sk12=sk11
+                 do k=Nl-2,0,-1
+                    sk11=sk11*x11+pc1(k,na,la)
+                    sk12=sk12*x12+pc1(k,na,la)
+                 end do
+              resH11=(8d0/(rlam1*brap11))**(la+2)*factrl(la)*sk11*0.25d0
+              resH12=(8d0/(rlam1*brap12))**(la+2)*factrl(la)*sk12*0.25d0
+              endif
+
+              Nl=npsstates(2,lb)
+              if(Nl.eq.0) then
+                 bohr=2.d0
+                 call geigen(bohr,nb,lb,pb12,resP11)
+                call geigen(bohr,nb,lb,pb22,resP12)
+              else
+                 rlam2=rlambda(2,lb)
+                 brap21=4d0*pb12/rlam2/rlam2+1d0
+                 x21=(brap21-2d0)/brap21
+
+                brap22=4d0*pb22/rlam2/rlam2+1d0
+                 x22=(brap22-2d0)/brap22
+
+                 sk21=pc1(Nl-1,nbi,lb)
+                 sk22=sk21
+
+                 do k=Nl-2,0,-1
+                    sk21=sk21*x21+pc1(k,nbi,lb)
+                   sk22=sk22*x22+pc1(k,nbi,lb)
+                 end do
+              resP11=(8d0/(rlam2*brap21))**(lb+2)*factrl(lb)*sk21*0.25d0
+              resP12=(8d0/(rlam2*brap22))**(lb+2)*factrl(lb)*sk22*0.25d0
+              endif
+
+              f1z1=resP11*resH11
+              f1z2=resP12*resH12
+
+            resz1=resz1+f1z1*pl(lam,iz)
+            resz2=resz2+f1z2*pl(lam,iz)
+        !print*,iz,f1z(p1,z,qb,lb,la,nb,na,nbi,pc1),pl(lam,iz)
          end do
 * to be done: f1z doesn't depend on lambda - save!
          fp1=resz1*p1**(lab2+1)
@@ -1748,6 +2112,7 @@ c      print*,'chebyshev result=',result,'is used'
       return
       end
 
+
 *---------------------------------------------------
 
       subroutine geigen(bohr,nn,ll,pp2,result)
@@ -1756,7 +2121,7 @@ c      print*,'chebyshev result=',result,'is used'
       parameter(maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
 
       bn=bohr*nn
       basis=bn*bn*pp2
@@ -1815,7 +2180,7 @@ c      print*,'chebyshev result=',result,'is used'
       parameter(maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
 
 c      gegen=1.
 c      if(m.eq.0) return
@@ -1837,7 +2202,7 @@ c      if(m.eq.0) return
       parameter(maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
@@ -1955,7 +2320,7 @@ c         res3 = res3 + psir * rr * chi0 * dble(rmesh(i,3))
       parameter(maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
@@ -1992,7 +2357,7 @@ c      pause
       parameter(maxl=2*ltmax+1)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
 
       sum=0.d0
       do mm=0,nn
@@ -2011,7 +2376,7 @@ c      print*,' laguerre: res=',result,arg,sum
 c      include 'par.f'
 c      parameter(maxl=2*ltmax+1)
 c      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-c     >   Qlfactor(0:ltmax)
+c     >   Qlfactor(0:ltmax+lamax)
       implicit real*8 (a-h,o-z)
 
       sum=0.d0
@@ -2297,7 +2662,7 @@ C     modifyed spherical Bessel function
       implicit real*8 (a-h,o-z)    
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
       common/fik/fik(0:19,0:19)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igza
       common/gauszR/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR
@@ -2307,7 +2672,6 @@ c$$$      common/const/pi
       real*8 dfactrl(0:ltmax),dfactrl2(0:ltmax),arg(ich)
       
 c      open(99,file='matritsa')
-
       pi = acos(-1d0)
       if(igz.gt.igzm .or. igp.gt.igpm) then
          print*, igz,igzm,igp,igpm
@@ -2356,7 +2720,7 @@ c      open(99,file='matritsa')
 *            Q0= 0.5d0*log((arg(i)+1.d0)/(arg(i)-1.d0))
 *            call funleg(arg(i),il,resQl)
 *            Qlarray(il,i)=resQl/Q0
-*         end do
+*        end do
       enddo
       call polleg(2*lstopm+1,igz,igp)
       print*
@@ -2377,7 +2741,7 @@ C     realtion
       real *8, dimension (0:Lla) :: QN
 
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >     Qlfactor(0:ltmax)      
+     >     Qlfactor(0:ltmax+lamax)      
 
 *     arg of Legendre function is always .ge. 1
 *     min[z]=1 at pp=qa
@@ -2581,7 +2945,7 @@ C     use analitical expression for small z
             end if
          end select        
       else           
-         result = FlegQ(Lla, z) !  series expansion for large z                        
+         result = FlegQ(min(Lla,20), z) !  series expansion for large z                        
       end if                    ! z
 !     resultsp = real(result)      
       return
@@ -2598,7 +2962,7 @@ c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
 c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
 c$$$      common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
 c$$$      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-c$$$     >     Qlfactor(0:ltmax)
+c$$$     >     Qlfactor(0:ltmax+lamax)
       
 *     arg of Legendre function is always .ge. 1
 *     min[z]=1 at pp=qa
@@ -2804,7 +3168,7 @@ c      print*,' x = ',x,' anal sk0 = ',sk0
       implicit real*8 (a-h,o-z)
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:ltmax+lamax)
       common/fik/fik(0:19,0:19)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
@@ -2969,6 +3333,125 @@ c      endif
       return
       end
 
+*------------------------------------------------------
+!Charlie Subtraction function for Coulomb wave
+        subroutine RegCharge(q,dqq,l,eta,result,result2)
+        implicit none
+
+      double precision, intent(in) :: q,dqq
+      integer, intent(in) :: l
+      double precision, intent(in) :: eta
+      double precision, intent(out) :: result,result2
+      double complex :: value
+
+      ! Other variables
+
+      double precision :: qfactor,Phase
+      double precision :: tmp,pi,tmp0,mag
+      double complex :: ctmp,ctmp2
+      double complex :: g
+
+      interface
+        double precision function cwfnSigmaL(lt, etat)
+            integer, intent(in) :: lt
+            double precision, intent(in) :: etat
+        end function cwfnSigmaL
+      end interface
+        pi=4.d0*datan(1.d0)
+
+        ctmp=dcmplx(1.d0,eta)
+            tmp = cwfnSigmaL(l, eta)
+            tmp0= cwfnSigmaL(0, eta)
+            ctmp= dcmplx(0.d0,tmp0-tmp)
+        call cwf_gamma_mag(0,eta,mag)!|gamma(1+in)|*exp(pi|n|/2)
+        value=mag*exp(ctmp)
+
+        ctmp=dcmplx(0.d0,eta)
+         if (eta.gt.0.d0) then
+                if (dqq.gt.0.d0) then
+                Phase=exp(-pi*eta)
+                else
+                Phase=1.d0
+                endif
+         else
+                if (dqq.gt.0.d0) then
+                Phase=1.d0
+                else
+                Phase=exp(pi*eta)
+                endif
+
+        endif
+
+
+        ctmp=dcmplx(0.d0,eta)
+        !qfactor=abs(2.d0*q/dqq)
+        qfactor=abs((2.d0*q+dqq)/dqq)
+        value = value * dcmplx(qfactor, 0.d0)**ctmp
+        value=value*Phase
+        result=real(value)
+        result2=imag(value)
+        end
+*------------------------------------------------------
+!Charlie: Subtraction function
+      subroutine SubCharge(q,qa,eta,l,ivalue)
+      implicit none
+
+      double precision, intent(in) :: q,qa,eta
+      integer, intent(in) :: l
+      double precision, intent(out) :: ivalue
+      
+      double complex :: ctmp, value,f21value,g,z2,ctmp2
+      double precision :: z,dqq,qfactor,Phase,pi,tmp,mag,tmp0
+        
+      interface
+        double precision function cwfnSigmaL(lt, etat)
+            integer, intent(in) :: lt
+            double precision, intent(in) :: etat
+        end function cwfnSigmaL
+      end interface
+        pi=4.d0*datan(1.d0)
+        dqq=q-qa
+
+        ctmp = dcmplx(2.d0,-eta)
+      z = (q-qa)/(qa+q)
+      
+      call cwfnf21(dcmplx(1.d0,0.d0),dcmplx(1.d0,-eta),ctmp,
+     >    dcmplx(z,0.d0),f21value)
+        
+        ctmp=dcmplx(1.d0,eta)
+            tmp = cwfnSigmaL(l, eta)
+            tmp0= cwfnSigmaL(0, eta)
+            ctmp= dcmplx(0.d0,tmp0-tmp)
+        call cwf_gamma_mag(0,eta,mag)!|gamma(1+in)|*exp(pi|n|/2)
+        value=mag*exp(ctmp)
+
+        
+        ctmp=dcmplx(-1.d0,eta)
+         if (eta.gt.0.d0) then
+                if (dqq.gt.0.d0) then
+                Phase=exp(-pi*eta)
+                else
+                Phase=-1.d0
+                endif
+         else
+                if (dqq.gt.0.d0) then
+                Phase=1.d0
+                else
+                Phase=-exp(pi*eta)
+                endif
+
+        endif
+
+        if ((mag*Phase).eq.0.d0) then
+        f21value=dcmplx(1.d0,0.d0)
+        endif
+
+
+        qfactor=abs(1.d0/z)
+        value = -value/ctmp * dcmplx(qfactor, 0.d0)**ctmp
+        value=value*Phase*f21value
+      ivalue=imag(value)
+      end
 *------------------------------------------------------
 
       subroutine dirvsnum(result,qf,qi,nfa,nia)

@@ -88,10 +88,10 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       nf=0
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
-      ngpus=acc_get_num_devices(acc_device_nvidia)
+      ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
 ! 2 threads per GPU seems to be a good choice for P100 arch 
       ntpg=2
-      nnt=omp_get_max_threads()/(ngpus*ntpg)
+      nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
 
 !      if (myid.ge.0) then
 !         call acc_set_device_num(nodeid-1,acc_device_nvidia)
@@ -307,8 +307,8 @@ c$$$            stop 'CJ6 and W do not agree in D'
          
          c = c1 * c2 * c3
          if (abs(c).lt.1e-10) go to 10
-          const = (-nze)*(-1)**(lg + lfa) * hat(li) *
-!         const = (-1)**(lg + lfa) * hat(li) *
+!          const = (-nze)*(-1)**(lg + lfa) * hat(li) *
+         const = (-1)**(lg + lfa) * hat(li) *
      >      hat(lf) * hat(lia) / hat(lt) * c
 
          call form(fun,minfun,maxfun,rpow1(1,lt),rpow2(1,lt),
@@ -486,6 +486,7 @@ C  tail integrals still need to be incorporated
                   enddo
                 enddo
                enddo
+               nqmf = npk(nchf+1) - npk(nchf)
                ef=e_t(nchf)
                lfa=la_t(nchf)
                nfa=na_t(nchf)

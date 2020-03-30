@@ -1103,7 +1103,7 @@ C  Define positronium states
      >         enpsinb(n,lp)*ry,tsum
          enddo
          npsstates(2,lp) = 0
-         if (nptop(lp).le.0) then
+!         if (nptop(lp).le.0) then
             print*,'Defining positronium pseudostates for LP, NP:', lp,
      >         npsp(lp)-lp
             maxupl = 1
@@ -1156,17 +1156,26 @@ C  Define positronium states
                   rlambda(2,lp) = alphanew * 2.0
                endif
             endif 
+c$$$            if (nptop(lp).eq.0) then
+c$$$               nptop(lp) = npsp(lp)
+c$$$            elseif (nptop(lp).le.-100) then
+c$$$               n = npsp(lp)-lp
+c$$$               do while (psen2(n)*ry.gt.-nptop(lp).and.n.gt.1)
+c$$$                  n = n - 1
+c$$$               enddo
+c$$$               nptop(lp) = n+lp
+c$$$            else
+c$$$               nptop(lp) = - nptop(lp)
+c$$$            endif 
             if (nptop(lp).eq.0) then
                nptop(lp) = npsp(lp)
-            elseif (nptop(lp).le.-100) then
-               n = npsp(lp)-lp
-               do while (psen2(n)*ry.gt.-nptop(lp).and.n.gt.1)
-                  n = n - 1
+            elseif (nptop(lp).lt.0) then
+               n = 1
+               do while(n.le.npsp(lp).and.psen2(n).lt.etot)
+                  n = n + 1
                enddo
-               nptop(lp) = n+lp
-            else
-               nptop(lp) = - nptop(lp)
-            endif 
+               nptop(lp) = min(npsp(lp),n-nptop(lp)+lp-2) !-nptop(lp)
+            endif
             n = nstart
             print*,' l Np N      e(Ry)     e(eV)     ovlp      proj'
             do npos = npbot(lp), nptop(lp)
@@ -1237,7 +1246,7 @@ c$$$                  endif
                print'(3i3,4f10.5)',lp,npos,n,psen2(npos-lp),
      >            psen2(npos-lp)*ry,tsum,proj
             enddo
-         endif
+!         endif
          npl = nptop(lp) - npbot(lp) + 1
          natop(lp) = nstart + npl
          nposchmax = nposchmax + (lp+1) * npl
