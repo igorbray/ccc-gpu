@@ -13,7 +13,9 @@ SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f f
      newcoefs7.f newcoefs8.f newcoefs9.f newcoefs10.f\
     newcoefs11.f newcoefs12.f newcoefs13.f newcoefs14.f newcoefs15.f \
     newcoefs16.f newcoefs17.f newcoefs18.f newcoefs19.f newcoefs20.f \
-    andrey.f tmatccc.f lithium.f sbt.f redistribute.f alex.f logam.f eremenko.f90
+    andrey.f tmatccc.f lithium.f sbt.f redistribute.f alex.f logam.f 
+
+F90SOURCE = eremenko.f90
 
 OBJDIR=obj/$(PRECISION)
 
@@ -43,7 +45,7 @@ endif
 a := $(a) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
 aO1 := $(aO1) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
 
-OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o)
+OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o) $(F90SOURCE:%.f90=$(OBJDIR)/%.o)
 
 export a
 export FC
@@ -132,8 +134,8 @@ $(OBJDIR)/int.o : int.f par.f paratom.f
 $(OBJDIR):
 	if ( test ! -d $@ ) then ( mkdir -p $@ ) fi
 
-#$(OBJDIR)/eremenko.o : eremenko.f90
-#	$(FC) $a -c eremenko.f90 -o $@
+$(OBJDIR)/eremenko.o : eremenko.f90
+	$(FC) $a -c eremenko.f90 -o $@
 
 $(OBJDIR)/%.o : %.f par.f par.for 
 	$(FC) $a -c $< -o $@
