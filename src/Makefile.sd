@@ -1,3 +1,7 @@
+system = UNKNOWN
+
+include config/Make.$(system)
+
 SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f first.f gpuvdirect.f \
     ipmhf.f fc.f hf.f vtail.f cisi.f hydr.f processt.f plql.f \
     corratom.f  derivative.f dmatr.f length.f multidipole.f  photo.f \
@@ -13,24 +17,27 @@ SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f f
 
 OBJDIR=obj/$(PRECISION)
 
-HOST = $(shell uname -n | cut -c1-4)
-FC := mpifort
-a :=  -Mllvm -mp -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
-aO1 :=  -Mllvm -mp -Mpreprocess -O1 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
-anomp := -Mllvm -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium 
+#FC := mpifort
+#a :=  -Mllvm -mp -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+#aO1 :=  -Mllvm -mp -Mpreprocess -O1 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
+#aGPU := -Mllvm -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
+#l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
 
-l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
-
-#l:= -L/group/pawsey0001/mcytowski/uptake/atomic/acc/trunk -lcuDOT -L$(MKLROOT)/lib/intel64 -lmkl_intel_lp64  -lmkl_core -lmkl_pgi_thread -liomp5 -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64  -lm -L/pawsey/pgi/18.3/linux86-64/18.3/lib/ -lcudafor -lpgf90 -laccg -lpgm -lpgmp -laccg2 -L/pawsey/pgi/18.3/linux86-64/18.3/lib -laccn -lcudaforwrapblas -L${MAALI_CUDA_HOME}/lib64/ -lcudart -lcusparse -lcublas -L/group/pawsey0001/mcytowski/uptake/atomic/acc/trunk -lmap-sampler-pmpi -lmap-sampler -Wl,--eh-frame-hdr -Wl,-rpath=/group/pawsey0001/mcytowski/uptake/atomic/acc/trunk
+a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
+aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
+aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
+l := $(LDFLAGS)
 
 ifeq ($(PRECISION),double)
   a := $(a) -r8  
-  pga := -r8  
+#  pga := -r8  
   aO1 := $(aO1) -r8
+  aGPU := $(aGPU) -r8
 else
-  pga := -r4  
+#  pga := -r4  
   a := $(a)  #-align array32byte #no need for this if rest.f is compiled with -O0
   aO1 := $(aO1)
+  aGPU := $(aGPU)
 endif
 
 a := $(a) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
@@ -72,9 +79,12 @@ helium/$(OBJDIR)/helib.a:
 atom/$(OBJDIR)/hflib.a:
 	$(MAKE) -C atom
 
-$(OBJDIR)/main.o : main.f par.f  helium/$(OBJDIR)/modules.o
-#	$(FC) $(anoopt) -c main.f  -o $@
+$(OBJDIR)/main.o : main.f par.f helium/$(OBJDIR)/modules.o
+#helium/$(OBJDIR)/modules.o
 	$(FC) $(aO1) -c main.f  -o $@
+
+helium/$(OBJDIR)/modules.o:  helium/modules.f
+	$(FC) $a -c helium/modules.f -o $@
 
 # The -O0 -C -g stops crashes in BORN ICS at high energies
 #$(OBJDIR)/processt.o : processt.f par.f
@@ -92,31 +102,29 @@ $(OBJDIR)/cc.o : cc.f
 
 
 $(OBJDIR)/vmat.o : vmat.f
-#	$(FC) $anomp -traceback -c vmat.f  -o $@
 	$(FC) $a -c vmat.f  -o $@
 
 
 $(OBJDIR)/logam.o : logam.f 
 	$(FC) $a -O0 -c logam.f  -o $@
 
-$(OBJDIR)/rest.o : rest.f par.f
+$(OBJDIR)/rest.o : rest.f par.f helium/$(OBJDIR)/modules.o
 	$(FC) $a -Msave -O0 -c rest.f  -o $@
 
 $(OBJDIR)/corratom.o : corratom.f par.f paratom.f 
 	$(FC) $a -c corratom.f  -o $@
 
 $(OBJDIR)/gpuvdirect.o : gpuvdirect.f
-#	pgf90 $(pga) -cudalibs -Minfo=accel,mp -lblas -mcmodel=medium -c gpuvdirect.f -o $@
-#	pgf90 $(pga) -mp -cudalibs -lblas -Minfo=accel,mp -acc -ta=tesla:cc35,cc60,nordc  -mcmodel=medium -c gpuvdirect.f  -o $@
-	pgf90 -Mllvm $(pga)  -mp -Minfo=accel,mp -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -c gpuvdirect.f  -o $@
+#	pgf90 -Mllvm $(pga)  -mp -Minfo=accel,mp -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -c gpuvdirect.f  -o $@
+	$(FC) $(aGPU) -c gpuvdirect.f -o $@
 
 $(OBJDIR)/first.o : first.f
-#	pgf90 $(pga)  -Mnoinline -O2 -Minfo=accel -mcmodel=medium -c  first.f -o $@
-	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -c  first.f -o $@
+#	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -c  first.f -o $@
+	$(FC) $(aGPU) -c first.f -o $@
 
 $(OBJDIR)/form.o : form.f
-#	pgf90 $(pga)  -mp -O2 -Mnoinline -Minfo=accel -acc -ta=tesla:cc35,cc60,nordc -mcmodel=medium -c  form.f -o $@
-	pgf90 -Mllvm $(pga) -mp -O2 -Mnoinline -Minfo=accel -mcmodel=medium -c  form.f -o $@
+#	pgf90 -Mllvm $(pga) -mp -O2 -Mnoinline -Minfo=accel -mcmodel=medium -c  form.f -o $@
+	$(FC) $a -c form.f -o $@
 
 $(OBJDIR)/int.o : int.f par.f paratom.f 
 	$(FC) $a -c int.f  -o $@

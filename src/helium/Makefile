@@ -22,8 +22,11 @@ clean:
 $(OBJDIR):
 	if ( test ! -d $@ ) then ( mkdir -p $@ ) fi
 
-$(OBJDIR)/modules.o:  modules.f
-	$(FC) $a -c modules.f -o $@
+$(OBJDIR)/hevmat.o : hevmat.f $(OBJDIR)/modules.o
+	$(FC) $a -c hevmat.f -o $@
+
+#$(OBJDIR)/modules.o:  modules.f
+#	$(FC) $a -c modules.f -o $@
 
 $(OBJDIR)/so.o:  so.f par.f state.f modules.f
 	$(FC) $a -c so.f -o $@
