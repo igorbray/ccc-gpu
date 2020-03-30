@@ -7,9 +7,9 @@ OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o)
 
 #e = -O2 -openmp -traceback -mcmodel=medium
 
-hflib.a: $(OBJS)
-	ar crs hflib.a $(OBJS)
-	mv hflib.a $(OBJDIR)
+$(OBJDIR)/hflib.a: $(OBJS)
+	ar crs $(OBJDIR)/hflib.a $(OBJS)
+#	mv hflib.a $(OBJDIR)
 #	ranlib hflib.a
 
 clean:

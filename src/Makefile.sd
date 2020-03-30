@@ -5,7 +5,7 @@ include config/Make.$(system)
 SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f first.f gpuvdirect.f \
     ipmhf.f fc.f hf.f vtail.f cisi.f hydr.f processt.f plql.f \
     corratom.f  derivative.f dmatr.f length.f multidipole.f  photo.f \
-    velocity.f int.f step.f over.f hylleraas.f  posvmat.f positron.f \
+    velocity.f jnt.f step.f over.f hylleraas.f  posvmat.f positron.f \
     fit_rgrid.f redefine.f coul90.f rs6000.f bmatr.f polyborn.f lvborn.f \
     bes.f e2e.f  gos.f  tdgos.f blength.f jones.f lesech.f h2.f noblegas.f \
     e2e2.f radial2.f b2matr.f xmatr.f coefsS.f coefsP.f coefsD.f coefsF.f \
@@ -17,7 +17,9 @@ SOURCE =  main.f iqpackd.f rest.f form.f numerov.f sgi.f cc.f laguer.f  vmat.f f
 
 F90SOURCE = eremenko.f90
 
-OBJDIR=obj/$(PRECISION)
+OBJDIR=$(PWD)/$(system)/obj/$(PRECISION)
+HELIUM_OBJDIR=obj/helium/$(PRECISION)
+ATOM_OBJDIR=obj/atom/$(PRECISION)
 
 #FC := mpifort
 #a :=  -Mllvm -mp -Mpreprocess -O2 -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -mcmodel=medium
@@ -25,9 +27,9 @@ OBJDIR=obj/$(PRECISION)
 #aGPU := -Mllvm -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
 #l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
 
-a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
-aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
-aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
+a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
+aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
+aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
 l := $(LDFLAGS)
 
 ifeq ($(PRECISION),double)
@@ -58,12 +60,12 @@ export OBJDIR
 #	echo $(OBJS)
 
 #ccc:  atom/hflib.a helium/helib.a $(OBJS) tmatccc.o  $(OBJDIR)
-.PHONY: helium/$(OBJDIR)/helib.a  atom/$(OBJDIR)/hflib.a ccc 
-ccc:  atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $(OBJS)
+.PHONY: $(OBJDIR)/helib.a  $(OBJDIR)/hflib.a ccc 
+ccc:  $(OBJDIR)/hflib.a $(OBJDIR)/helib.a $(OBJS)
       ifeq ($(PRECISION),double)
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccd
+	$(FC) $a  $(OBJS) $(OBJDIR)/hflib.a $(OBJDIR)/helib.a $l -o $(PWD)/$(system)/bin/cccd
       else
-	$(FC) $a  $(OBJS) atom/$(OBJDIR)/hflib.a helium/$(OBJDIR)/helib.a $l -o cccs
+	$(FC) $a  $(OBJS) $(OBJDIR)/hflib.a $(OBJDIR)/helib.a $l -o $(PWD)/$(system)/bin/cccs
       endif
 
 cco: $e tmatcco.o de.o atom/hflib.a helium/helib.a
@@ -75,17 +77,17 @@ clean:
 	$(MAKE) -C helium clean
 	$(MAKE) -C atom clean
 
-helium/$(OBJDIR)/helib.a:
+$(OBJDIR)/helib.a:
 	$(MAKE) -C helium
 
-atom/$(OBJDIR)/hflib.a:
+$(OBJDIR)/hflib.a:
 	$(MAKE) -C atom
 
-$(OBJDIR)/main.o : main.f par.f helium/$(OBJDIR)/modules.o
+$(OBJDIR)/main.o : main.f par.f $(OBJDIR)/modules.o
 #helium/$(OBJDIR)/modules.o
 	$(FC) $(aO1) -c main.f  -o $@
 
-helium/$(OBJDIR)/modules.o:  helium/modules.f
+$(OBJDIR)/modules.o:  helium/modules.f
 	$(FC) $a -c helium/modules.f -o $@
 
 # The -O0 -C -g stops crashes in BORN ICS at high energies
@@ -93,24 +95,24 @@ helium/$(OBJDIR)/modules.o:  helium/modules.f
 #	$(FC) $a -O0 -c processt.f  -o $@
 #	$(FC) $a -Mllvm -O0 -traceback -C -g -c processt.f  -o $@
 
-$(OBJDIR)/posvmat.o : posvmat.f par.f par.pos helium/$(OBJDIR)/modules.o
+$(OBJDIR)/posvmat.o : posvmat.f par.f par.pos $(OBJDIR)/modules.o
 	$(FC) $a  -c posvmat.f  -o $@
 
-$(OBJDIR)/new-posvmat.o : new-posvmat.f par.f par.pos helium/$(OBJDIR)/modules.o
+$(OBJDIR)/new-posvmat.o : new-posvmat.f par.f par.pos $(OBJDIR)/modules.o
 	$(FC) $a  -c new-posvmat.f  -o $@
 
 $(OBJDIR)/cc.o : cc.f 
 	$(FC) $a -O0 -c cc.f  -o $@
 
 
-$(OBJDIR)/vmat.o : vmat.f
+$(OBJDIR)/vmat.o : vmat.f $(OBJDIR)/modules.o
 	$(FC) $a -c vmat.f  -o $@
 
 
 $(OBJDIR)/logam.o : logam.f 
 	$(FC) $a -O0 -c logam.f  -o $@
 
-$(OBJDIR)/rest.o : rest.f par.f helium/$(OBJDIR)/modules.o
+$(OBJDIR)/rest.o : rest.f par.f $(OBJDIR)/modules.o
 	$(FC) $a -Msave -O0 -c rest.f  -o $@
 
 $(OBJDIR)/corratom.o : corratom.f par.f paratom.f 
@@ -120,7 +122,7 @@ $(OBJDIR)/gpuvdirect.o : gpuvdirect.f
 #	pgf90 -Mllvm $(pga)  -mp -Minfo=accel,mp -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -c gpuvdirect.f  -o $@
 	$(FC) $(aGPU) -c gpuvdirect.f -o $@
 
-$(OBJDIR)/first.o : first.f
+$(OBJDIR)/first.o : first.f $(OBJDIR)/modules.o
 #	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -c  first.f -o $@
 	$(FC) $(aGPU) -c first.f -o $@
 
@@ -128,8 +130,8 @@ $(OBJDIR)/form.o : form.f
 #	pgf90 -Mllvm $(pga) -mp -O2 -Mnoinline -Minfo=accel -mcmodel=medium -c  form.f -o $@
 	$(FC) $a -c form.f -o $@
 
-$(OBJDIR)/int.o : int.f par.f paratom.f 
-	$(FC) $a -c int.f  -o $@
+$(OBJDIR)/jnt.o : jnt.f par.f paratom.f 
+	$(FC) $a -c jnt.f  -o $@
 
 $(OBJDIR):
 	if ( test ! -d $@ ) then ( mkdir -p $@ ) fi

@@ -1,4 +1,4 @@
-SOURCE = modules.f main.f hevmat.f setmax.f setmax_dif.f hel-3.f eigv.f ort.f osc.f rearrange.f r2.f scat.f structure.f rsg.f hforbnum.f e2e.f cfhe.f gsort.f state.f nonuniq.f so.f so_1el.f posHeVmat.f
+SOURCE = modules.f mainhe.f hevmat.f setmax.f setmax_dif.f hel-3.f eigv.f ort.f osc.f rearrange.f r2.f scat.f structure.f rsg.f hforbnum.f e2e.f cfhe.f gsort.f state.f nonuniq.f so.f so_1el.f posHeVmat.f
 #SOURCE = CI_MODULE.f VDCORE_MODULE.f PO_MODULE.f DM_MODULE.f main.f hevmat.f setmax.f hel-3.f eigv.f ort.f osc.f rearrange.f r2.f scat.f structure.f rsg.f hforbnum.f e2e.f cfhe.f gsort.f state.f nonuniq.f so.f so_1el.f
 
 OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o)
@@ -7,8 +7,8 @@ OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o)
 #a = -C -g -fpp -openmp -traceback
 
 $(OBJDIR)/helib.a: $(OBJS)
-	ar crs helib.a $(OBJS)
-	mv helib.a $(OBJDIR)
+	ar crs $(OBJDIR)/helib.a $(OBJS)
+#	mv helib.a $(OBJDIR)
 #	ranlib helib.a
 
 
