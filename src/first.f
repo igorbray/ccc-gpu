@@ -90,7 +90,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 ! set number of GPUs, OpenMP threads per GPU and nested threads
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
 ! 2 threads per GPU seems to be a good choice for P100 arch 
-      ntpg=2
+      ntpg=1  ! 2
       nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
 
 !      if (myid.ge.0) then
