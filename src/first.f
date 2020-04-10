@@ -5,11 +5,13 @@
      >   vmatp,nsmax,
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid,alkali)
+     >   vni,vnf,vnd,nodes,myid)
+#ifdef GPU
       use openacc
+#endif
       use ubb_module
       use apar
-      use chil_module
+!      use chil_module
 C      use vmat_module
       include 'par.f'
 
@@ -23,7 +25,7 @@ C      use vmat_module
 
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
       dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
-     >   ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
+     >  ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
      >   uf(maxr,nchan)
      >   ,vdcore(maxr,0:lamax),u1e(maxr),dwpot(maxr,nchan),ctemp(nchan)
       complex phasel(kmax,nchan),phasefast,phaseslow,sigc,
@@ -44,7 +46,7 @@ C      common/meshrr/ rmesh(maxr,3)
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut,regcut,expcut,fast,match,analyticd,packed
       logical fast,second,posi,posf,positron,match,analyticd,packed
-      logical alkali
+!      logical alkali
       dimension psii(maxr), psif(maxr), ovlp(kmax),temp(maxr),fun(maxr),
      >   psislow(maxr), psifast(maxr), slowery(ncmax)
      >   ,vmatt(kmax,kmax,0:1,nchtop)
@@ -69,7 +71,7 @@ C      allocatable :: chitemp(:,:)
       real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
       logical, dimension (nchtop) :: pos
 
-      integer ngpus,ntpg,nnt,gpunum
+      integer ngpus,ntpg,nnt,gpunum,nthreads
       integer childim
       integer, external :: omp_get_max_threads
       integer, external :: omp_get_thread_num
@@ -88,16 +90,23 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       nf=0
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
+#ifdef GPU
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
-! 2 threads per GPU seems to be a good choice for P100 arch 
+! 2 threads per GPU seems to be a good choice for P100 arch
       ntpg=2
-      nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
+      if(ngpug>0) then
+        nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
+        nthreads=ngpus*ntpg
+      else
+        nnt=1
+        nthreads=max(1,omp_get_max_threads())
+      endif
+#else
+      nnt=1
+      nthreads=max(1,omp_get_max_threads())     
+      write(*,*) "nnt,nthreads",nnt,nthreads
+#endif
 
-!      if (myid.ge.0) then
-!         call acc_set_device_num(nodeid-1,acc_device_nvidia)
-!         print*,'NODEID, MYID associated with GPU:',nodeid,myid,
-!     >   acc_get_device_num(acc_device_nvidia)
-!      endif
       td = 0.0
       te1 = 0.0
       te2 = 0.0
@@ -138,6 +147,7 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
 
 
 CC GPU ONLY
+#ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 
@@ -146,6 +156,7 @@ CC GPU ONLY
 ! !$acc& create(chitemp(1:meshr,1:kmax))
 
        end do
+#endif
 
 !$omp parallel do private(nchf,nt) schedule(dynamic)
 !$omp& shared(nchii,nchtop,lg,psi_t,maxpsi_t,e_t,la_t,na_t,l_t)
@@ -160,7 +171,7 @@ CC GPU ONLY
 
 CC GPU ONLY
 !$omp parallel do default(none) 
-!$omp& num_threads(ngpus*ntpg) schedule(dynamic)
+!$omp& num_threads(nthreads) schedule(dynamic)
 !$omp& private(nchi,gpunum,nchf)
 !$omp& private(nti,psii,maxpsii,ei,lia,nia,li,nposi,posi,ui,ud)
 !$omp& private(nt,nposf,posf,nqmf,uf)
@@ -174,7 +185,7 @@ CC GPU ONLY
 !$omp& shared(vmat,vmat01,vmat0,vmat1,chil,minchil,theta,ctemp)
 !$omp& shared(ve2ee,childim,ngpus,rpow1,rpow2,ni,pos,u,minrp,nf)
 !$omp& shared(maxrp,vdon,nze)
-!$omp& shared(nchan,maxr,kmax,formcut,gamma,pol)
+!$omp& shared(formcut,gamma,pol)
 !$omp$ shared(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,nnt,npos_t)
 !$omp$ shared(zasym,alkali,ubb_max3,ubb_max1,arho)
 !$omp& private(temp3,mintemp3,maxtemp3)
@@ -183,7 +194,9 @@ CC GPU ONLY
       do nchi = nchii, nchif
          gpunum=mod(omp_get_thread_num(),ngpus)
 !         gpunum=1
+#ifdef GPU
          call acc_set_device_num(gpunum,acc_device_nvidia)
+#endif
 
 !         call getchinfo (nchi,nt, lg, psii, maxpsii, ei, lia, nia, li)
          psii(:)=psi_t(:,nchi)
@@ -214,18 +227,17 @@ C  which contains VDCORE.
          endif             
 
        allocate(temp3(1:meshr,nchi:nchtop))
-        allocate(vmati(1:kmax,1:nqmi,nchi:nchtop))
-!        allocate(vmatt(1:kmax,1:kmax,0:1,1:nchtop))
+       allocate(vmati(1:kmax,1:nqmi,nchi:nchtop))
 !$acc data create(vmati(1:kmax,1:nqmi,nchi:nchtop))
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
-C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,hat)
+C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg)
 C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
-C$OMP& SHARED(lamax,ltmax,pos,ni,nf)
+C$OMP& SHARED(pos,ni,nf)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
-C$OMP& SHARED(zasym,alkali,maxr,ubb_max3,ubb_max1,arho)
+C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho)
         do nchf = nchi, nchtop
 !            call getchinfo (nchf,nt,lg, psif, maxpsif, ef, lfa, nfa,lf)
             ef=e_t(nchf)
@@ -236,7 +248,6 @@ C$OMP& SHARED(zasym,alkali,maxr,ubb_max3,ubb_max1,arho)
 !            nposf=0
 !            posf = positron(nfa,lfa,nposf)
             nqmf = npk(nchf+1) - npk(nchf)
-
             if(pos(nchf).neqv.pos(nchi)) cycle
 
             if (lf.gt.ldw) then
@@ -320,7 +331,6 @@ C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
          endif
 
        if(pos(nchf)) then 
-!         if(0) then
 C     ANDREY: Hydrogen: ssalling + interpolation:
             if (.not.alkali) then
 C  The factor of two below is the reduced mass. We are working with
@@ -404,7 +414,6 @@ C  channels
             const = - nze * const
          endif ! pos
 
-
          do i = i1, i2
             temp3(i,nchf) = const * temp(i) + temp3(i,nchf)
          enddo
@@ -417,7 +426,6 @@ c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
                ltmin(nchf) = lt
          endif 
  10   continue
-
       if (ltmin(nchf).lt.10.and.maxi.eq.meshr) then
          ctemp(nchf) = rnorm * temp3(maxi,nchf)/rpow2(maxi,ltmin(nchf))
       endif 
@@ -445,11 +453,9 @@ C  them.
       mini1 = mintemp3(nchtop)
 
 ! create an array of pos to have all posf and 
-
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,vmati,childim,ngpus,nchii,second,pos)
-
 
 
 ! !$acc wait
@@ -507,8 +513,6 @@ C  tail integrals still need to be incorporated
         endif
       end do
 !!$omp end parallel do
-
-
       call clock(s2)
       td = td + s2 - s1
  
@@ -550,17 +554,18 @@ C Define exchange terms if IFIRST = 1
 
       if (ifirst.eq.1) then
 C  Define energy dependent exchange terms
-         if (ispeed.ne.2) call makev1e(nqmi,psii,maxpsii,ei,lia,
-     >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
-     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
-     >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
-     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
-     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
+!         if (ispeed.ne.2) call makev1e(nqmi,psii,maxpsii,ei,lia,
+!     >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
+!     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
+!     >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
+!     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
+!     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
          call clock(s4)
          te2 = te2 + s4 - s3
 C  End of exchange
       end if            
       end do
+    
       do 200 nchf = nchi, nchtop 
          nqmf = npk(nchf+1) - npk(nchf)
             if (npk(2)-npk(1).eq.1.or.
@@ -606,7 +611,8 @@ C  End of exchange
 
  200     continue
 
-
+ 
+  
 C  End of NCHI loop
 
 ! !$omp end critical
@@ -625,6 +631,7 @@ C  End of NCHI loop
 
 
 CC GPU ONLY
+#ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 
@@ -635,6 +642,7 @@ CC GPU ONLY
 !$acc& finalize
 
       enddo
+#endif
 
 !      deallocate(temp3)
 !      deallocate(vmati)

@@ -1,7 +1,7 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,vmati,childim,ngpus,nchii,second)
-      include 'par.f'
+!      include 'par.f'
       integer npk(nchtop+1)
       integer childim
       integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
@@ -124,7 +124,6 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 c
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut
-      integer gpunum
 
 c      
       hat(l)= sqrt(2.0 * l + 1.0)
@@ -180,7 +179,7 @@ c$$$               stop 'CJ6 and W do not agree'
 !$omp& schedule(dynamic)
 !$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
 !$omp& rpow2,temp2,nqmi,minchii,maxi,gamma,pol,minrp,maxrp,maxpsif,
-!$omp& nchtop,ltmax,gpunum)
+!$omp& nchtop,gpunum)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1

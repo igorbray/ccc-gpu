@@ -2205,7 +2205,6 @@ C
      >            COF3J, CNJ
       real*8 sym3
       INTEGER*4   IC
-!c$omp threadprivate(sym3,ic)
 C
       A7 = 0.0D0
       A8 = 0.0D0
@@ -2229,7 +2228,6 @@ C
       REAL     A1, A2, A3, A4, A5, A6, A7, A8, A9,
      >           COF6J, CNJ
       INTEGER*4  IC
-!c$omp threadprivate(ic,a7,a8,a9)
 C      
       A7 = 0.0D0
       A8 = 0.0D0
@@ -2262,10 +2260,6 @@ C
      >            FG03BD, CLEBSH, RACAH, ANINE, A, B, C,
      >            H, AY, RA, RB, UUU, VVV, WWW, Q, E, D,
      >            F, FACTOR
-!c$omp threadprivate(AA,BB,CC,DD,EE,FF,GG,HH,PP,X,Y,Z,XX,YY,ZZ)
-!c$omp threadprivate(XXX,YYY,ZZZ,FG01BD,FG01CD,FG01DD,FG02BD,FG02CD)
-!c$omp threadprivate(FG03BD,CLEBSH,RACAH,ANINE,A,B,C,H,AY,RA,RB)
-!c$omp threadprivate(UUU,VVV,WWW,Q,E,D,F,FACTOR)
 C
       INTEGER*4   NJ, K, K1, K2, K3, K4, K5, K6, KA, KB, KC,
      >            KK1, KK2, KK3, KK4, KK5, KK6, KK7, KK8, KK9,
@@ -2274,13 +2268,6 @@ C
      >            IJ, IX, IY, IZ, IYY, IAY, IJPAR, IERR, IERCT,
      >            N4, N5, N6, N5PAR, J, JS, JSPAR, JQ, 
      >            KEY, KEYTRI, KEYRAC
-!c$omp threadprivate(K, K1, K2, K3, K4, K5, K6, KA, KB, KC)
-!c$omp threadprivate(KK1, KK2, KK3, KK4, KK5, KK6, KK7, KK8, KK9)
-!c$omp threadprivate(KUP, M1, M2, M3, M4, M5, M6, M7, M8, M9, M10)
-!c$omp threadprivate(MM1, MM2, MM3, MM4, MM5, MA, MB, MC, MD, I)
-!c$omp threadprivate(IJ, IX, IY, IZ, IYY, IAY, IJPAR)
-!c$omp threadprivate(N4, N5, N6, N5PAR, J, JS, JSPAR, JQ)
-!c$omp threadprivate(KEY, KEYTRI, KEYRAC)
 
       INTEGER*4,SAVE::   JJJ
 C
@@ -2366,11 +2353,11 @@ C
 C
       parameter (mmax=501)
       COMMON / CNJSAVE / H(mmax), J(mmax)
-!c$omp threadprivate(/CNJSAVE/)
+c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)
       COMMON/ FGERCM /IERR,IERCT
       DATA JJJ/0/
-!c$omp threadprivate(JJJ)
+c$omp threadprivate(JJJ)
       INTPTF(Q) = nint(Q + Q)
       IPARF(I) = 4*(I/4) - I + 1
 C      GO TO 77
