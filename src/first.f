@@ -94,7 +94,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
 ! 2 threads per GPU seems to be a good choice for P100 arch
       ntpg=1
-      if(ngpug>0) then
+      if(ngpus>0) then
         nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
         nthreads=ngpus*ntpg
       else
