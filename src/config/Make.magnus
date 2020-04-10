@@ -1,0 +1,5 @@
+FC := ftn
+FCFLAGS_OPT2 := -traceback -dynamic -fpe0 -O3 -fpp -openmp -mcmodel=medium -shared-intel -align dcommons
+FCFLAGS_OPT1 := -traceback -dynamic -fpe0 -O3 -fpp -openmp -mcmodel=medium -shared-intel -align dcommons
+FCFLAGS_GPU := -traceback -dynamic -fpe0 -O3 -fpp -openmp -mcmodel=medium -shared-intel -align dcommons
+LDFLAGS := -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm
