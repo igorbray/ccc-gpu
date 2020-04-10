@@ -93,7 +93,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 #ifdef GPU
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
 ! 2 threads per GPU seems to be a good choice for P100 arch
-      ntpg=2
+      ntpg=1
       if(ngpug>0) then
         nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
         nthreads=ngpus*ntpg
@@ -554,12 +554,12 @@ C Define exchange terms if IFIRST = 1
 
       if (ifirst.eq.1) then
 C  Define energy dependent exchange terms
-!         if (ispeed.ne.2) call makev1e(nqmi,psii,maxpsii,ei,lia,
-!     >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
-!     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
-!     >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
-!     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
-!     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
+         if (ispeed.ne.2) call makev1e(nqmi,psii,maxpsii,ei,lia,
+     >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
+     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
+     >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
+     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
+     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
          call clock(s4)
          te2 = te2 + s4 - s3
 C  End of exchange
