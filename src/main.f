@@ -2425,7 +2425,11 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
      >                  stop 'vmat1 not allocated'
                      vmat1(:,:) = 0.0
                   endif 
+               else
+                  allocate(vmat0(1,1),vmat1(1,1)) !avoid runtime errors
                endif
+            else
+               allocate(vmat01(1,2),vmat0(1,1),vmat1(1,1)) !as above
             endif 
             print"('nodeid,nchistart,nchistop,nchprs,mchi,mv01,mv0,mv1:'
      >         ,i4,':',2i5,i7,4(i7,'M'))",
