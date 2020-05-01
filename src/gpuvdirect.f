@@ -1,7 +1,9 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,vmati,childim,ngpus,nchii,second)
+     >     nchan,vmati,childim,ngpus,nnt,nchii,second)
+#ifdef GPU
       use openacc
+#endif
       integer npk(nchtop+1)
       integer childim
       integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
@@ -16,15 +18,20 @@
       integer, external :: omp_get_thread_num
 
       allocate(chitemp(meshr,nqmi))
-
+#ifdef GPU
 !$omp parallel num_threads(ngpus)
+#else
+!$omp parallel num_threads(nnt)
+#endif
 !$omp& private(gpunum,nchf,nqmf,maxi,chitemp,ki,kf,i,kff,kii)
 !$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmati,ngpus)
 !$omp& shared(nqmi)
 
+#ifdef GPU
       tnum=omp_get_thread_num()
       gpunum=mod(tnum,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
+#endif
 
 !$acc data 
 !$acc& present(vmati(1:kmax,1:kmax,nchii:nchtop))
@@ -33,7 +40,7 @@
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
-!$omp do
+!$omp do schedule(dynamic)
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = maxtemp3(nchf)
@@ -112,7 +119,9 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
       subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
      >   li,lf,minchii,nqmi,lg,rnorm,second,npk,
      >   vmatt,nchtop,childim,nnt,ngpus)
+#ifdef GPU
       use openacc
+#endif
       include 'par.f'
       integer childim,nnt,gpunum
       common/meshrr/ meshr,rmesh(maxr,3)
@@ -243,27 +252,33 @@ c
       enddo
 !$omp end parallel do
 
+#ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc wait
       end do
+#endif
 
-      call gpuvexchange(chil,temp2, vmatt, ngpus,nchi,nchtop,
+      call gpuvexchange(chil,temp2, vmatt, ngpus, nnt,nchi,nchtop,
      >                        nqmi,childim,npk,maxi,kmax)
 
+#ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc exit data delete(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
       enddo
+#endif
 
       deallocate(temp2)
       deallocate(temp)
       end
 
 
-      subroutine gpuvexchange(chil,temp2, vmatt, ngpus,nchi,nchtop,
+      subroutine gpuvexchange(chil,temp2, vmatt, ngpus, nnt,nchi,nchtop,
      >                        nqmi,childim,npk,maxi,kmax)
+#ifdef GPU
       use openacc
+#endif
       integer childim
       common/meshrr/ meshr
       dimension npk(nchtop+1)
@@ -276,22 +291,28 @@ c
       real tmp
       integer, external :: omp_get_thread_num
 
+#ifdef GPU
 !$omp parallel default(none) num_threads(ngpus)
+#else
+!$omp parallel default(none) num_threads(nnt)
+#endif
 !$omp& private(gpunum,tnum,nchf,nqmf,ki,kf,kff,tmp)
 !$omp& shared(nchi,nchtop,npk,temp2,chil,vmatt,ngpus,maxpsii)
 !$omp& shared(nqmi,meshr,kmax)
 !$omp& firstprivate(maxi)
 
+#ifdef GPU
       tnum=omp_get_thread_num()
       gpunum=mod(tnum,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
+#endif
 
 !$acc data present(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 !$acc& copyin(temp2(1:maxi,1:nqmi,nchi:nchtop))
 !$acc& present(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
 !!$acc& present(npk(nchi:nchtop+1))
 
-!$omp do
+!$omp do schedule(dynamic)
       do nchf=nchi,nchtop
       nqmf=npk(nchf+1) - npk(nchf)
 !$acc kernels async(nchf)

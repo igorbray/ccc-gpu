@@ -11,7 +11,7 @@
 #endif
       use ubb_module
       use apar
-      use chil_module
+C      use chil_module
 C      use vmat_module
       include 'par.f'
 
@@ -445,7 +445,7 @@ C  them.
 ! create an array of pos to have all posf and 
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,vmati,childim,ngpus,nchii,second)
+     >     nchan,vmati,childim,ngpus,nnt,nchii,second)
 
 
 ! !$acc wait
