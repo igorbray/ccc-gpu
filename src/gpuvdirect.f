@@ -1,7 +1,7 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,vmati,childim,ngpus,nchii,second)
-!      include 'par.f'
+      use openacc
       integer npk(nchtop+1)
       integer childim
       integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
@@ -9,24 +9,35 @@
       real chil(1:meshr,1:(npk(nchtop+1)-1),1:childim)
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
       real temp3(1:meshr,nchi:nchtop)
-      real vmati(1:kmax,1:nqmi,nchi:nchtop)
+      real vmati(1:kmax,1:kmax,nchii:nchtop)
       allocatable :: chitemp(:,:)
       logical second
+      integer gpunum,tnum
+      integer, external :: omp_get_thread_num
 
       allocate(chitemp(meshr,nqmi))
 
+!$omp parallel num_threads(ngpus)
+!$omp& private(gpunum,nchf,nqmf,maxi,chitemp,ki,kf,i,kff,kii)
+!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmati,ngpus)
+!$omp& shared(nqmi)
+
+      tnum=omp_get_thread_num()
+      gpunum=mod(tnum,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
+
 !$acc data 
-!$acc& present(vmati(1:kmax,1:nqmi,nchi:nchtop))
+!$acc& present(vmati(1:kmax,1:kmax,nchii:nchtop))
 !$acc& present(npk(1:nchtop+1))
 !$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
-
+!$omp do
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = maxtemp3(nchf)
-!$acc kernels
+!$acc kernels async(nchf)
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
             do i = 1, maxi !minki, maxi
@@ -45,9 +56,9 @@
             end do
          end do
 !$acc end kernels
-!$acc update self(vmati(1:nqmf,1:nqmi,nchf)) async
+!$acc update self(vmati(1:nqmf,1:nqmi,nchf)) async(nchf)
        end do
-
+!$omp end do
 
 ! START
 ! !$acc kernels
@@ -91,7 +102,7 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 
 !$acc wait
 !$acc end data 
-
+!$omp end parallel
       deallocate(chitemp)
 
       return
@@ -100,7 +111,8 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 
       subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
      >   li,lf,minchii,nqmi,lg,rnorm,second,npk,
-     >   vmatt,nchtop,childim,nnt,gpunum)
+     >   vmatt,nchtop,childim,nnt,ngpus)
+      use openacc
       include 'par.f'
       integer childim,nnt,gpunum
       common/meshrr/ meshr,rmesh(maxr,3)
@@ -124,11 +136,18 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 c
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut
+      integer maxpsii,maxi
+      integer, external :: omp_get_thread_num
 
 c      
       hat(l)= sqrt(2.0 * l + 1.0)
 
+#ifdef GPU
+      do gpunum=0,ngpus-1
+         call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc enter data copyin(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop)) async
+      end do
+#endif
 
       allocate(temp2(meshr,nqmi,nchtop))
       allocate(temp(maxr))
@@ -221,34 +240,79 @@ c
             temp2(i,ki,nchf) = temp2(i,ki,nchf) * psii(i)
          enddo
       enddo
-      end do
+      enddo
 !$omp end parallel do
 
+      do gpunum=0,ngpus-1
+         call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc wait
+      end do
 
-!$acc data present(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
+      call gpuvexchange(chil,temp2, vmatt, ngpus,nchi,nchtop,
+     >                        nqmi,childim,npk,maxi,kmax)
+
+      do gpunum=0,ngpus-1
+         call acc_set_device_num(gpunum,acc_device_nvidia)
+!$acc exit data delete(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
+      enddo
+
+      deallocate(temp2)
+      deallocate(temp)
+      end
+
+
+      subroutine gpuvexchange(chil,temp2, vmatt, ngpus,nchi,nchtop,
+     >                        nqmi,childim,npk,maxi,kmax)
+      use openacc
+      integer childim
+      common/meshrr/ meshr
+      dimension npk(nchtop+1)
+      dimension chil(meshr,npk(nchtop+1)-1,childim)
+      real temp2(meshr,nqmi,nchtop)
+      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+      integer maxi,npktmp
+      integer gpunum,tnum,ngpus
+      integer nchf,nchtop,nchi,ki,kf,kff
+      real tmp
+      integer, external :: omp_get_thread_num
+
+!$omp parallel default(none) num_threads(ngpus)
+!$omp& private(gpunum,tnum,nchf,nqmf,ki,kf,kff,tmp)
+!$omp& shared(nchi,nchtop,npk,temp2,chil,vmatt,ngpus,maxpsii)
+!$omp& shared(nqmi,meshr,kmax)
+!$omp& firstprivate(maxi)
+
+      tnum=omp_get_thread_num()
+      gpunum=mod(tnum,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
+
+!$acc data present(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 !$acc& copyin(temp2(1:maxi,1:nqmi,nchi:nchtop))
 !$acc& present(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
-!$acc& present(npk(nchi:nchtop+1))
-      do nchf=nchi,nchtop 
+!!$acc& present(npk(nchi:nchtop+1))
+
+!$omp do
+      do nchf=nchi,nchtop
       nqmf=npk(nchf+1) - npk(nchf)
-!$acc kernels
+!$acc kernels async(nchf)
 !$acc loop independent collapse(2)
        do ki = 1, nqmi
          do kf = 1, nqmf
             kff = npk(nchf) + kf - 1
             tmp = dot_product(chil(1:maxi,kff,1)
      >            ,temp2(1:maxi,ki,nchf))
-            vmatt(kf,ki,0,nchf) = vmatt(kf,ki,0,nchf) + tmp 
-            vmatt(kf,ki,1,nchf) = vmatt(kf,ki,1,nchf) - tmp 
+            vmatt(kf,ki,0,nchf) = vmatt(kf,ki,0,nchf) + tmp
+            vmatt(kf,ki,1,nchf) = vmatt(kf,ki,1,nchf) - tmp
         end do
        end do
 !$acc end kernels
+!$acc update self(vmatt(1:kmax,1:nqmi,0:1,nchf)) async(nchf)
       end do
+!$omp end do
+
+!$acc wait
 !$acc end data
 
-!$acc exit data copyout(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
+!$omp end parallel
 
-      deallocate(temp2)
-      deallocate(temp)
       end
