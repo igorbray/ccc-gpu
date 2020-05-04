@@ -168,7 +168,7 @@ c
 
 !$omp parallel do default(private) num_threads(nnt)
 !$omp& schedule(dynamic)
-!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,ltmax,nchi,nchtop)
+!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
       do nchf=nchi,nchtop
 
       do ilt = -lia, lia, 2
