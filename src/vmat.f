@@ -366,8 +366,9 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       
       subroutine makev1e(nqmi,psii,maxpsii,ei,lia,li,
      >   chii,minchii,gki,ni,etot,thetain,ne2e,
-     >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,
-     >   gkf,nf,lg,const,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,vmatt,
+     >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,gkf,nf,
+!     >   lg,const,nqmfmax,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,vmatt,
+     >   lg,const,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,nqmfmax,vmatt,
      >   nchtop)
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
@@ -375,7 +376,8 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax)
       dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
      >          npk(nchan+1)
-      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
+!      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
+      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1),ve2e(nf,ni), temp(maxr),
      >   ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
@@ -429,9 +431,9 @@ c$$$c$$$                     kff = nchf
 c$$$c$$$                  endif 
 c$$$                  vmat(kff,kii) = vmat(kff,kii) +
 c$$$     >               tmp * ovlpf(kf) * ovlpi
-                  vmatt(kf,ki,0,nchf) = vmatt(kf,ki,0,nchf) 
+                  vmatt(kf,ki,nchf,0) = vmatt(kf,ki,nchf,0) 
      >                                  +tmp*ovlpf(kf)*ovlpi
-                  vmatt(kf,ki,1,nchf) = vmatt(kf,ki,1,nchf) 
+                  vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) 
      >                                  +tmp*ovlpf(kf)*ovlpi
  5             continue 
             enddo
@@ -525,8 +527,8 @@ c$$$                  vmat(kii,kff+1) = vmat(kii,kff+1)
 c$$$     >                - tmp * const * sign
 c$$$                  vmat(kff,kii) = vmat(kff,kii) 
 c$$$     >                + tmp * const * sign
-               vmatt(kf,ki,0,nchf)=vmatt(kf,ki,0,nchf)+tmp*const*sign
-               vmatt(kf,ki,1,nchf)=vmatt(kf,ki,1,nchf)-tmp*const*sign
+               vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+tmp*const*sign
+               vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,1)-tmp*const*sign
 
 c$$$  endif 
  10         continue 
@@ -534,6 +536,7 @@ c$$$  endif
       endif 
       end
                
+!not used any more
       subroutine makev31d(dwpot,nqmi,psii,maxpsii,lia,li,nia,chii,
      >   minchii,gki,phasei,ni,nqmf,psif,maxpsif,lfa,lf,nfa,chif,
      >   minchif,gkf,phasef,nf,lg,rnorm,u,itail,nznuci,vdon,nchf,nchi,

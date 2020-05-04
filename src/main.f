@@ -2823,33 +2823,44 @@ C   Solve Ax=b inside the main routine; below will be replaced with scalapack
                   do nch = nchistart(n), nchistop(n)
                      naps = naps + natomps(nch)
                   enddo
-                  ntimeperi = nint(float(nntime(n))/
-     >               (nchistart(n+1)-nchistart(n)))
+                  timeperi = float(nntime(n))/
+     >               (nchistart(n+1)-nchistart(n))
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-                  write(42,'(4i4,7i7," ave time of prev LG")') 
+                  write(42,'(4i4,3i7,f8.1,3i7," ave time of prev LG")') 
      >               lg,n,ipar,inc(n,ipar),
-     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
+     >               nntime(n),nchistart(n),nchistop(n),timeperi,
      >               nchprs(nchistart(n),nchistop(n),nchtop),
      >               naps, nint(tave)
+!                  write(42,'(4i4,7i7," ave time of prev LG")') 
+!     >               lg,n,ipar,inc(n,ipar),
+!     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
+!     >               nchprs(nchistart(n),nchistop(n),nchtop),
+!     >               naps, nint(tave)
                enddo
                n = nodes
                naps = 0
                do nch = nchistart(n), nchistop(n)
                   naps = naps + natomps(nch)
                enddo
-               ntimeperi = nint(float(nntime(n))/
-     >            (nchistop(n)-nchistart(n)+1))
+               timeperi = float(nntime(n))/
+     >            (nchistop(n)-nchistart(n)+1)
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(4i4,7i7,2i4,"% LG,node,ipar,inc,vt,",
-     >            "i1,i2,tperi,nch,naps,mt,LGold,eff")')
+               write(42,'(4i4,3i7,f8.1,3i7,2i4,"% LG,node,ipar,inc,vt,",
+     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
      >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
-     >            nchistop(n),ntimeperi,nchprs(nchistart(n),nchistop(n),
+     >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
      >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
      >            neff
+!               write(42,'(4i4,7i7,2i4,"% LG,node,ipar,inc,vt,",
+!     >            "i1,i2,tperi,nch,naps,mt,LGold,eff")')
+!     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
+!     >            nchistop(n),ntimeperi,nchprs(nchistart(n),nchistop(n),
+!     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
+!     >            neff
                close(42)
             endif 
  

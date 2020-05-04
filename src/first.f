@@ -49,7 +49,7 @@ C      common/meshrr/ rmesh(maxr,3)
 !      logical alkali
       dimension psii(maxr), psif(maxr), ovlp(kmax),temp(maxr),fun(maxr),
      >   psislow(maxr), psifast(maxr), slowery(ncmax)
-     >   ,vmatt(kmax,kmax,0:1,nchtop)
+!     >   ,vmatt(kmax,kmax,0:1,nchtop)
 
       dimension psi_t(maxr,nchtop)
       dimension maxpsi_t(nchtop),la_t(nchtop),e_t(nchtop),
@@ -63,7 +63,7 @@ C  in makev31d. However, ve2eon is not used.
       integer, allocatable :: nchansi(:), nchansf(:)
 C      allocatable :: chitemp(:,:), temp3(:,:),vmati(:,:,:)
 C      allocatable :: chitemp(:,:)
-      real,allocatable :: vmati(:,:,:),temp3(:,:)!,vmatt(:,:,:,:)
+      real,allocatable :: vmati(:,:,:),temp3(:,:),vmatt(:,:,:,:)
 !      data pi/3.14159265358979/
       data uplane/maxr*0.0/
  
@@ -144,7 +144,7 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
         childim=1
       endif
 
-      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
+!      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
 
 #ifdef GPU
       do gpunum=0,ngpus-1
@@ -152,7 +152,8 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
 
 !$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
 !$acc& copyin(nchtop,npk(1:nchtop+1))
-!$acc& create(vmati(1:kmax,1:kmax,nchii:nchtop))
+!!$acc& create(vmati(1:kmax,1:kmax,nchii:nchtop))
+!!$acc& create(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
 
        end do
 #endif
@@ -218,9 +219,12 @@ C  which contains VDCORE.
                ud(i) = ui(i)
             enddo 
          endif             
-
-       allocate(temp3(1:meshr,nchi:nchtop))
-
+         nqmfmax=1
+         do nchf = nchi, nchtop
+            nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
+         enddo
+         allocate(temp3(1:meshr,nchi:nchtop),
+     >        vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg)
@@ -445,7 +449,7 @@ C  them.
 ! create an array of pos to have all posf and 
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,vmati,childim,ngpus,nnt,nchii,second)
+     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second)
 
 
 ! !$acc wait
@@ -454,7 +458,7 @@ C  them.
 !!$omp parallel do num_threads(2) schedule(dynamic)
       do nchf = nchi, nchtop
         if(pos(nchi).eqv.pos(nchf)) then
-         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmati(1,1,nchf)
+         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmatt(1,1,nchf,0)
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
 !      end do
 !!$omp end parallel do
@@ -467,36 +471,39 @@ C  tail integrals still need to be incorporated
 !!$omp& private(ns,ki,kf,nqmf)
 !      do nchf=nchi,nchtop
          nqmf = npk(nchf+1) - npk(nchf)
-         do ns = 0, nsmax
+         do ns = 1, nsmax
             do ki = 1, nqmi
                do kf = 1, nqmf
-                  vmatt(kf,ki,ns,nchf) = vmati(kf,ki,nchf) 
+                  vmatt(kf,ki,nchf,ns) = vmatt(kf,ki,nchf,0) 
+!                  vmatt(kf,ki,nchf,ns) = vmati(kf,ki,nchf) 
                enddo
             enddo
          enddo
         else
-               do ns = 0, nsmax
-                do ki = 1, nqmi
-                  do kf = 1, nqmf
-                    vmatt(kf,ki,ns,nchf) = 0.0
-                  enddo
-                enddo
-               enddo
-               nqmf = npk(nchf+1) - npk(nchf)
-               ef=e_t(nchf)
-               lfa=la_t(nchf)
-               nfa=na_t(nchf)
-               lf=l_t(nchf)
-               nposf=npos_t(nchf)
-               lm=min0(Lf+lfa+lia,Li+lfa+lia) ! additional argument
-               if (pos(nchf)) then
-                call posvmat(nqmi,lia,li,nia,gk(1,nchi),
-     >               npk(nchtop+1)-1,nchi,nqmf,lfa,lf,nposf,nfa,
-     >               gk(1,nchf),nchf,lg,npk,etot,vmatt(1,1,0,nchf),lm)
-               else
-                call posvmat(nqmf,lfa,lf,nfa,gk(1,nchf),
-     >               npk(nchtop+1)-1,nchf,nqmi,lia,li,nposi,nia,
-     >               gk(1,nchi),nchi,lg,npk,etot,vmatt(1,1,0,nchf),lm)
+           do ns = 0, nsmax
+              do ki = 1, nqmi
+                 do kf = 1, nqmf
+                    vmatt(kf,ki,nchf,ns) = 0.0
+                 enddo
+              enddo
+           enddo
+           nqmf = npk(nchf+1) - npk(nchf)
+           ef=e_t(nchf)
+           lfa=la_t(nchf)
+           nfa=na_t(nchf)
+           lf=l_t(nchf)
+           nposf=npos_t(nchf)
+           lm=min0(Lf+lfa+lia,Li+lfa+lia) ! additional argument
+           if (pos(nchf)) then
+              call posvmat(nqmi,lia,li,nia,gk(1,nchi),
+     >             npk(nchtop+1)-1,nchi,nqmf,lfa,lf,nposf,nfa,
+     >             gk(1,nchf),nchf,lg,npk,etot,nqmfmax,
+     >             vmatt(1,1,nchf,0),lm)
+           else
+              call posvmat(nqmf,lfa,lf,nfa,gk(1,nchf),
+     >             npk(nchtop+1)-1,nchf,nqmi,lia,li,nposi,nia,
+     >             gk(1,nchi),nchi,lg,npk,etot,nqmfmax,
+     >             vmatt(1,1,nchf,0),lm)
 
 !posvmat
                endif
@@ -515,15 +522,13 @@ C  tail integrals still need to be incorporated
         
 C Define exchange terms if IFIRST = 1
       if (ifirst.eq.1) then
-         if (ispeed.ne.3) then
 
-            call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
-     >         maxpsi_t,la_t,li,l_t,minchil(npk(nchi),1),nqmi,
-     >         lg,rnorm,second,npk,vmatt,nchtop,childim,nnt,ngpus)
+         call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
+     >      maxpsi_t,la_t,li,l_t,minchil(npk(nchi),1),nqmi,
+     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,childim,nnt,ngpus)
 
             call clock(s3)
             te1 = te1 + s3 - s2
-         endif 
       endif
 !      end do
    
@@ -531,7 +536,7 @@ C Define exchange terms if IFIRST = 1
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
 !$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li)
 !$omp& shared(chil,minchil,npk,gk,etot,theta,ld,rnorm)
-!$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,vmatt)
+!$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,nqmfmax,vmatt)
       do nchf = nchi, nchtop
         nqmf = npk(nchf+1) - npk(nchf)
           psif(:)=psi_t(:,nchf)
@@ -547,7 +552,7 @@ C  Define energy dependent exchange terms
      >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
      >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
-     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,vmatt,nchtop)
+     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nchtop)
          call clock(s4)
          te2 = te2 + s4 - s3
 C  End of exchange
@@ -564,9 +569,9 @@ C  End of exchange
                   do kf = 1, nqmf
                      kff = npk(nchf) + kf - 1
                      if (kff.ge.kii) then
-                        vmat(kff,kii)=vmat(kff,kii)+vmatt(kf,ki,0,nchf)
+                        vmat(kff,kii)=vmat(kff,kii)+vmatt(kf,ki,nchf,0)
                         if (nsmax.eq.1) vmat(kii,kff+1) =
-     >                     vmat(kii,kff+1)+vmatt(kf,ki,1,nchf)
+     >                     vmat(kii,kff+1)+vmatt(kf,ki,nchf,1)
                      endif
                   enddo
                enddo
@@ -578,9 +583,9 @@ C  End of exchange
                         kff = npk(nchf) + kf - 1
                         if (kff.ge.kii) then
                            vmat01(kff,kii) = vmat01(kff,kii)
-     >                        + vmatt(kf,ki,0,nchf)
+     >                        + vmatt(kf,ki,nchf,0)
                            if (nsmax.eq.1) vmat01(kii,kff+1) = 
-     >                        vmat01(kii,kff+1) + vmatt(kf,ki,1,nchf)
+     >                        vmat01(kii,kff+1) + vmatt(kf,ki,nchf,1)
                         endif
                      enddo
                   enddo
@@ -590,9 +595,9 @@ C  End of exchange
                      do kf = 1, nqmf
                         kff = npk(nchf) + kf - 1
                         vmat0(kff,kii) = vmat0(kff,kii)
-     >                     + vmatt(kf,ki,0,nchf)
+     >                     + vmatt(kf,ki,nchf,0)
                         if (nsmax.eq.1) vmat1(kii,kff+1) =
-     >                     vmat1(kii,kff+1) + vmatt(kf,ki,1,nchf)
+     >                     vmat1(kii,kff+1) + vmatt(kf,ki,nchf,1)
                      enddo
                   enddo
                endif
@@ -604,7 +609,7 @@ C  End of exchange
   
 C  End of NCHI loop
 
-      deallocate(temp3)
+      deallocate(temp3,vmatt)
 
       end do
 
@@ -614,13 +619,13 @@ C  End of NCHI loop
 
 !$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim)) 
 !$acc& delete(nchtop,npk(1:nchtop+1))
-!$acc& delete(vmati)
+!!$acc& delete(vmati)
 !$acc& finalize
 
       enddo
 #endif
 
-      deallocate(vmati)
+!      deallocate(vmati)
       deallocate(nchansi,nchansf)
       return
       end

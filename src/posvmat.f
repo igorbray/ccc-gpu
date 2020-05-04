@@ -26,7 +26,7 @@
 * common blocks; all common blocks come from outside; posvmat
 * should not try renew elements of these common blocks either.      
       subroutine posVmat(nqmi,lia,li,nia,gki,ni,nchi,nqmf,lfa,lf,
-     >                   nposf,nfa,gkf,nchf,lg,npk,etot,vmatt,lm)
+     >   nposf,nfa,gkf,nchf,lg,npk,etot,nqmfmax,vmatt,lm)
       use ql_module, only: index_ql, qlgmax
       use apar, only: alkali
       use ftps_module, only: interpol ! , error
@@ -47,7 +47,7 @@
       dimension fpqb(2*nqmi*igpm+nqmi,0:ltmax+lamax)      
       dimension x(ipm),ylam(0:lm,ipm),y2lam(0:lm,ipm)
       real gki,gkf,etot,vmatt
-      dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(kmax,kmax,0:1)
+      dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(nqmfmax,nqmi)!vmatt(kmax,kmax,0:1)
       dimension pc0(0:ncmax-1,ncmax,0:lamax),
      >   pc1(0:ncmax-1,ncmax,0:lamax)
       dimension a(ncmax),f0(0:ncmax-1),f1(0:ncmax-1)
@@ -1610,12 +1610,12 @@ c      print*,'  dirVmat Ps->Ps:',dirres*2./pi
 *            vmat(kii,kff+1) = vmat(kii,kff+1) - real(result) ! old statement
             if (nchf.ge.nchi) then
 c$$$               vmat(kff,kii) = vmat(kff,kii) + real(result)
-               vmatt(iqb,iqa,0) = vmatt(iqb,iqa,0) + result
-               vmatt(iqb,iqa,1) = vmatt(iqb,iqa,1) + result
+               vmatt(iqb,iqa) = vmatt(iqb,iqa) + result
+!               vmatt(iqb,iqa,1) = vmatt(iqb,iqa,1) + result
             else
 c$$$               vmat(kii,kff) = vmat(kii,kff) + real(result)
-               vmatt(iqa,iqb,0) = vmatt(iqa,iqb,0) + result
-               vmatt(iqa,iqb,1) = vmatt(iqa,iqb,1) + result
+               vmatt(iqa,iqb) = vmatt(iqa,iqb) + result
+!               vmatt(iqa,iqb,1) = vmatt(iqa,iqb,1) + result
             endif
 
 c$$$C_TEST________________________________________________________________

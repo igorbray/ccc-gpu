@@ -1,6 +1,6 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,vmati,childim,ngpus,nnt,nchii,second)
+     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second)
 #ifdef GPU
       use openacc
 #endif
@@ -11,7 +11,8 @@
       real chil(1:meshr,1:(npk(nchtop+1)-1),1:childim)
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
       real temp3(1:meshr,nchi:nchtop)
-      real vmati(1:kmax,1:kmax,nchii:nchtop)
+!      real vmati(1:kmax,1:kmax,nchii:nchtop)
+      real vmatt(nqmfmax,nqmi,nchi:nchtop)
       allocatable :: chitemp(:,:)
       logical second
       integer gpunum,tnum
@@ -24,7 +25,7 @@
 !$omp parallel num_threads(nnt)
 #endif
 !$omp& private(gpunum,nchf,nqmf,maxi,chitemp,ki,kf,i,kff,kii)
-!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmati,ngpus)
+!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus)
 !$omp& shared(nqmi)
 
 #ifdef GPU
@@ -34,7 +35,9 @@
 #endif
 
 !$acc data 
-!$acc& present(vmati(1:kmax,1:kmax,nchii:nchtop))
+!!$acc& present(vmati(1:kmax,1:kmax,nchii:nchtop))
+!$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
+!!$acc& present(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
 !$acc& present(npk(1:nchtop+1))
 !$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
 !$acc& present(nchtop)
@@ -57,13 +60,14 @@
                kii = npk(nchi) + ki - 1
                kff = npk(nchf) + kf - 1
                if (kff.ge.kii) then
-               vmati(kf,ki,nchf)=dot_product(
+               vmatt(kf,ki,nchf)=dot_product(
      >           chil(1:maxi,kf+npk(nchf)-1,1),chitemp(1:maxi,ki))
                endif
             end do
          end do
 !$acc end kernels
-!$acc update self(vmati(1:nqmf,1:nqmi,nchf)) async(nchf)
+!$acc update self(vmatt(1:nqmf,1:nqmi,nchf)) async(nchf)
+!!$acc update self(vmati(1:nqmf,1:nqmi,nchf)) async(nchf)
        end do
 !$omp end do
 
@@ -118,7 +122,7 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 
       subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
      >   li,lf,minchii,nqmi,lg,rnorm,second,npk,
-     >   vmatt,nchtop,childim,nnt,ngpus)
+     >   nqmfmax,vmatt,nchtop,childim,nnt,ngpus)
 #ifdef GPU
       use openacc
 #endif
@@ -134,7 +138,8 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
       dimension maxpsif(nchtop), lfa(nchtop), lf(nchtop)
       real, allocatable :: temp2(:,:,:)
       real, allocatable :: temp(:)
-      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+!      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -154,13 +159,16 @@ c
 #ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
-!$acc enter data copyin(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop)) async
+!$acc enter data copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1)) async
       end do
 #endif
 
       allocate(temp2(meshr,nqmi,nchtop))
       allocate(temp(maxr))
 
+!$omp parallel do default(private) num_threads(nnt)
+!$omp& schedule(dynamic)
+!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,ltmax,nchi,nchtop)
       do nchf=nchi,nchtop
 
       do ilt = -lia, lia, 2
@@ -200,6 +208,7 @@ c$$$               stop 'CJ6 and W do not agree'
          endif
       enddo ! ilt
       end do
+!$omp end parallel do
 
       maxi=maxpsii
 
@@ -252,6 +261,7 @@ c
       enddo
 !$omp end parallel do
 
+! What is the purpose of the following loop?
 #ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
@@ -259,13 +269,13 @@ c
       end do
 #endif
 
-      call gpuvexchange(chil,temp2, vmatt, ngpus, nnt,nchi,nchtop,
+      call gpuvexchange(chil,temp2,nqmfmax,vmatt,ngpus,nnt,nchi,nchtop,
      >                        nqmi,childim,npk,maxi,kmax)
 
 #ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
-!$acc exit data delete(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
+!$acc exit data delete(vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
       enddo
 #endif
 
@@ -274,8 +284,8 @@ c
       end
 
 
-      subroutine gpuvexchange(chil,temp2, vmatt, ngpus, nnt,nchi,nchtop,
-     >                        nqmi,childim,npk,maxi,kmax)
+      subroutine gpuvexchange(chil,temp2, nqmfmax, vmatt, ngpus, nnt,
+     >                        nchi,nchtop,nqmi,childim,npk,maxi,kmax)
 #ifdef GPU
       use openacc
 #endif
@@ -284,7 +294,8 @@ c
       dimension npk(nchtop+1)
       dimension chil(meshr,npk(nchtop+1)-1,childim)
       real temp2(meshr,nqmi,nchtop)
-      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+!      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
       integer maxi,npktmp
       integer gpunum,tnum,ngpus
       integer nchf,nchtop,nchi,ki,kf,kff
@@ -298,7 +309,7 @@ c
 #endif
 !$omp& private(gpunum,tnum,nchf,nqmf,ki,kf,kff,tmp)
 !$omp& shared(nchi,nchtop,npk,temp2,chil,vmatt,ngpus,maxpsii)
-!$omp& shared(nqmi,meshr,kmax)
+!$omp& shared(nqmi,meshr,kmax,nqmfmax)
 !$omp& firstprivate(maxi)
 
 #ifdef GPU
@@ -309,7 +320,7 @@ c
 
 !$acc data present(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 !$acc& copyin(temp2(1:maxi,1:nqmi,nchi:nchtop))
-!$acc& present(vmatt(1:kmax,1:nqmi,0:1,nchi:nchtop))
+!$acc& present(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
 !!$acc& present(npk(nchi:nchtop+1))
 
 !$omp do schedule(dynamic)
@@ -322,12 +333,12 @@ c
             kff = npk(nchf) + kf - 1
             tmp = dot_product(chil(1:maxi,kff,1)
      >            ,temp2(1:maxi,ki,nchf))
-            vmatt(kf,ki,0,nchf) = vmatt(kf,ki,0,nchf) + tmp
-            vmatt(kf,ki,1,nchf) = vmatt(kf,ki,1,nchf) - tmp
+            vmatt(kf,ki,nchf,0) = vmatt(kf,ki,nchf,0) + tmp
+            vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) - tmp
         end do
        end do
 !$acc end kernels
-!$acc update self(vmatt(1:kmax,1:nqmi,0:1,nchf)) async(nchf)
+!$acc update self(vmatt(1:nqmf,1:nqmi,nchf,0:1)) async(nchf)
       end do
 !$omp end do
 
