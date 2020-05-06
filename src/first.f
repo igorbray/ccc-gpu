@@ -28,6 +28,7 @@ C      use vmat_module
      >   ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
      >   uf(maxr,nchan)
      >   ,vdcore(maxr,0:lamax),u1e(maxr),dwpot(maxr,nchan),ctemp(nchan)
+      complex phasei, phasef
       complex phasel(kmax,nchan),phasefast,phaseslow,sigc,
      >   dphasee2e(nchane2e),ephasee2e(nchane2e)
       real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
@@ -225,12 +226,13 @@ C  which contains VDCORE.
          enddo
          allocate(temp3(1:meshr,nchi:nchtop),
      >        vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
+         vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1) = 0.0
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg)
 C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
-C$OMP& SHARED(pos,ni,nf)
+C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
 C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho)
         do nchf = nchi, nchtop
@@ -433,7 +435,12 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      
+      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10)
+     >     call maketail(itail,ctemp(nchf),chil(1,npk(nchi),2),
+     >     minchil(npk(nchi),2),gk(1,nchi),phasei,li,nqmi,
+     >     chil(1,npk(nchf),2),minchil(npk(nchf),2),gk(1,nchf),phasef,
+     >     lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
+
 C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
 C  them.
       do i = mini, maxi
@@ -455,21 +462,14 @@ C  them.
 ! !$acc wait
 ! !$omp critical
 
-!!$omp parallel do num_threads(2) schedule(dynamic)
+C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
+C$OMP& SCHEDULE(dynamic)
+C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
+C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
       do nchf = nchi, nchtop
         if(pos(nchi).eqv.pos(nchf)) then
          vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmatt(1,1,nchf,0)
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
-!      end do
-!!$omp end parallel do
-
-C  Define the direct on shell V matrix used for analytic Born subtraction
-C  tail integrals still need to be incorporated
-
-!!$omp parallel do num_threads(2) schedule(dynamic)
-!!$omp& shared(vdon,nchi,nchtop,vmatt,vmati,npk,nsmax,nqmi)
-!!$omp& private(ns,ki,kf,nqmf)
-!      do nchf=nchi,nchtop
          nqmf = npk(nchf+1) - npk(nchf)
          do ns = 1, nsmax
             do ki = 1, nqmi
@@ -480,6 +480,7 @@ C  tail integrals still need to be incorporated
             enddo
          enddo
         else
+           nqmf = npk(nchf+1) - npk(nchf)
            do ns = 0, nsmax
               do ki = 1, nqmi
                  do kf = 1, nqmf
@@ -487,7 +488,6 @@ C  tail integrals still need to be incorporated
                  enddo
               enddo
            enddo
-           nqmf = npk(nchf+1) - npk(nchf)
            ef=e_t(nchf)
            lfa=la_t(nchf)
            nfa=na_t(nchf)
@@ -504,12 +504,10 @@ C  tail integrals still need to be incorporated
      >             npk(nchtop+1)-1,nchf,nqmi,lia,li,nposi,nia,
      >             gk(1,nchi),nchi,lg,npk,etot,nqmfmax,
      >             vmatt(1,1,nchf,0),lm)
-
-!posvmat
-               endif
+           endif
         endif
       end do
-!!$omp end parallel do
+!$omp end parallel do
       call clock(s2)
       td = td + s2 - s1
  
@@ -529,25 +527,21 @@ C Define exchange terms if IFIRST = 1
 
             call clock(s3)
             te1 = te1 + s3 - s2
-      endif
-!      end do
-   
 
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
 !$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li)
 !$omp& shared(chil,minchil,npk,gk,etot,theta,ld,rnorm)
 !$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,nqmfmax,vmatt)
       do nchf = nchi, nchtop
-        nqmf = npk(nchf+1) - npk(nchf)
-          psif(:)=psi_t(:,nchf)
-          maxpsif=maxpsi_t(nchf)
-          ef=e_t(nchf)
-          lfa=la_t(nchf)
-          lf=l_t(nchf)
+         nqmf = npk(nchf+1) - npk(nchf)
+         psif(:)=psi_t(:,nchf)
+         maxpsif=maxpsi_t(nchf)
+         ef=e_t(nchf)
+         lfa=la_t(nchf)
+         lf=l_t(nchf)
 
-      if (ifirst.eq.1) then
 C  Define energy dependent exchange terms
-         if (ispeed.ne.2) call makev1e(nqmi,psii,maxpsii,ei,lia,
+         call makev1e(nqmi,psii,maxpsii,ei,lia,
      >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
      >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
@@ -555,10 +549,9 @@ C  Define energy dependent exchange terms
      >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nchtop)
          call clock(s4)
          te2 = te2 + s4 - s3
-C  End of exchange
-      end if            
       end do
 !$omp end parallel do
+      end if ! End of exchange
     
       do 200 nchf = nchi, nchtop 
          nqmf = npk(nchf+1) - npk(nchf)

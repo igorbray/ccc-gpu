@@ -60,7 +60,7 @@
                kii = npk(nchi) + ki - 1
                kff = npk(nchf) + kf - 1
                if (kff.ge.kii) then
-               vmatt(kf,ki,nchf)=dot_product(
+               vmatt(kf,ki,nchf)=vmatt(kf,ki,nchf)+dot_product(
      >           chil(1:maxi,kf+npk(nchf)-1,1),chitemp(1:maxi,ki))
                endif
             end do

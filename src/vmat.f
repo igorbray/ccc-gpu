@@ -352,8 +352,8 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       swapped = .true.
       do while (swapped)
          swapped = .false.
-         do n = 2, nchpmax
-            if (states(n-1)%energy.gt.states(n)%energy*0.99999) then
+         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+            if (states(n-1)%energy.gt.states(n)%energy)then !*0.99999) then
                swapped = .true.
                staten = states(n-1)
                states(n-1) = states(n)
@@ -1327,13 +1327,13 @@ C  enough.
 C The following integrates dr from 1 to oo the tail integrals that fall-off 
 C as r**(-lt-1). The input projectiles are chi(Rkr), where R=rmesh(meshr,1).
       subroutine maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
-     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,nqmfmax,vmatt)
 c$$$      use gf_module
       include 'par.f'
       implicit double precision (a-h,o-z)
       common/meshrr/ meshr,rmesh(maxr,3)
       common/matchph/rphase(kmax,nchan),trat
-      real gki(kmax),gkf(kmax),tail(kmax,kmax),chii(meshr,nqmi),r,
+      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmi),chii(meshr,nqmi),r,
      >   chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
       integer minchii(nqmi),minchif(nqmf)
       complex phasei(kmax),phasef(kmax)
@@ -1341,8 +1341,8 @@ c$$$      use gf_module
 c$$$      character ch
 c$$$      ch(i)=char(i+ichar('0'))
 
-      tail(:,:) = 0.0
-      if (itail.eq.0.or.ctemp.eq.0.0) return !.or.ltmin.ne.1) return
+c$$$      vmatt(:,:) = 0.0
+!      if (itail.eq.0.or.ctemp.eq.0.0) return !.or.ltmin.ne.1) return
 
       lt = ltmin
       const = ctemp * (trat / rmesh(meshr,1))**lt
@@ -1357,7 +1357,7 @@ c$$$      ch(i)=char(i+ichar('0'))
             n = meshr - mini + 1
             rk2 = gkf(kf)
             if (rk2.lt.0.0) cycle
-            tail(kf,ki) = const *
+            vmatt(kf,ki) = const *
      >         dot_product(chif(mini:meshr,kf),temp(mini:meshr))
          enddo
       enddo
