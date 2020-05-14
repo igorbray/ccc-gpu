@@ -57,8 +57,9 @@
      >     w3j1,w3j2,w3j3,w3j4,w12j,cof3j,cof12j
 
       dimension aq(0:nqmi),qq(nqmi)
-      dimension xp(2*nqmi*igpm+nqmi),wp(2*nqmi*igpm+nqmi)      
-      dimension Qlp(nqmi,2*nqmi*igpm),Q0p(nqmi,2*nqmi*igpm)
+      dimension xp(2*nqmi*igpm+nqmi),wp(2*nqmi*igpm+nqmi),
+     >   xppl(2*nqmi*igpm+nqmi,0:2*lm+2)
+      dimension Qlp(2*nqmi*igpm,nqmi),Q0p(nqmi,2*nqmi*igpm)
       dimension f0z(igzm),f1z(igzm,2*nqmi*igpm+nqmi)
      >   ,f1zC(igzm,2*nqmi*igpm+nqmi)
       
@@ -375,7 +376,7 @@ C     wp(j2)=qq(nqgen)*wgp(igp+1-ji)/xgp(igp+1-ji)/xgp(igp+1-ji)
 *     composite mesh is ready
       
 
-C     Calculate Q0p(iqa,i) & Qlp(iqa,i) for integration in (44).
+C     Calculate Q0p(iqa,i) & Qlp(i,iqa) for integration in (44).
 c     Very slow for direct integration so interpolation is used.
 c     dQls are calculated in main.f     
       xp2(:) = xp(:)*xp(:)
@@ -455,7 +456,7 @@ c$$$               if (xp(i)*qa.ne.0.0) then
                   pp2=xp2(i)
                   arg=(pp2+qa2)/(2.0*pp*qa)
                   call funleg(arg,Lla,Q0p(iqa,i),Qlp1)
-                  Qlp(iqa,i) = Qlp1 + dQL1(i)
+                  Qlp(i,iqa) = Qlp1 + dQL1(i)
 c$$$               else
 c$$$                  print*,'xp(i)*qa=0.0:',i,xp(i),qa
 c$$$               endif
@@ -547,7 +548,7 @@ c$$$               pp=xp(i)
 c$$$               pp2=xp2(i)
 c$$$               arg=(pp2+qa2)/(2.0*pp*qa)            
 c$$$               call funleg(arg,Lla,Q0p(iqa,i),Qlp1)         
-c$$$               Qlp(iqa,i) = Qlp1 + dQL1(i)
+c$$$               Qlp(i,iqa) = Qlp1 + dQL1(i)
 c$$$               write(90,'(4(e13.4,2x))'), qa, pp, Qlp1, dQL1(i)
 c$$$            enddo               ! i
 c$$$            write(90,*)            
@@ -857,7 +858,11 @@ c     this is for positronium
             end if              !if(iq.eq.1) 
             
 C-----ANDREY: calculate f1z for dQl -------------------------------            
-            
+            xppl(1:imax,0) = 1.0
+            do ilam=1,2*lm+2
+               xppl(1:imax,ilam) = xppl(1:imax,ilam-1)*xp(1:imax) 
+            enddo
+
             do ilam=0,lm
                icalam(ilam)=0   ! or 1 if fpqb( : , lam) has been calculated
                res0(ilam)=0.
@@ -875,6 +880,13 @@ C-----ANDREY: calculate f1z for dQl -------------------------------
                   lab2=lb2+la2
                   lab21 = lab2+1 ! ANDREY
                   qal2=qa**lab21
+c$$$                  do i = 1, imax
+c$$$                     xppl(i) = xp(i)**lab21
+c$$$                  enddo
+                  if (lab21+1.gt.2*lm+2) then
+                     print*,'lab21+1,2*lm+2:',lab21+1,2*lm+2
+                     stop '2*lm+2 too small'
+                  endif
                   fla1=float(la1)
                   fla2=float(la2)
                   cla=1.d0/sqrfct(2*la1)/sqrfct(2*la2)
@@ -1105,18 +1117,22 @@ c     >    ,'Current Idea'
                               
                               res1 = 0.0d0
 *     integrals coming before singularity
+                              if (imax.lt.2*ising1*igp) stop 'imax1'
                               do i=1,2*ising1*igp
                                  pp=xp(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
                                  res1 = res1 + wp(i) * fp
                               end do
                               
 *     integrals with singularities
                               Fqa = fpqb(nqmi2*igp+ising,lam)*qa**lab21 
                               res2=0.d0
+                              if (imax.lt.(2*ising-1)*igp) stop 'imax2'
                               do i=2*ising1*igp+1,(2*ising-1)*igp
                                  pp=xp(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
      $                                -Fqa * Q0p(iqa,i)
                                  res2 = res2 + wp(i)*fp
                                                                   
@@ -1128,9 +1144,11 @@ c     >    ,'Current Idea'
      $                             + qa))  
 
                               res3=0.d0
+                              if (imax.lt.2*ising*igp) stop 'imax3'
                               do i= (2*ising-1)*igp+1, 2*ising*igp
                                  pp=xp(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
      $                                -Fqa * Q0p(iqa,i)
                                  res3 = res3 + wp(i)*fp
                               end do
@@ -1144,9 +1162,11 @@ c     >    ,'Current Idea'
                               
 *     integrals coming after singularity
                               res4=0.d0
+                              if (imax.lt.nqmi2*igp) stop 'imax4'
                               do i=2*ising*igp+1,nqmi2*igp
                                  pp=xp(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
                                  res4 = res4 + wp(i) * fp
                                  
 c$$$C_TEST________________________________________________________________
@@ -1155,7 +1175,7 @@ c$$$            if(isnan(res4)) then
 c$$$               open(unit=90, file = 'vmat', position='append')
 c$$$               write(90,'(6(2X, I4), 2(2X,E13.5))') lb,nb,la,na,iqb,iqa
 c$$$               write(90,*) 'i, res4', i,  res4
-c$$$               write(90,*) 'fpqb, Qlp: ', fpqb(i,lam), Qlp(iqa,i) ! fpqb = NaN
+c$$$               write(90,*) 'fpqb, Qlp: ', fpqb(i,lam), Qlp(i,iqa) ! fpqb = NaN
 c$$$               write(90,*) 'lam:', lam             
 c$$$               close(90)
 c$$$               stop 'stopped at posvmat -2-'
@@ -1187,18 +1207,22 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                               res1 = 0.0d0
                               
 *     integrals coming before singularity
+                              if (imax.lt.2*nqmi1*igp) stop 'imax5'
                               do i=1,2*(nqmi1)*igp
-                                 pp=xp(i)                              
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+                                 pp=xp(i)                           
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)   
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
                                  res1 = res1 + wp(i) * fp                                                                
                               end do
                            
 *     integrals with singularities
                               Fqa = fpqb(nqmi2*igp+nqim,lam)*qa**lab21
                               res2=0.d0
+                              if (imax.lt.(nqmi2-1)*igp) stop 'imax6'
                               do i=2*(nqmi1)*igp+1,(nqmi2-1)*igp
                                  pp=xp(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
      $                                -Fqa*Q0p(iqa,i)
                                  res2 = res2 + wp(i)*fp                                 
                               end do
@@ -1212,10 +1236,12 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                               res2=res2+res1b
 
                               res3=0.d0
+                              if (imax.lt.nqmi2*igp) stop 'imax7'
                               do i=(nqmi2-1)*igp+1,nqmi2*igp
                                  pp=xp(i)
                                  pp2 = xp2(i)
-                                 fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
      $                                -Fqa*(qa2+alfa2)*(qa2+alfa2) /(pp2
      $                                +alfa2)/(pp2+alfa2)*Q0p(iqa,i)
                                  res3 = res3 + wp(i)*fp
@@ -1237,7 +1263,7 @@ c$$$               open(unit=90, file = 'vmat', position='append')
 c$$$               write(90,'(6(2X, I4), 2(2X,E13.5))') lb,nb,la,na,iqb,iqa,
 c$$$     $              res1
 c$$$               write(90,*) '(1) ---------------------------------------'
-c$$$               write(90,*) 'res2,res3,Qlp(iqa,i): ',
+c$$$               write(90,*) 'res2,res3,Qlp(i,iqa): ',
 c$$$     1              res2,res3,Qlp(iqa,(nqmi2-1)*igp+1) ! res2 = NaN, res3=NaN
 c$$$               close(90)
 c$$$               print*, 'ERROR: posvmat -3- '
@@ -1259,7 +1285,7 @@ c$$$                              res1 = 0.0d0
 c$$$*     integrals coming before singularity
 c$$$                              do i=1,2*(ising-1)*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$                                 res1 = res1 + wp(i) * fp
 c$$$                              end do
 c$$$                              
@@ -1267,7 +1293,7 @@ c$$$*     integrals with singularities
 c$$$                              res2=0.d0
 c$$$                              do i=2*(ising-1)*igp+1,(2*ising-1)*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$     >                              -fpqb(2*nqmi*igp+ising,lam)*
 c$$$     >                              qa**(lab2+1)*Q0p(iqa,i)
 c$$$                                 res2 = res2 + wp(i)*fp
@@ -1287,7 +1313,7 @@ c$$$
 c$$$                              res3=0.d0
 c$$$                              do i=(2*ising-1)*igp+1,2*ising*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$     >                              -fpqb(2*nqmi*igp+ising,lam)*
 c$$$     >                              qa**(lab2+1)*Q0p(iqa,i)
 c$$$                                 res3 = res3 + wp(i)*fp
@@ -1307,7 +1333,7 @@ c$$$*     integrals coming after singularity
 c$$$                              res4=0.d0
 c$$$                              do i=2*ising*igp+1,2*nqmi*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$                                 res4 = res4 + wp(i) * fp
 c$$$                              end do
 c$$$                              res1=res1+res2+res3+res4
@@ -1320,7 +1346,7 @@ c$$$
 c$$$*     integrals coming before singularity
 c$$$                              do i=1,2*(nqmi-1)*igp
 c$$$                                 pp=xp(i)                              
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$                                 res1 = res1 + wp(i) * fp
 c$$$                              end do
 c$$$                           
@@ -1328,7 +1354,7 @@ c$$$*     integrals with singularities
 c$$$                              res2=0.d0
 c$$$                              do i=2*(nqmi-1)*igp+1,(2*nqmi-1)*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$     >                              -fpqb(2*nqmi*igp+nqmi,lam)*
 c$$$     >                              qa**(lab2+1)*Q0p(iqa,i)
 c$$$                                 res2 = res2 + wp(i)*fp
@@ -1348,7 +1374,7 @@ c$$$
 c$$$                              res3=0.d0
 c$$$                              do i=(2*nqmi-1)*igp+1,2*nqmi*igp
 c$$$                                 pp=xp(i)
-c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(iqa,i)
+c$$$                                 fp=fpqb(i,lam)*pp**(lab2+1)*Qlp(i,iqa)
 c$$$     >                              -fpqb(2*nqmi*igp+nqmi,lam)*
 c$$$     >                              qa**(lab2+1)*(qa2+alfa2)*(qa2+alfa2)
 c$$$     >                              /(pp*pp+alfa2)
@@ -1374,7 +1400,7 @@ c$$$                        else
 !                           res1 = 0.0d0
 !                           do i=1,2*nqim*igp
 !                              pp=xp(i)
-!                              fp=fpqb(i,lam)*pp**lab21*Qlp(iqa,i)
+!                              fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
 !                              res1 = res1 + wp(i) * fp   
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1384,8 +1410,8 @@ c$$$               write(90,'(6(2X, I4), 2(2X,E13.5))') lb,nb,la,na,iqb,iqa,
 c$$$     $              res1
 c$$$               write(90,*) '(2) ----------------------------------'
 c$$$               write(90,*) ' i, lam, fp: ', i, lam, fp, fpqb(i,lam)
-c$$$               write(90,*) ' fpqb(i,lam), Qlp(iqa,i): ',fpqb(i,lam),
-c$$$     $              Qlp(iqa,i)
+c$$$               write(90,*) ' fpqb(i,lam), Qlp(i,iqa): ',fpqb(i,lam),
+c$$$     $              Qlp(i,iqa)
 c$$$               close(90)
 c$$$            end if
 c$$$!$omp end critical 
