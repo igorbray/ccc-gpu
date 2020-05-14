@@ -739,14 +739,15 @@ C  This routine reads the input file 'ccc.in'
      >   slowe(ncmax), enions(20), enlevels(20), corep(0:lamax),
      >   r0(0:lamax),npbot(0:lamax),nptop(0:lamax),npsp(0:lamax),
      >   alphap(0:lamax)
-      character targets(20)*6,roman(0:20)*10,target*(*),projectile*(*),
+      character targets(30)*6,roman(0:30)*10,target*(*),projectile*(*),
      >   infile*80
       data roman/' -',' I','II','III','IV',' V','VI','VII','VIII','IX',
      >   ' X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX',
-     >   'XX'/
+     > 'XX','20+','21+','22+','23+','24+','25+','26+','27+','28+','29+'/
       data targets/'H I','He II','Li I','Be II','B III','C IV','N V',
      >   'O VI','F VII','Ne I','Na I','Mg II','Al III','Si IV',
-     >   'P I','S I','Cl I','A VIII','K I','Ca II'/
+     >   'P I','S I','Cl I','A VIII','K I','Ca II','Sc','Ti','V ','Cr',
+     >   'Mn','Fe','Co','Ni','Cu','Zn'  /
       
 C  The following energy ionization levels in Rydbergs are from
 C  ATOMIC ENERGY LEVELS, Volume I, C. E. Moore, NSRDS (1971)
@@ -852,7 +853,7 @@ C  Read positronium information
       print*,"n, nznuc, nzasym:", n, nznuc, nzasym
 c$$$      if (projectile.eq.'photon') n = n + 1
       target = ' ???? '
-      if (nznuc.le.20) then
+      if (nznuc.le.30) then
          target = targets(nznuc)
          enlevel = enlevels(nznuc)
          enion = enions(nznuc)
@@ -2684,22 +2685,22 @@ C  theorem not being satisfied to full precision.
 !               do nb = nbstart, max(nbstart,nnbtop)
                if (enchan(nchp) .lt. 1e-10) then
 C  SUM will be the total non-break-up cross section for all J
-                  sum = sum + !ovlpnn(nchp,nb) ** 2 *
-     >               sig
-c$$$                  sum = sum + ovlp(nchp) * sig
+c$$$                  sum = sum + !ovlpnn(nchp,nb) ** 2 *
+c$$$     >               sig
+                  sum = sum + ovlp(nchp) * sig
 C  SUMOLD will be the total non-break-up cross section for all previous J
-                  sumold=sumold+!ovlpnn(nchp,nb)**2*
-     >               oldp(nchp,nchip,ns)
-c$$$                  sumold = sumold + ovlp(nchp)*oldp(nchp,nchip,ns)
+c$$$                  sumold=sumold+!ovlpnn(nchp,nb)**2*
+c$$$     >               oldp(nchp,nchip,ns)
+                  sumold = sumold + ovlp(nchp)*oldp(nchp,nchip,ns)
 C  SUMO will be the total non-break-up cross section for the current J only
-                  sumo = sumo + !ovlpnn(nchp,nb) ** 2 *
-     >               partcs(nchp,nchip,ns) * unit
-c$$$                  sumo = sumo + ovlp(nchp) *
+c$$$                  sumo = sumo + !ovlpnn(nchp,nb) ** 2 *
 c$$$     >               partcs(nchp,nchip,ns) * unit
+                  sumo = sumo + ovlp(nchp) *
+     >               partcs(nchp,nchip,ns) * unit
 C  SUME will be the total non-break-up cross section for the previous J only
-                  sume = sume + !ovlpnn(nchp,nb)**2*
-     >               oldpj(nchp,nchip,ns)
-c$$$                  sume = sume + ovlp(nchp) * oldpj(nchp,nchip,ns)
+c$$$                  sume = sume + !ovlpnn(nchp,nb)**2*
+c$$$     >               oldpj(nchp,nchip,ns)
+                  sume = sume + ovlp(nchp) * oldpj(nchp,nchip,ns)
                   if (ovlp(nchp).gt.1.001) print*,
      >               'overlap too big, should be <= 1.0',n,l,ovlp(nchp)
                endif
@@ -3157,9 +3158,9 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       subroutine getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-6
+      err = 1d-7
 #elif defined _double
-      err = 1d-12
+      err = 1d-14
 #endif
       do while (dk/startk.gt.err)
          startkold = startk
@@ -3189,9 +3190,9 @@ c$$$         print*,test,dk,startk,stopk,nmin
       subroutine getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-6
+      err = 1d-7
 #elif defined _double
-      err = 1d-12
+      err = 1d-14
 #endif
       do while (dk/stopk.gt.err)
          stopkold = stopk
@@ -3260,7 +3261,7 @@ c$$$         print*,test,dk,startk,stopk,nmin
 
       subroutine makechil(lg,gk,wk,qcut,zasym,vdcore,npot,ui,ldw,dwpot,
      >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
-     >   sigma,nnbtop,natomps)
+     >   sigma,nnbtop,pos,lnch)
       use gf_module
       use chil_module
       include 'par.f'
@@ -3275,7 +3276,7 @@ c$$$         print*,test,dk,startk,stopk,nmin
      >   npbot(0:lamax),nptop(0:lamax),itail
       common /worksp/
      >   ps2(maxr,ncmax),psen2(ncmax),minps2(ncmax),maxps2(ncmax)
-      dimension npk(nchtop+1),psi(maxr),natomps(nchtop),
+      dimension npk(nchtop+1),psi(maxr),natomps(nchtop),lnch(nchan,2),
      >   nbnd(0:lmax), abnd(0:lmax), vdcore(maxr,0:lamax), ui(maxr), 
      >   dwpot(maxr,nchan), utemp(maxr), chitemp(maxr), tempi(maxr)
       dimension gk(kmax,nchan), u(maxr), temp(maxr), phasel(kmax,nchan)
@@ -3495,6 +3496,8 @@ C    principle quantum number.
 C  l is the projectile angular momentum (L)     
          call getchinfo (nch, nt, lg, psi, maxpsi, ea, la, na, l)
          pos(nch) = positron(na,la,npos)
+         lnch(nch,1) = la
+         lnch(nch,2) = l
          if (pos(nch)) then
             zeff = 0.0
             npcalc = 2
@@ -4152,17 +4155,38 @@ c$$$               enddo
             enddo
             close(42)
          endif 
+         open(42,file='dwpot')
+         do i = 1, meshr
+            write(42,*) i,rmesh(i,1),ui(i)
+         enddo
+         close(42)
          print*,'Written chil for NCH, ZASYM:',nch,zasym
       endif 
       end do ! End of the loop over NCH
       if (allocated(c)) deallocate(c)
       
-      do nchi = 1, nchtop
-         natomps(nchi) = 0
-         do nchf = nchi, nchtop
-            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)+1
-         enddo
-      enddo 
+c$$$      do nchi = 1, nchtop
+c$$$         natomps(nchi) = 0
+c$$$         do nchf = nchi, nchtop
+c$$$c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
+c$$$c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
+c$$$c$$$     >           +2**lnch(nchi,1)
+c$$$            if (pos(nchf).neqv.pos(nchi)) then
+c$$$               if (pos(nchi)) then
+c$$$                  natomps(nchi)=natomps(nchi) !+ 1
+c$$$     >                 +1.8**lnch(nchf,1)*1.8**lnch(nchi,1)
+c$$$               else
+c$$$                  natomps(nchi)=natomps(nchi) !+ 1
+c$$$     >                 +1.8**lnch(nchf,1)*1.8**lnch(nchi,1)
+c$$$               endif
+c$$$            endif
+c$$$         enddo
+c$$$         if (pos(nchi)) then
+c$$$            natomps(nchi) = natomps(nchi)*1.8**lnch(nchi,1)
+c$$$         else
+c$$$            natomps(nchi) = natomps(nchi)*1.8**lnch(nchi,1)
+c$$$         endif
+c$$$      enddo 
 #ifdef _CRAYFTN
       deallocate(psib,psibd)
 #endif

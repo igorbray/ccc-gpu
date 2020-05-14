@@ -11,6 +11,7 @@
 #endif
       use ubb_module
       use apar
+      use date_time_module
 C      use chil_module
 C      use vmat_module
       include 'par.f'
@@ -34,6 +35,8 @@ C      use vmat_module
       real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
+      common /charchan/ chan
+      character chan(knm)*3
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -54,7 +57,7 @@ C      common/meshrr/ rmesh(maxr,3)
 
       dimension psi_t(maxr,nchtop)
       dimension maxpsi_t(nchtop),la_t(nchtop),e_t(nchtop),
-     >          na_t(nchtop),l_t(nchtop),npos_t(nchtop)
+     >          na_t(nchtop),l_t(nchtop),npos_t(nchtop),nt_t(nchtop)
 
 C  Note that ve2eon will not be defined correctly due to the declaration
 C  in makev31d. However, ve2eon is not used.
@@ -150,19 +153,15 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
 #ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
-
-!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
-!$acc& copyin(nchtop,npk(1:nchtop+1))
-!!$acc& create(vmati(1:kmax,1:kmax,nchii:nchtop))
-!!$acc& create(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
-
+!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
+!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
        end do
 #endif
 
 !$omp parallel do private(nchf,nt) schedule(dynamic)
 !$omp& shared(nchii,nchtop,lg,psi_t,maxpsi_t,e_t,la_t,na_t,l_t)
       do nchf = nchii, nchtop
-         call getchinfo (nchf,nt,lg, psi_t(1,nchf), maxpsi_t(nchf), 
+         call getchinfo(nchf,nt_t(nchf),lg,psi_t(1,nchf),maxpsi_t(nchf), 
      >                 e_t(nchf), la_t(nchf), na_t(nchf),l_t(nchf))
          npos_t(nchf)=0
          pos(nchf)=positron(na_t(nchf),la_t(nchf),npos_t(nchf)) 
@@ -193,7 +192,7 @@ CC GPU ONLY
 ! !$omp& private(vmatt,temp,vmati,lm)
 
       do nchi = nchii, nchif
-
+         call date_and_time(date,time,zone,valuesin)
          psii(:)=psi_t(:,nchi)
          maxpsii=maxpsi_t(nchi)
          ei=e_t(nchi)
@@ -522,8 +521,8 @@ C Define exchange terms if IFIRST = 1
       if (ifirst.eq.1) then
 
          call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
-     >      maxpsi_t,la_t,li,l_t,minchil(npk(nchi),1),nqmi,
-     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,childim,nnt,ngpus)
+     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
+     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,nnt,ngpus)
 
             call clock(s3)
             te1 = te1 + s3 - s2
@@ -602,7 +601,13 @@ C  Define energy dependent exchange terms
   
 C  End of NCHI loop
 
-      deallocate(temp3,vmatt)
+         deallocate(temp3,vmatt)
+         call date_and_time(date,time,zone,valuesout)
+         if (nqmi.gt.1)
+     >        print'(/,i4,":nodeid NCHI CHAN Li finished at:",2i4,a4,a11,
+     >        ", diff (secs):",i6)',nodeid,nchi,li,
+     >        chan(nt_t(nchi)),time,
+     >        idiff(valuesin,valuesout)
 
       end do
 
@@ -610,15 +615,12 @@ C  End of NCHI loop
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 
-!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim)) 
-!$acc& delete(nchtop,npk(1:nchtop+1))
-!!$acc& delete(vmati)
+!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
+!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 !$acc& finalize
 
       enddo
 #endif
-
-!      deallocate(vmati)
       deallocate(nchansi,nchansf)
       return
       end

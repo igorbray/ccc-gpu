@@ -353,7 +353,7 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       do while (swapped)
          swapped = .false.
          do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
-            if (states(n-1)%energy.gt.states(n)%energy)then !*0.99999) then
+            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
                swapped = .true.
                staten = states(n-1)
                states(n-1) = states(n)
@@ -490,12 +490,13 @@ cCCC            print*,'ovlpki,ovlpi*e:',ki,ovlpki*2.0-ovlpi*eki,ovlpi*ef,
 cCCC     >         (ovlpki*2.0-ovlpi*eki)/(ovlpi*ef+1e-30)
              do 10 kf = 1, nqmf
 cCCC               if (ni.eq.nf) then
-               if (ne2e.eq.0) then
-                  kff = npk(nchf) + kf - 1
-                  if (kff.lt.kii) go to 10
-               else
-                  kff = nchf
-               endif 
+                kff = npk(nchf) + kf - 1
+c$$$               if (ne2e.eq.0) then
+c$$$                  kff = npk(nchf) + kf - 1
+c$$$                  if (kff.lt.kii) go to 10
+c$$$               else
+c$$$                  kff = nchf
+c$$$               endif 
                ekf = abs(gkf(kf)) * gkf(kf)
 
                etotnew = etot
