@@ -39,7 +39,7 @@ C  XIN,...,YOUT are used for (e,2e) and BORN interpolation
      >   nonnew(knm,-lamax:lamax,0:1,0:lmax)
       integer nstep(10),nnset(3),nopen(0:1),nopenold(0:1),
      >   nchfi(knm,0:1), iwf(2*100), nttop(0:1), instate(100)
-      parameter (lentr=6,lexit=lamax)
+      parameter (lentr=8,lexit=lamax)
 C ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), 
       complex phase, sigc, !vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop),
      >   phaseq(nchan),
@@ -362,8 +362,7 @@ c$$$               enchan(n) = etot - onshellk(n)**2
 c$$$               enpsinb(n,laold(n)) = enchan(n)
 c$$$               ovlpn(n) = ovlpnold(n)
             endif 
-         enddo 
-            
+         enddo             
          read(88,*,err=25,end=25) (nopenold(np),np=0,npar), nparityold,
      >      nspold
          do np = 0, npar
@@ -1377,7 +1376,7 @@ c$$$                  read*,thfac
                            bornICS(nf,ni) = bornICS(nf,ni) +
      >                        res * const
 C$OMP critical(print)
-                           print'(2X,a3,'' <-'',a3,"MF, MI",2I3,
+                           print'(2X,a3,'' <-'',a3," MF, MI",2I3,
      >                        " Born ICS:",1p,e11.4,a8)', chan(nf),
      >                        chan(ni), mf, mi, res * const,
      >                        chunit(nunit)
@@ -1573,7 +1572,7 @@ C  Incident on a hydrogenic target. Total spin S = ns.
      >   nunit,projectile,target,hlike,vdcore,minvdc,maxvdc,bornsubin,
      >   nchfi,ovlpn,phaseq,ne2e,slowery,nonnew,tfile)
       include 'par.f'
-      parameter (lentr=6,lexit=lamax,npoints=30,ntype=20)
+      parameter (lentr=8,lexit=lamax,npoints=30,ntype=20)
       character projectile*(*), target*(*), tfile*(*)
       integer nchfi(nomax,0:1)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),
