@@ -91,7 +91,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       real ,allocatable :: tscale(:)
 c$$$      pointer (ptrchi,chil)
 c$$$      dimension chikeep(maxr,kmax,nchan),minchikeep(kmax,nchan)
-      dimension chikeep(1),minchikeep(kmax,nchan)
+      dimension chikeep(1),minchikeep(kmax,nchan),tave(0:1)
       pointer (ptrchikeep,chikeep)
       dimension nk(5,0:lmax,2), sk(5,0:lmax,2),
      >   npsp(0:lamax), alphap(0:lamax), nbnd0(0:lmax),
@@ -2253,19 +2253,16 @@ C  plane waves were always generated for Born subtraction
 c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
-               const = 1.0 *
+               const = 1.0 
+               if (pos(nchf).neqv.pos(nchi)) const = 10.0
+               natomps(nchi)=natomps(nchi) + const * !+ 1
+!     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
+     >              2.0**lnch(nchf,1)*2.0**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
-     >              (npk(2)-npk(1))**2
-               if (pos(nchf).neqv.pos(nchi)) then
-                  natomps(nchi)=natomps(nchi) + 10.0 * const * !+ 1
-     >              1.8**max(1,lnch(nchf,1))*1.8**max(1,lnch(nchi,1))*
-     >              1.1**abs(lnch(nchi,2)-lg)/1.1**abs(lnch(nchf,2)-lg)
-               else
-                  natomps(nchi)=natomps(nchi) + const * !+ 1
-     >              1.7**max(1,lnch(nchf,1))*1.7**max(1,lnch(nchi,1))*
-     >              1.1**abs(lnch(nchi,2)-lg)/1.1**abs(lnch(nchf,2)-lg)
-               endif
+     >              (npk(2)-npk(1))**2/
+     >              1.2**abs(lnch(nchi,2)-lg)/1.2**abs(lnch(nchf,2)-lg)
+c$$$               endif
             enddo
          enddo
          if (nodeid.eq.1.and.lptop.ge.0) then
@@ -2368,6 +2365,7 @@ c$$$               endif
                enddo                  
             endif 
             tscale(:) = 1.0
+            tave(:)= 0.0
             tscale(nodes) = sfactor
             inquire(file='time'//ench,exist=exists)
             inquire(file='time_all',exist=timeexists)
@@ -2377,6 +2375,7 @@ c$$$               endif
                else
                   open(42,file='time_all')
                endif 
+               ntime(:,:) = 0
  10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),ntime(n,ip),
      >            nchistartold(n,ip),nchistopold(n,ip)
                lgold(ip) = lgp
@@ -2392,23 +2391,34 @@ c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
                   ntimetot = 0
                   do n = 1, nodes
                      ntimetot = ntimetot + ntime(n,ipar)
+                     if (ntime(n,ipar).lt.ntimemin) then
+                        ntimemin = ntime(n,ipar)
+                        nodemint = n
+                     endif
+                     if (ntime(n,ipar).gt.ntimemax) then
+                        ntimemax = ntime(n,ipar)
+                        nodemaxt = n
+                     endif
                   enddo
-                  tave = float(ntimetot)/nodes
+                  tave(ipar) = float(ntimetot)/nodes
+                  diffp = (ntimemax-ntimemin)/tave(ipar)
+                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
+     >                 diffp
 c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                   incsum = 0
                   do n = 1, nodes - 1
-                     timeperi = max(1.0 , float(ntime(n,ipar))/
-     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
+c$$$                     timeperi = max(1.0 , float(ntime(n,ipar))/
+c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
 ! c$$$                     timeperi = 0.5 * ntime(n,ipar)/
 ! c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1) +
 ! c$$$     >                  0.5 * ntime(n+1,ipar)/
 ! c$$$     >                  (nchistopold(n+1,ipar)-nchistartold(n+1,ipar)+1)
-                     ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
+c$$$                     ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
 c$$$                     timeperi = max(float(ntime(n,ipar))/ni, 1.0)
-                     incstep = nint((tave-ntime(n,ipar))/timeperi/1.0) !div to slow down the change
-                     if (lptop.ge.0) incstep = 0
-                     if (incstep.gt.ni/2) incstep = ni/2
-                     if (incstep.lt.-ni/2) incstep = -ni/2
+c$$$                     incstep = nint((tave(ipar)-ntime(n,ipar))/timeperi)
+c$$$                     if (lptop.ge.0) incstep = 0
+c$$$                     if (incstep.gt.ni/2) incstep = ni/2
+c$$$                     if (incstep.lt.-ni/2) incstep = -ni/2
 c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
 c$$$     >                  .lt.0.0) then
 c$$$                        if (incstep.gt.1) incstep = 1
@@ -2417,6 +2427,15 @@ c$$$                     else
 c$$$                        if (incstep.gt.ni) incstep = ni
 c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
 c$$$                     endif 
+                     if (diffp.gt.0.1) then
+                        if (n.eq.nodemint) then
+                           incstep = 1
+                        elseif (n.eq.nodemaxt) then
+                           incstep = -1
+                        else
+                           incstep = 0
+                        endif
+                     endif
                      inc(n,ipar) = inc(n,ipar) + incstep
                      incsum = incsum + inc(n,ipar)
                      print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
@@ -2919,7 +2938,7 @@ c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
      >               lg,n,ipar,inc(n,ipar),
      >               nntime(n),nchistart(n),nchistop(n),timeperi,
      >               nchprs(nchistart(n),nchistop(n),nchtop),
-     >               naps, nint(tave)
+     >               naps, nint(tave(ipar))
 !                  write(42,'(4i4,7i7," ave time of prev LG")') 
 !     >               lg,n,ipar,inc(n,ipar),
 !     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
