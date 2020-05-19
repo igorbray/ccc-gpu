@@ -7,11 +7,10 @@
       integer npk(nchtop+1)
       integer childim
       integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
-     >     minchil(npk(nchtop+1)-1,childim)
-      real chil(1:meshr,1:(npk(nchtop+1)-1),1:childim)
+     >     minchil(npk(nchtop+1)-1)
+      real chil(1:meshr,1:(npk(nchtop+1)-1))
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
       real temp3(1:meshr,nchi:nchtop)
-!      real vmati(1:kmax,1:kmax,nchii:nchtop)
       real vmatt(nqmfmax,nqmi,nchi:nchtop)
       allocatable :: chitemp(:,:)
       logical second
@@ -24,7 +23,7 @@
 #else
 !$omp parallel num_threads(nnt)
 #endif
-!$omp& private(gpunum,nchf,nqmf,maxi,chitemp,ki,kf,i,kff,kii)
+!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii)
 !$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus)
 !$omp& shared(nqmi)
 
@@ -35,11 +34,10 @@
 #endif
 
 !$acc data 
-!!$acc& present(vmati(1:kmax,1:kmax,nchii:nchtop))
 !$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
-!!$acc& present(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop))
 !$acc& present(npk(1:nchtop+1))
-!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1),1:childim))
+!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
+!$acc& present(minchil(1:npk(nchtop+1)-1))
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
@@ -50,8 +48,8 @@
 !$acc kernels async(nchf)
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
-            do i = 1, maxi !minki, maxi
-               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1,1)
+            do i = 1, maxi !minchil(ki+npk(nchi)-1), maxi !minki, maxi
+               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1)
             enddo
          enddo
 !$acc loop independent collapse(2)
@@ -59,10 +57,14 @@
             do kf=1,nqmf
                kii = npk(nchi) + ki - 1
                kff = npk(nchf) + kf - 1
-               if (kff.ge.kii) then
-               vmatt(kf,ki,nchf)=vmatt(kf,ki,nchf)+dot_product(
-     >           chil(1:maxi,kf+npk(nchf)-1,1),chitemp(1:maxi,ki))
-               endif
+c$$$               if (kff.ge.kii) then
+                  mini = minchil(kff)
+                  vmatt(kf,ki,nchf)=vmatt(kf,ki,nchf)+dot_product(
+     >                 chil(mini:maxi,kff),
+     >                 chitemp(mini:maxi,ki))
+c$$$     >                 chil(minchil(kff):maxi,kff),
+c$$$     >                 chitemp(minchil(kff):maxi,ki))
+c$$$               endif
             end do
          end do
 !$acc end kernels
@@ -78,9 +80,9 @@
 !            do kf = 1, nqmf
 !               dotprod=0.0
 !               do it = mini,maxi
-!                chitemp=temp3(it,nchf) * chil(it,ki+npk(nchi)-1,1)
+!                chitemp=temp3(it,nchf) * chil(it,ki+npk(nchi)-1)
 !                dotprod=dotprod+
-!     >          (chil(it,kf+npk(nchf)-1,1)*chitemp)
+!     >          (chil(it,kf+npk(nchf)-1)*chitemp)
 !               end do
 !               vmati(kf,ki,nchf)=dotprod
 !            end do
@@ -121,17 +123,17 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 
 
       subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
-     >   li,lf,minchii,nqmi,lg,rnorm,second,npk,
-     >   nqmfmax,vmatt,nchtop,childim,nnt,ngpus)
+     >   li,lf,minchil,nqmi,lg,rnorm,second,npk,
+     >   nqmfmax,vmatt,nchtop,nnt,ngpus)
 #ifdef GPU
       use openacc
 #endif
       include 'par.f'
-      integer childim,nnt,gpunum
+      integer nnt,gpunum
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension npk(nchtop+1),fun(maxr)
-      dimension chil(meshr,npk(nchtop+1)-1,childim)
-      dimension minchii(nqmi),
+      dimension chil(meshr,npk(nchtop+1)-1)
+      dimension minchil(npk(nchtop+1)-1),
      >   const(-lamax:lamax,nchtop)
       dimension psii(maxr),
      >   psif(maxr,nchtop)
@@ -166,11 +168,10 @@ c
       allocate(temp2(meshr,nqmi,nchtop))
       allocate(temp(maxr))
 
-!$omp parallel do default(private) num_threads(nnt)
+!$omp parallel do default(private) num_threads(nnt) !collapse(2)
 !$omp& schedule(dynamic)
 !$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
       do nchf=nchi,nchtop
-
       do ilt = -lia, lia, 2
          const(ilt,nchf) = 0.0
          lt = lf(nchf) + ilt
@@ -212,19 +213,19 @@ c$$$               stop 'CJ6 and W do not agree'
 
       maxi=maxpsii
 
-!$omp parallel do default(private) num_threads(nnt)
+!$omp parallel do default(private) num_threads(nnt) !collapse(2)
 !$omp& schedule(dynamic)
 !$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
-!$omp& rpow2,temp2,nqmi,minchii,maxi,gamma,pol,minrp,maxrp,maxpsif,
+!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
 !$omp& nchtop,gpunum)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1
-         minfun = minchii(ki)
+         minfun = minchil(kii)
          maxfun = maxpsif(nchf)
 
          do i = minfun, maxfun
-            fun(i) = chil(i,kii,1) * psif(i,nchf)
+            fun(i) = chil(i,kii) * psif(i,nchf)
          end do
          do i = 1, meshr
             temp2(i,ki,nchf) = 0.0
@@ -270,12 +271,13 @@ c
 #endif
 
       call gpuvexchange(chil,temp2,nqmfmax,vmatt,ngpus,nnt,nchi,nchtop,
-     >                        nqmi,childim,npk,maxi,kmax)
+     >                        nqmi,minchil,npk,maxi,kmax)
 
 #ifdef GPU
       do gpunum=0,ngpus-1
          call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc exit data delete(vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
+!$acc& delete(temp2(1:maxi,1:nqmi,nchi:nchtop))
       enddo
 #endif
 
@@ -285,16 +287,15 @@ c
 
 
       subroutine gpuvexchange(chil,temp2, nqmfmax, vmatt, ngpus, nnt,
-     >                        nchi,nchtop,nqmi,childim,npk,maxi,kmax)
+     >                        nchi,nchtop,nqmi,minchil,npk,maxi,kmax)
 #ifdef GPU
       use openacc
 #endif
       integer childim
       common/meshrr/ meshr
       dimension npk(nchtop+1)
-      dimension chil(meshr,npk(nchtop+1)-1,childim)
+      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
       real temp2(meshr,nqmi,nchtop)
-!      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
       real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
       integer maxi,npktmp
       integer gpunum,tnum,ngpus
@@ -307,9 +308,9 @@ c
 #else
 !$omp parallel default(none) num_threads(nnt)
 #endif
-!$omp& private(gpunum,tnum,nchf,nqmf,ki,kf,kff,tmp)
+!$omp& private(mini,gpunum,tnum,nchf,nqmf,ki,kf,kff,tmp)
 !$omp& shared(nchi,nchtop,npk,temp2,chil,vmatt,ngpus,maxpsii)
-!$omp& shared(nqmi,meshr,kmax,nqmfmax)
+!$omp& shared(nqmi,meshr,kmax,nqmfmax,minchil)
 !$omp& firstprivate(maxi)
 
 #ifdef GPU
@@ -318,10 +319,11 @@ c
       call acc_set_device_num(gpunum,acc_device_nvidia)
 #endif
 
-!$acc data present(chil(1:meshr,1:(npk(nchtop+1)-1),1))
+!$acc data present(chil(1:meshr,1:npk(nchtop+1)-1))
+!$acc& present(minchil(1:npk(nchtop+1)-1))
 !$acc& copyin(temp2(1:maxi,1:nqmi,nchi:nchtop))
 !$acc& present(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
-!!$acc& present(npk(nchi:nchtop+1))
+!$acc& present(npk(1:nchtop+1))
 
 !$omp do schedule(dynamic)
       do nchf=nchi,nchtop
@@ -331,8 +333,9 @@ c
        do ki = 1, nqmi
          do kf = 1, nqmf
             kff = npk(nchf) + kf - 1
-            tmp = dot_product(chil(1:maxi,kff,1)
-     >            ,temp2(1:maxi,ki,nchf))
+            mini = minchil(kff)
+            tmp = dot_product(chil(mini:maxi,kff)
+     >            ,temp2(mini:maxi,ki,nchf))
             vmatt(kf,ki,nchf,0) = vmatt(kf,ki,nchf,0) + tmp
             vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) - tmp
         end do

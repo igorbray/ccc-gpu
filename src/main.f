@@ -2253,15 +2253,19 @@ C  plane waves were always generated for Born subtraction
 c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
-c$$$               if (pos(nchf).neqv.pos(nchi)) then
-                  natomps(nchi)=natomps(nchi) + 1.0 * !+ 1
-!     >                 1.7**lnch(nchf,1)*1.7**lnch(nchi,1)*
-     >                (lnch(nchf,1)+1)*
-     >              (lnch(nchi,1)+1)*
+               const = 1.0 *
      >              (npk(nchi+1)-npk(nchi))*
-     >                 (npk(nchf+1)-npk(nchf))/
-     >                 (npk(2)-npk(1))**2
-c$$$               endif
+     >              (npk(nchf+1)-npk(nchf))/
+     >              (npk(2)-npk(1))**2
+               if (pos(nchf).neqv.pos(nchi)) then
+                  natomps(nchi)=natomps(nchi) + 10.0 * const * !+ 1
+     >              1.8**max(1,lnch(nchf,1))*1.8**max(1,lnch(nchi,1))*
+     >              1.1**abs(lnch(nchi,2)-lg)/1.1**abs(lnch(nchf,2)-lg)
+               else
+                  natomps(nchi)=natomps(nchi) + const * !+ 1
+     >              1.7**max(1,lnch(nchf,1))*1.7**max(1,lnch(nchi,1))*
+     >              1.1**abs(lnch(nchi,2)-lg)/1.1**abs(lnch(nchf,2)-lg)
+               endif
             enddo
          enddo
          if (nodeid.eq.1.and.lptop.ge.0) then
@@ -2571,7 +2575,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
      >         nchmaxe2e1,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps)
          else
             call scattering(1,0,theta,nold,etot,lg,gk,enionry,npkb,
      >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
@@ -2697,7 +2701,7 @@ c
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1,natomps)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'

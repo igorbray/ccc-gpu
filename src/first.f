@@ -5,7 +5,7 @@
      >   vmatp,nsmax,
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid)
+     >   vni,vnf,vnd,nodes,myid,natomps)
 #ifdef GPU
       use openacc
 #endif
@@ -52,7 +52,7 @@ C      common/meshrr/ rmesh(maxr,3)
       logical fast,second,posi,posf,positron,match,analyticd,packed
 !      logical alkali
       dimension psii(maxr), psif(maxr), ovlp(kmax),temp(maxr),fun(maxr),
-     >   psislow(maxr), psifast(maxr), slowery(ncmax)
+     >   psislow(maxr), psifast(maxr), slowery(ncmax),natomps(nchan)
 !     >   ,vmatt(kmax,kmax,0:1,nchtop)
 
       dimension psi_t(maxr,nchtop)
@@ -604,9 +604,9 @@ C  End of NCHI loop
          deallocate(temp3,vmatt)
          call date_and_time(date,time,zone,valuesout)
          if (nqmi.gt.1)
-     >        print'(/,i4,":nodeid NCHI CHAN Li finished at:",2i4,a4,a11,
-     >        ", diff (secs):",i6)',nodeid,nchi,li,
-     >        chan(nt_t(nchi)),time,
+     >        print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished at:",
+     >        3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
+     >        chan(nt_t(nchi)),natomps(nchi),
      >        idiff(valuesin,valuesout)
 
       end do
