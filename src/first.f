@@ -228,7 +228,7 @@ C  which contains VDCORE.
          vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1) = 0.0
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
-C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg)
+C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
 C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
@@ -322,7 +322,8 @@ c$$$            stop 'CJ6 and W do not agree in D'
 
 C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
          if (lt.eq.0.and..not.pos(nchf).and.ni.eq.nf) then
-          call nuclear(fun,.not.pos(nchf),minfun,maxfun,i2,u,nznuc,temp)
+            call nuclear(fun,.not.pos(nchf),minfun,maxfun,i2,ud, !u,
+     >         nznuc,temp)
          endif
 
        if(pos(nchf)) then 
