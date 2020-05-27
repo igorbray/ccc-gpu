@@ -68,6 +68,8 @@ C  in makev31d. However, ve2eon is not used.
 C      allocatable :: chitemp(:,:), temp3(:,:),vmati(:,:,:)
 C      allocatable :: chitemp(:,:)
       real,allocatable :: vmati(:,:,:),temp3(:,:),vmatt(:,:,:,:)
+      real, allocatable :: temp2(:,:,:)
+      real vmatt_out(nchtop)
 !      data pi/3.14159265358979/
       data uplane/maxr*0.0/
  
@@ -168,28 +170,11 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
       end do
 !$omp end parallel do
 
+      nqmimax=1
+      do nchi = nchii, nchtop
+         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
+      enddo
 
-CC GPU ONLY
-! !$omp parallel do default(none) 
-! !$omp& num_threads(nthreads) schedule(dynamic)
-! !$omp& private(nchi,gpunum,nchf)
-! !$omp& private(nti,psii,maxpsii,ei,lia,nia,li,nposi,posi,ui,ud)
-! !$omp& private(nt,nposf,posf,nqmf,uf)
-! !$omp& private(td,s1,s2,s3,s4,te1,te2,nqmi)
-! !$omp& private(mini1,psif,kii,kff,maxpsif,ef,lfa,nfa,lf)
-! !$omp& private(nchtopf,nchtopi,minfun,maxfun,fun,c1tmp,c2tmp,c3tmp,mini)
-! !$omp& private(maxi,lt,c1,c2,c3,c2tmp2,c,const,i1,i2,i,ns,kf)
-! !$omp& shared(lg,nchii,nchif,npk,vdcore,minvdc,maxvdc,dwpot,meshr,ldw) 
-! !$omp& shared(rmesh,nsmax,rnorm,scalapack,nchtop,ltmin,second,ispeed)
-! !$omp& shared(ifirst,gk,nchistop,etot,nodeid,itail,nold,trat,nznuc)
-! !$omp& shared(vmat,vmat01,vmat0,vmat1,chil,minchil,theta,ctemp)
-! !$omp& shared(ve2ee,childim,ngpus,rpow1,rpow2,ni,pos,u,minrp,nf)
-! !$omp& shared(maxrp,vdon,nze)
-! !$omp& shared(formcut,gamma,pol)
-! !$omp$ shared(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,nnt,npos_t)
-! !$omp$ shared(zasym,alkali,ubb_max3,ubb_max1,arho)
-! !$omp& private(temp3,mintemp3,maxtemp3)
-! !$omp& private(vmatt,temp,vmati,lm)
 
       do nchi = nchii, nchif
          call date_and_time(date,time,zone,valuesin)
@@ -223,6 +208,15 @@ C  which contains VDCORE.
          do nchf = nchi, nchtop
             nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
          enddo
+
+         allocate(temp2(meshr,nqmi,nchtop))
+         if (ifirst.eq.1) then
+          call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
+     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
+     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
+     >      nnt,ngpus,temp2,maxi2)
+         endif
+
          allocate(temp3(1:meshr,nchi:nchtop),
      >        vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
          vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1) = 0.0
@@ -240,8 +234,6 @@ C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho)
             nfa=na_t(nchf)
             lf=l_t(nchf)
 
-!            nposf=0
-!            posf = positron(nfa,lfa,nposf)
             nqmf = npk(nchf+1) - npk(nchf)
             if(pos(nchf).neqv.pos(nchi)) cycle
 
@@ -293,9 +285,9 @@ C  which contains VDCORE.
          c2tmp = cgc0(float(li),float(lf),float(lt))         
          if (abs((c2-c2tmp)/(c2tmp+1e-20)).gt.1e-3) then
             c2tmp2 = cgcigor(2*li,2*lf,2*lt,0,0,0)
-C$OMP critical(print)
+!C$OMP critical(print)
             print*,'CGCs 2 do not agree:',c2, c2tmp,c2tmp2,li,lf,lt
-C$OMP end critical(print)
+!C$OMP end critical(print)
             c2 = c2tmp2
          endif 
          call rac7(2*li,2*lf,2*lia,2*lfa,2*lt,2*lg,c3)
@@ -303,10 +295,10 @@ C$OMP end critical(print)
      >      float(lia),float(lg))*(-1)**(li+lf+lia+lfa)
          if (abs((c3-c3tmp)/(c3tmp+1e-6)).gt.1e-2) then
 C  below does happen for NPAR = 1, but not significant
-C$OMP critical(print)
+!C$OMP critical(print)
             print*,'WARNING: CJ6 and W do not agree in D:',c3, c3tmp,
      >         li,lf,lia,lfa,lt,lg
-C$OMP end critical(print)
+!C$OMP end critical(print)
             c3 = c3tmp
 c$$$            stop 'CJ6 and W do not agree in D'
          endif 
@@ -456,11 +448,12 @@ C  them.
 ! create an array of pos to have all posf and 
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second)
+     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
+     >     maxi2,temp2,ifirst)
+
+      deallocate(temp2)
 
 
-! !$acc wait
-! !$omp critical
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
@@ -468,17 +461,10 @@ C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
 C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
       do nchf = nchi, nchtop
         if(pos(nchi).eqv.pos(nchf)) then
-         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmatt(1,1,nchf,0)
+         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + (vmatt(1,1,nchf,0)
+     >                         + vmatt(1,1,nchf,1))/2 
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
          nqmf = npk(nchf+1) - npk(nchf)
-         do ns = 1, nsmax
-            do ki = 1, nqmi
-               do kf = 1, nqmf
-                  vmatt(kf,ki,nchf,ns) = vmatt(kf,ki,nchf,0) 
-!                  vmatt(kf,ki,nchf,ns) = vmati(kf,ki,nchf) 
-               enddo
-            enddo
-         enddo
         else
            nqmf = npk(nchf+1) - npk(nchf)
            do ns = 0, nsmax
@@ -511,24 +497,18 @@ C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
       call clock(s2)
       td = td + s2 - s1
  
-!      do nchf = nchi, nchtop
-!        nqmf = npk(nchf+1) - npk(nchf)
-!          psif(:)=psi_t(:,nchf)
-!          maxpsif=maxpsi_t(nchf)
-!          lfa=la_t(nchf)
-!          lf=l_t(nchf)
-        
 C Define exchange terms if IFIRST = 1
       if (ifirst.eq.1) then
-
-         call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
-     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
-     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,nnt,ngpus)
+!
+!         call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
+!     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
+!     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,nnt,ngpus)
 
             call clock(s3)
             te1 = te1 + s3 - s2
 
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
+!$omp& schedule(dynamic)
 !$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li)
 !$omp& shared(chil,minchil,npk,gk,etot,theta,ld,rnorm)
 !$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,nqmfmax,vmatt)
@@ -552,7 +532,10 @@ C  Define energy dependent exchange terms
       end do
 !$omp end parallel do
       end if ! End of exchange
-    
+
+!$omp parallel do default(shared)
+!$omp& private(nchf,nqmf,ki,kii,kf,kff)
+!$omp& schedule(dynamic) 
       do 200 nchf = nchi, nchtop 
          nqmf = npk(nchf+1) - npk(nchf)
             if (npk(2)-npk(1).eq.1.or.
@@ -597,9 +580,8 @@ C  Define energy dependent exchange terms
             endif 
 
  200     continue
+!$omp end parallel do
 
- 
-  
 C  End of NCHI loop
 
          deallocate(temp3,vmatt)
