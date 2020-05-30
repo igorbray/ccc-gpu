@@ -234,7 +234,8 @@ C==== ANDREY ===================================================
       nspm = 0
       i_sw_ng = 0
 
-
+      lstoppos = -1
+      lptop = -1
       inc(:,:) = 0
       lgold(:) = -1
       myid = -1
@@ -2304,10 +2305,12 @@ C Determine nchistart and nchistop for each node
             nchistart(1) = 1
             ! made nodes.ge.1 below due to inefficiency with many Ps-states
 !            if (natompstot.eq.0.or.nodes.ge.1.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
+c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
             if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
                do nn = 1, nodes-1
+                  print*,'nn,nchprspernode:',nn,nchprspernode
                   nchistop(nn) = nchistart(nn)
-                  do while(nchprs(nchistart(nn),nchistop(nn),nchtop).lt.
+                  do while(nchprs(nchistart(nn),nchistop(nn),nchtop).le.
      >               nchprspernode) !was .le., but problems for many Ps states
                      nchistop(nn) = nchistop(nn) + 1
                   enddo
