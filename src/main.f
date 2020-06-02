@@ -2416,12 +2416,22 @@ c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
 ! c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1) +
 ! c$$$     >                  0.5 * ntime(n+1,ipar)/
 ! c$$$     >                  (nchistopold(n+1,ipar)-nchistartold(n+1,ipar)+1)
-c$$$                     ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
-c$$$                     timeperi = max(float(ntime(n,ipar))/ni, 1.0)
-c$$$                     incstep = nint((tave(ipar)-ntime(n,ipar))/timeperi)
-c$$$                     if (lptop.ge.0) incstep = 0
-c$$$                     if (incstep.gt.ni/2) incstep = ni/2
-c$$$                     if (incstep.lt.-ni/2) incstep = -ni/2
+                     if (lptop.ge.0) then
+                        if (diffp.gt.0.1) then
+                           if (n.eq.nodemint) then
+                              incstep = 1
+                           elseif (n.eq.nodemaxt) then
+                              incstep = -1
+                           else
+                              incstep = 0
+                           endif
+                        endif
+                     else
+                        ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
+                        timeperi = max(float(ntime(n,ipar))/ni, 1.0)
+                       incstep=nint((tave(ipar)-ntime(n,ipar))/timeperi)
+                        if (incstep.gt.ni/2) incstep = ni/2
+                        if (incstep.lt.-ni/2) incstep = -ni/2
 c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
 c$$$     >                  .lt.0.0) then
 c$$$                        if (incstep.gt.1) incstep = 1
@@ -2430,14 +2440,6 @@ c$$$                     else
 c$$$                        if (incstep.gt.ni) incstep = ni
 c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
 c$$$                     endif 
-                     if (diffp.gt.0.1) then
-                        if (n.eq.nodemint) then
-                           incstep = 1
-                        elseif (n.eq.nodemaxt) then
-                           incstep = -1
-                        else
-                           incstep = 0
-                        endif
                      endif
                      inc(n,ipar) = inc(n,ipar) + incstep
                      incsum = incsum + inc(n,ipar)
@@ -2911,6 +2913,7 @@ c$$$            enddo
          if (allocated(vmat1)) deallocate(vmat1)
 
          nntime(:) = 0
+! The following is causing problems on Frontera
          CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER, 
      >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
