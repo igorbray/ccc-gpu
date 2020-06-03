@@ -11,7 +11,7 @@
       real chil(1:meshr,1:(npk(nchtop+1)-1))
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
       real temp3(1:meshr,nchi:nchtop)
-      real vmatt(nqmfmax,nqmi,nchi:nchtop)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop)
       allocatable :: chitemp(:,:)
       logical second
       integer gpunum,tnum
@@ -141,7 +141,7 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
       real, allocatable :: temp2(:,:,:)
       real, allocatable :: temp(:)
 !      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -296,7 +296,7 @@ c
       dimension npk(nchtop+1)
       dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
       real temp2(meshr,nqmi,nchtop)
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
       integer maxi,npktmp
       integer gpunum,tnum,ngpus
       integer nchf,nchtop,nchi,ki,kf,kff

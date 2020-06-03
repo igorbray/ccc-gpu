@@ -47,7 +47,7 @@
       dimension fpqb(2*nqmi*igpm+nqmi,0:ltmax+lamax)      
       dimension x(ipm),ylam(0:lm,ipm),y2lam(0:lm,ipm)
       real gki,gkf,etot,vmatt
-      dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(nqmfmax,nqmi)!vmatt(kmax,kmax,0:1)
+      dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(nqmfmax,nqmfmax)!vmatt(kmax,kmax,0:1)
       dimension pc0(0:ncmax-1,ncmax,0:lamax),
      >   pc1(0:ncmax-1,ncmax,0:lamax)
       dimension a(ncmax),f0(0:ncmax-1),f1(0:ncmax-1)

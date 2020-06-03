@@ -353,8 +353,15 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       do while (swapped)
          swapped = .false.
          do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
-            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
+c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
+            e1 = states(n-1)%energy
+            e2 = states(n)%energy
+            if (e1.gt.e2*0.99999.or.
+     >         (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
+     >              states(n-1)%la.gt.states(n)%la)) then
                swapped = .true.
+c$$$               print*,'swapping:',n-1,n,
+c$$$     >              states(n-1)%energy,states(n)%energy
                staten = states(n-1)
                states(n-1) = states(n)
                states(n) = staten
@@ -363,7 +370,7 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       enddo 
       return
       end
-      
+ 
       subroutine makev1e(nqmi,psii,maxpsii,ei,lia,li,
      >   chii,minchii,gki,ni,etot,thetain,ne2e,
      >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,gkf,nf,
@@ -377,8 +384,8 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
      >          npk(nchan+1)
 !      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1),ve2e(nf,ni), temp(maxr),
-     >   ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1),ve2e(nf,ni), 
+     >   temp(maxr), ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
@@ -1334,8 +1341,8 @@ c$$$      use gf_module
       implicit double precision (a-h,o-z)
       common/meshrr/ meshr,rmesh(maxr,3)
       common/matchph/rphase(kmax,nchan),trat
-      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmi),chii(meshr,nqmi),r,
-     >   chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
+      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmfmax),chii(meshr,nqmi),r
+     >   ,chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
       integer minchii(nqmi),minchif(nqmf)
       complex phasei(kmax),phasef(kmax)
       data pi,small/3.141592653589793238,0.001/

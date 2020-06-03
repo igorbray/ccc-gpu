@@ -224,8 +224,8 @@ C  which contains VDCORE.
             nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
          enddo
          allocate(temp3(1:meshr,nchi:nchtop),
-     >        vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
-         vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1) = 0.0
+     >        vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
+         vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
