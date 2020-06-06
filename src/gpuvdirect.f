@@ -21,7 +21,7 @@
       real temp2(1:meshr,1:nqmi,1:nchtop)
 
       allocate(chitemp(meshr,nqmi))
-      allocate(tmp(meshr,nqmi))
+      allocate(tmp(nqmi,nqmfmax))
 
       if(ifirst.ne.1) then
         maxi2=0
@@ -152,7 +152,6 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 
       deallocate(chitemp)
       deallocate(tmp)
-
       return
       end
 
