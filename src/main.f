@@ -2599,7 +2599,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
      >         nchmaxe2e1,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
          else
             call scattering(1,0,theta,nold,etot,lg,gk,enionry,npkb,
      >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
@@ -2725,7 +2725,7 @@ c
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1,natomps)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1,natomps,lnch)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'

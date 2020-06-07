@@ -5,7 +5,7 @@
      >   vmatp,nsmax,
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid,natomps)
+     >   vni,vnf,vnd,nodes,myid,natomps,lnch)
 #ifdef GPU
       use openacc
 #endif
@@ -27,7 +27,7 @@ C      use vmat_module
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
       dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
      >   ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
-     >   uf(maxr,nchan)
+     >   uf(maxr,nchan),lnch(nchan,2),nchinew(nchan,2)
      >   ,vdcore(maxr,0:lamax),u1e(maxr),dwpot(maxr,nchan),ctemp(nchan)
       complex phasei, phasef
       complex phasel(kmax,nchan),phasefast,phaseslow,sigc,
@@ -170,13 +170,16 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
       end do
 !$omp end parallel do
 
-      nqmimax=1
-      do nchi = nchii, nchtop
-         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
-      enddo
+c$$$      nqmimax=1
+c$$$      do nchi = nchii, nchtop
+c$$$         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
+c$$$      enddo
 
-
-      do nchi = nchii, nchif
+C Put the larger l states first for OpenMP efficiency
+      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
+      do nchtmp = nchii, nchif
+         nchi = nchinew(nchtmp,1)
+c$$$      do nchi = nchii, nchif
          call date_and_time(date,time,zone,valuesin)
          psii(:)=psi_t(:,nchi)
          maxpsii=maxpsi_t(nchi)
@@ -454,13 +457,16 @@ C  them.
       deallocate(temp2)
 
 
+      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
 C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
-      do nchf = nchi, nchtop
-        if(pos(nchi).eqv.pos(nchf)) then
+C$OMP& SHARED(nchinew)
+      do nchftmp = nchi, nchtop
+         nchf = nchinew(nchftmp,2)
+         if(pos(nchi).eqv.pos(nchf)) then
          vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + (vmatt(1,1,nchf,0)
      >                         + vmatt(1,1,nchf,1))/2 
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
@@ -608,3 +614,33 @@ C  End of NCHI loop
       return
       end
 
+      subroutine ordernchi(nchii,nchif,lnch,nchinew)
+      include 'par.f'
+      integer lnch(nchan,2),nchinew(nchan)
+      logical finished
+
+      do nchi = nchii, nchif
+         nchinew(nchi) = nchi
+      enddo
+
+      finished = .false.
+      do while (.not.finished)
+         finished = .true.
+         do nchi = nchii, nchif-1
+            if (lnch(nchinew(nchi),1).lt.lnch(nchinew(nchi+1),1)) then
+               finished = .false.
+               ntmp = nchinew(nchi)
+               nchinew(nchi) = nchinew(nchi+1)
+               nchinew(nchi+1) = ntmp
+            elseif(lnch(nchinew(nchi),1).eq.lnch(nchinew(nchi+1),1).and.
+     >            lnch(nchinew(nchi),2).lt.lnch(nchinew(nchi+1),2)) then
+               finished = .false.
+               ntmp = nchinew(nchi)
+               nchinew(nchi) = nchinew(nchi+1)
+               nchinew(nchi+1) = ntmp
+            endif
+         enddo
+      enddo
+      return
+      end
+      
