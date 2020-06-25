@@ -36,7 +36,7 @@ C      use vmat_module
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3
+      character chan(knm)*3, tfile*4
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -96,6 +96,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 
       ni=0
       nf=0
+      write(tfile,'(i2,"_",i1)') lg,ipar
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
 #ifdef GPU
@@ -212,6 +213,7 @@ C  which contains VDCORE.
             nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
          enddo
 
+         if (nqmfmax.gt.1) open(42,file=tfile)
          allocate(temp2(meshr,nqmi,nchtop))
          if (ifirst.eq.1) then
           call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
@@ -592,12 +594,14 @@ C  End of NCHI loop
 
          deallocate(temp3,vmatt)
          call date_and_time(date,time,zone,valuesout)
-         if (nqmi.gt.1)
-     >        print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished at:",
-     >        3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
-     >        chan(nt_t(nchi)),natomps(nchi),
-     >        idiff(valuesin,valuesout)
-
+         if (nqmi.gt.1) then
+            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished at:",
+     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
+     >         chan(nt_t(nchi)),natomps(nchi),
+     >         idiff(valuesin,valuesout)
+            write(42,'(2i5,a4,i6)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout)
+         endif
       end do
 
 #ifdef GPU
@@ -610,6 +614,7 @@ C  End of NCHI loop
 
       enddo
 #endif
+      if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)
       return
       end
