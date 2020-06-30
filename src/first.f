@@ -36,7 +36,7 @@ C      use vmat_module
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3, tfile*4
+      character chan(knm)*3, nodetfile*7
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -96,7 +96,11 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 
       ni=0
       nf=0
-      write(tfile,'(i2,"_",i1)') lg,ipar
+      if (lg.lt.10) then
+         write(nodetfile,'(i2,"_",i1,"_",i1)') nodeid,lg,ipar
+      else
+         write(nodetfile,'(i2,"_",i2,"_",i1)') nodeid,lg,ipar
+      endif
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
 #ifdef GPU
@@ -213,7 +217,7 @@ C  which contains VDCORE.
             nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
          enddo
 
-         if (nqmfmax.gt.1) open(42,file=tfile)
+         if (nqmfmax.gt.1) open(42,file=nodetfile)
          allocate(temp2(meshr,nqmi,nchtop))
          if (ifirst.eq.1) then
           call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,

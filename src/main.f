@@ -45,7 +45,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax),itail
-      integer nptopin(0:lamax),lnch(nchan,2)
+      integer nptopin(0:lamax),lnch(nchan,2),nchtime(nchan)
       common /worksp/
      >   ps2(maxr,ncmax),psen2(ncmax),minps2(ncmax),maxps2(ncmax)
       dimension minps(ncmax),npk(nchan+1),npkb(nchan+1),npkeep(nchan+1),
@@ -67,11 +67,11 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*7
       character date*8,time*10,zone*5
       integer*8 npernode
       integer valuesin(8), valuesout(8), inc(100,0:1), lgold(0:1),
-     >     valuesinLG(8)
+     >     valuesinLG(8),incold(100,0:1)
       integer lmatch(0:lamax), nopen(0:1), instate(100)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
@@ -237,6 +237,7 @@ C==== ANDREY ===================================================
       lstoppos = -1
       lptop = -1
       inc(:,:) = 0
+      incold(:,:) = 0
       lgold(:) = -1
       myid = -1
       ntasks = 1
@@ -2255,14 +2256,14 @@ c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
                const = 1.0 
-               if (pos(nchf).neqv.pos(nchi)) const = 10.0
+               if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
-     >              2.0**lnch(nchf,1)*2.0**lnch(nchi,1)*
+     >              1.6**lnch(nchf,1)*1.6**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
-     >              (npk(2)-npk(1))**2/
-     >              1.2**abs(lnch(nchi,2)-lg)/1.2**abs(lnch(nchf,2)-lg)
+     >              (npk(2)-npk(1))**2
+c$$$     >           /1.15**abs(lnch(nchi,2)-lg)/1.15**abs(lnch(nchf,2)-lg)
 c$$$               endif
             enddo
          enddo
@@ -2367,6 +2368,78 @@ c$$$               endif
                   endif 
                enddo                  
             endif 
+            n = 1
+            if (lg-1.lt.10) then
+               write(nodetfile,'(i2,"_",i1,"_",i1)') n,lg-1,ipar
+            else
+               write(nodetfile,'(i2,"_",i2,"_",i1)') n,lg-1,ipar
+            endif
+            inquire(file=nodetfile,exist=exists)
+            nchtimetot = 0
+            do while (exists)
+               open(42,file=nodetfile)
+               nchistartold(n,ipar) = 10000000
+               nchistopold(n,ipar) = 0
+ 13            read(42,'(i5,9x,i6)',end=14) nch,nchtime(nch)
+               nchtimetot = nchtimetot + nchtime(nch)
+               if (nch.lt.nchistartold(n,ipar)) nchistartold(n,ipar)=nch
+               if (nch.gt.nchistopold(n,ipar)) nchistopold(n,ipar)=nch
+               goto 13
+ 14            close(42)
+               n = n + 1
+               lgold(ipar) = lg - 1
+               if (lg-1.lt.10) then
+                  write(nodetfile,'(i2,"_",i1,"_",i1)') n,lg-1,ipar
+               else
+                  write(nodetfile,'(i2,"_",i2,"_",i1)') n,lg-1,ipar
+               endif
+               inquire(file=nodetfile,exist=exists)
+            enddo
+            nodesprev = n - 1
+            if (nodesprev.gt.1) then
+               tave(ipar) = float(nchtimetot)/float(nodesprev)
+               print*,'prev nodes and tave:',nodesprev,tave(ipar)
+               nt = 0
+               n = 1
+               nch = 1
+               nistart = 1
+               incsum = 0
+               nodettot = 0
+               nodetmax = 0
+               do n = 1, nodesprev - 1
+                  nodet = 0
+                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
+                     nodetprev = nodet
+                     nodet = nodet + nchtime(nch)
+                     nch = nch + 1
+                  enddo
+                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
+                     nch = nch - 1
+                     nodet = nodetprev
+                  endif
+                  if (nodet.gt.nodetmax) nodetmax = nodet
+                  nodettot = nodettot + nodet
+                  nistop = nch - 1
+                  incold(n,ipar) = nistop-nistart-
+     >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
+                  nistart = nch
+                  if (myid.le.0)
+     >                 print'("LG,ipar,nodeid,inc,nistop,nodet:",6i6)',
+     >                 lg,ipar,n,incold(n,ipar),nistop,nodet
+                  incsum = incsum + incold(n,ipar)
+c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
+c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
+               enddo
+               nodet = nchtimetot - nodettot
+               if (nodet.gt.nodetmax) nodetmax = nodet
+               neff = nint(100.0*nchtimetot/nodetmax/nodesprev)
+               n = nodesprev
+               nistop = nchistopold(n,ipar)
+               if (myid.le.0)
+     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",7i6,"%")',
+     >            LG,ipar,n,-incsum,nistop,nodet,neff
+            endif
+                  
             tscale(:) = 1.0
             tave(:)= 0.0
             tscale(nodes) = sfactor
@@ -2379,8 +2452,8 @@ c$$$               endif
                   open(42,file='time_all')
                endif 
                ntime(:,:) = 0
- 10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),ntime(n,ip),
-     >            nchistartold(n,ip),nchistopold(n,ip)
+ 10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
+     >            ntime(n,ip),nchistartold(n,ip),nchistopold(n,ip)
                lgold(ip) = lgp
                nodesold = n ! nodesold + 1
 c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
@@ -2416,35 +2489,38 @@ c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
 ! c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1) +
 ! c$$$     >                  0.5 * ntime(n+1,ipar)/
 ! c$$$     >                  (nchistopold(n+1,ipar)-nchistartold(n+1,ipar)+1)
-                     if (lptop.ge.0) then
-                        if (diffp.gt.0.1) then
-                           if (n.eq.nodemint) then
-                              incstep = 1
-                           elseif (n.eq.nodemaxt) then
-                              incstep = -1
-                           else
-                              incstep = 0
-                           endif
-                        endif
-                     else
-                        ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
-                        timeperi = max(float(ntime(n,ipar))/ni, 1.0)
-                       incstep=nint((tave(ipar)-ntime(n,ipar))/timeperi)
-                        if (incstep.gt.ni/2) incstep = ni/2
-                        if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
-c$$$     >                  .lt.0.0) then
-c$$$                        if (incstep.gt.1) incstep = 1
-c$$$                        if (incstep.lt.-1) incstep = -1
-c$$$                     else 
-c$$$                        if (incstep.gt.ni) incstep = ni
+c$$$                     if (lptop.ge.0) then
+c$$$                        if (diffp.gt.0.1) then
+c$$$                           if (n.eq.nodemint) then
+c$$$                              incstep = 1
+c$$$                           elseif (n.eq.nodemaxt) then
+c$$$                              incstep = -1
+c$$$                           else
+c$$$                              incstep = 0
+c$$$                           endif
+c$$$                        endif
+c$$$                        incstep = 0
+c$$$                        inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
+c$$$                     else
+c$$$                        ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
+c$$$                        timeperi = max(float(ntime(n,ipar))/ni, 1.0)
+c$$$                       incstep=nint((tave(ipar)-ntime(n,ipar))/timeperi)
+c$$$                        if (incstep.gt.ni/2) incstep = ni/2
 c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$                     endif 
-                     endif
-                     inc(n,ipar) = inc(n,ipar) + incstep
+c$$$c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
+c$$$c$$$     >                  .lt.0.0) then
+c$$$c$$$                        if (incstep.gt.1) incstep = 1
+c$$$c$$$                        if (incstep.lt.-1) incstep = -1
+c$$$c$$$                     else 
+c$$$c$$$                        if (incstep.gt.ni) incstep = ni
+c$$$c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
+c$$$c$$$                     endif 
+c$$$                     endif
+c$$$                     inc(n,ipar) = inc(n,ipar) + incstep
+                     inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
                      incsum = incsum + inc(n,ipar)
-                     print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
-     >                  n,incstep,inc(n,ipar),timeperi
+c$$$                     print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
+c$$$     >                  n,incstep,inc(n,ipar),timeperi
                   enddo 
                   inc(nodes,ipar) = - incsum
 c$$$                  tave = ntimetot / nodes
@@ -2479,7 +2555,7 @@ c$$$c$$$                  endif
                   print*,
      >               'CAUTION: nodes<>nodesold', nodesold
                endif 
-            endif 
+            endif
                   inct = 0
                   do n = 1, nodes - 1
                      inct = inct + inc(n,ipar)
@@ -2961,12 +3037,18 @@ c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
-     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
+               write(42,'(4i4,3i7,f8.1,4i8,2i4,"% LG,node,ipar,inc,vt,",
+     >            "i1,i2,tperi,nch,naps,NMAX,mt,prev LG,eff",/)')
      >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
      >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
-     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
-     >            neff
+     >            nchtop),naps,npk(nchtop+1)-1,
+     >            idiff(valuesin,valuesout),lgold(ipar),neff
+!               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
+!     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
+!     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
+!     >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
+!     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
+!     >            neff
 !               write(42,'(4i4,7i7,2i4,"% LG,node,ipar,inc,vt,",
 !     >            "i1,i2,tperi,nch,naps,mt,LGold,eff")')
 !     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),

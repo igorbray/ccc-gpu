@@ -308,8 +308,8 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end do
       nchpmax = nchp
       if (np(1).eq.0) then
-         call reorderstates(states,nchpmax)
          print*,' reordering in getchinfo with NCHPMAX:',nchpmax
+         call reorderstates(states,nchpmax)
       endif 
       else ! not first_time
          if (nch.eq.0) stop 'nch = 0 in getchinfo'
@@ -356,12 +356,12 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
-            if (e1.gt.e2*0.99999.or.
+            if (e1.gt.e2*0.9999.or.
      >         (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
      >              states(n-1)%la.gt.states(n)%la)) then
                swapped = .true.
-c$$$               print*,'swapping:',n-1,n,
-c$$$     >              states(n-1)%energy,states(n)%energy
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
                staten = states(n-1)
                states(n-1) = states(n)
                states(n) = staten
