@@ -2368,77 +2368,6 @@ c$$$               endif
                   endif 
                enddo                  
             endif 
-            n = 1
-            if (lg-1.lt.10) then
-               write(nodetfile,'(i2,"_",i1,"_",i1)') n,lg-1,ipar
-            else
-               write(nodetfile,'(i2,"_",i2,"_",i1)') n,lg-1,ipar
-            endif
-            inquire(file=nodetfile,exist=exists)
-            nchtimetot = 0
-            do while (exists)
-               open(42,file=nodetfile)
-               nchistartold(n,ipar) = 10000000
-               nchistopold(n,ipar) = 0
- 13            read(42,'(i5,9x,i6)',end=14) nch,nchtime(nch)
-               nchtimetot = nchtimetot + nchtime(nch)
-               if (nch.lt.nchistartold(n,ipar)) nchistartold(n,ipar)=nch
-               if (nch.gt.nchistopold(n,ipar)) nchistopold(n,ipar)=nch
-               goto 13
- 14            close(42)
-               n = n + 1
-               lgold(ipar) = lg - 1
-               if (lg-1.lt.10) then
-                  write(nodetfile,'(i2,"_",i1,"_",i1)') n,lg-1,ipar
-               else
-                  write(nodetfile,'(i2,"_",i2,"_",i1)') n,lg-1,ipar
-               endif
-               inquire(file=nodetfile,exist=exists)
-            enddo
-            nodesprev = n - 1
-            if (nodesprev.gt.1) then
-               tave(ipar) = float(nchtimetot)/float(nodesprev)
-               print*,'prev nodes and tave:',nodesprev,tave(ipar)
-               nt = 0
-               n = 1
-               nch = 1
-               nistart = 1
-               incsum = 0
-               nodettot = 0
-               nodetmax = 0
-               do n = 1, nodesprev - 1
-                  nodet = 0
-                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
-                     nodetprev = nodet
-                     nodet = nodet + nchtime(nch)
-                     nch = nch + 1
-                  enddo
-                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
-                     nch = nch - 1
-                     nodet = nodetprev
-                  endif
-                  if (nodet.gt.nodetmax) nodetmax = nodet
-                  nodettot = nodettot + nodet
-                  nistop = nch - 1
-                  incold(n,ipar) = nistop-nistart-
-     >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
-                  nistart = nch
-                  if (myid.le.0)
-     >                 print'("LG,ipar,nodeid,inc,nistop,nodet:",6i6)',
-     >                 lg,ipar,n,incold(n,ipar),nistop,nodet
-                  incsum = incsum + incold(n,ipar)
-c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
-c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
-               enddo
-               nodet = nchtimetot - nodettot
-               if (nodet.gt.nodetmax) nodetmax = nodet
-               neff = nint(100.0*nchtimetot/nodetmax/nodesprev)
-               n = nodesprev
-               nistop = nchistopold(n,ipar)
-               if (myid.le.0)
-     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",7i6,"%")',
-     >            LG,ipar,n,-incsum,nistop,nodet,neff
-            endif
                   
             tscale(:) = 1.0
             tave(:)= 0.0
@@ -2481,6 +2410,85 @@ c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
                   print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
      >                 diffp
 c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
+
+            n = 1
+            if (lgold(ipar).lt.10) then
+               write(nodetfile,'(i2,"_",i1,"_",i1)') n,lgold(ipar),ipar
+            else
+               write(nodetfile,'(i2,"_",i2,"_",i1)') n,lgold(ipar),ipar
+            endif
+            inquire(file=nodetfile,exist=exists)
+            nchtimetot = 0
+            do while (exists)
+               open(42,file=nodetfile)
+               nchistartold(n,ipar) = 10000000
+               nchistopold(n,ipar) = 0
+ 13            read(42,'(i5,9x,i6)',end=14) nch,nchtime(nch)
+               nchtimetot = nchtimetot + nchtime(nch)
+               if (nch.lt.nchistartold(n,ipar)) nchistartold(n,ipar)=nch
+               if (nch.gt.nchistopold(n,ipar)) nchistopold(n,ipar)=nch
+               goto 13
+ 14            close(42)
+               n = n + 1
+               if (lgold(ipar).lt.10) then
+                  write(nodetfile,'(i2,"_",i1,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               else
+                  write(nodetfile,'(i2,"_",i2,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               endif
+               inquire(file=nodetfile,exist=exists)
+            enddo
+            nodesprev = n - 1
+            if (nodesprev.gt.1) then
+               tave(ipar) = float(nchtimetot)/float(nodesprev)
+               print*,'prev nodes and tave:',nodesprev,tave(ipar)
+               nt = 0
+               n = 1
+               nch = 1
+               nistart = 1
+               incsum = 0
+               nodettot = 0
+               nodetmax = 0
+               do n = 1, nodesprev - 1
+                  nodet = 0
+                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
+                     nodetprev = nodet
+                     nodet = nodet + nchtime(nch)
+                     nch = nch + 1
+                  enddo
+c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
+                  if (nodet+nodettot-n*tave(ipar).gt.
+     >                 n*tave(ipar)-nodetprev-nodettot) then
+                     nch = nch - 1
+                     nodet = nodetprev
+                  endif
+                  if (nodet.gt.nodetmax) nodetmax = nodet
+                  nodettot = nodettot + nodet
+                  nistop = nch - 1
+                  incold(n,ipar) = nistop-nistart-
+     >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
+                  if (nchistopold(nodesprev,ipar).eq.nchistop(nodes))
+     >                 incold(n,ipar)=nistop-nistart-
+     >                 (nchistop(n)-nchistart(n))-inc(n,ipar)
+                  nistart = nch
+                  if (myid.le.0)
+     >                 print'("LG,ipar,nodeid,inc,nistop,nodet:",6i6)',
+     >                 lg,ipar,n,incold(n,ipar),nistop,nodet
+                  incsum = incsum + incold(n,ipar)
+c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
+c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
+               enddo
+               nodet = nchtimetot - nodettot
+               if (nodet.gt.nodetmax) nodetmax = nodet
+               neff = nint(100.0*nchtimetot/nodetmax/nodesprev)
+               n = nodesprev
+               nistop = nchistopold(n,ipar)
+               if (myid.le.0)
+     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",7i6,"%")',
+     >            LG,ipar,n,-incsum,nistop,nodet,neff
+            endif
+
                   incsum = 0
                   do n = 1, nodes - 1
 c$$$                     timeperi = max(1.0 , float(ntime(n,ipar))/
