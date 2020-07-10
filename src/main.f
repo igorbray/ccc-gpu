@@ -67,12 +67,12 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*7
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*8
       character date*8,time*10,zone*5
       integer*8 npernode
-      integer valuesin(8), valuesout(8), inc(100,0:1), lgold(0:1),
-     >     valuesinLG(8),incold(100,0:1)
-      integer lmatch(0:lamax), nopen(0:1), instate(100)
+      integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
+     >     valuesinLG(8),incold(1000,0:1)
+      integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
@@ -259,7 +259,8 @@ c note: make these your first (or nearly so) executable statements
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, ntasks, ierr )
-      nomp = max(1,OMP_GET_MAX_THREADS())
+      nomporig = max(1,OMP_GET_MAX_THREADS())
+      nomp = 1 ! nomporig ! revert for many tasks per node, see same comment below and in redistribute.f
 c$$$      print*,'NUM_PROCESSES_PER_NODE:',NUM_PROCESSES_PER_NODE()
 c$$$      if (ntasks.ge.8.and.nomp.ne.8) stop 'ntasks.ge.8.and.nomp.ne.8'
       nodes = max(1, ntasks / nomp)
@@ -2407,15 +2408,15 @@ c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
                   enddo
                   tave(ipar) = float(ntimetot)/nodes
                   diffp = (ntimemax-ntimemin)/tave(ipar)
-                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
-     >                 diffp
+c$$$                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
+c$$$     >                 diffp
 c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
 
             n = 1
             if (lgold(ipar).lt.10) then
-               write(nodetfile,'(i2,"_",i1,"_",i1)') n,lgold(ipar),ipar
+               write(nodetfile,'(i3,"_",i1,"_",i1)') n,lgold(ipar),ipar
             else
-               write(nodetfile,'(i2,"_",i2,"_",i1)') n,lgold(ipar),ipar
+               write(nodetfile,'(i3,"_",i2,"_",i1)') n,lgold(ipar),ipar
             endif
             inquire(file=nodetfile,exist=exists)
             nchtimetot = 0
@@ -2431,10 +2432,10 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
  14            close(42)
                n = n + 1
                if (lgold(ipar).lt.10) then
-                  write(nodetfile,'(i2,"_",i1,"_",i1)') 
+                  write(nodetfile,'(i3,"_",i1,"_",i1)') 
      >                 n,lgold(ipar),ipar
                else
-                  write(nodetfile,'(i2,"_",i2,"_",i1)') 
+                  write(nodetfile,'(i3,"_",i2,"_",i1)') 
      >                 n,lgold(ipar),ipar
                endif
                inquire(file=nodetfile,exist=exists)
@@ -2867,7 +2868,8 @@ c$$$         reconstruct_psi = .false.
          if (scalapack) then
 C The following allows scalapack to run efficiently with threaded libraries
 #ifndef LIBSCI
-            call mkl_set_num_threads(1) 
+c$$$            call mkl_set_num_threads(1) ! revert for many tasks per node
+            call mkl_set_num_threads(nomporig) 
 #endif
             call sleepy_barrier(MPI_COMM_WORLD)
             if (mod(myid,nomp).eq.0) then
@@ -3045,11 +3047,11 @@ c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(4i4,3i7,f8.1,4i8,2i4,"% LG,node,ipar,inc,vt,",
-     >            "i1,i2,tperi,nch,naps,NMAX,mt,prev LG,eff",/)')
+               write(42,'(4i4,3i7,f8.1,5i8,2i4,"% LG,node,ipar,inc,vt,",
+     >            "i1,i2,tperi,nch,naps,NMAX,tmax,mt,prev LG,eff",/)')
      >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
      >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
-     >            nchtop),naps,npk(nchtop+1)-1,
+     >            nchtop),naps,npk(nchtop+1)-1,ntmax,
      >            idiff(valuesin,valuesout),lgold(ipar),neff
 !               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
 !     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
@@ -5061,7 +5063,7 @@ c      close(57)
       call mpi_comm_size(comm,n,ierr)
       call mpi_comm_rank(comm,me,ierr)
 #ifdef NEW_SLEEPY_BARRIER
-      nomp=max(1,OMP_GET_MAX_THREADS())
+      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
       n=(nomp*(1+me/nomp)-1)-(nomp*(me/nomp))+1
       n1=nomp*(me/nomp)
       n2=nomp*(1+me/nomp)-1

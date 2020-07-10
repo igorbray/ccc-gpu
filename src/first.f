@@ -36,7 +36,7 @@ C      use vmat_module
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3, nodetfile*7
+      character chan(knm)*3, nodetfile*8
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -97,9 +97,9 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       ni=0
       nf=0
       if (lg.lt.10) then
-         write(nodetfile,'(i2,"_",i1,"_",i1)') nodeid,lg,ipar
+         write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,lg,ipar
       else
-         write(nodetfile,'(i2,"_",i2,"_",i1)') nodeid,lg,ipar
+         write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,lg,ipar
       endif
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
@@ -120,6 +120,8 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 !      write(*,*) "nnt,nthreads",nnt,nthreads
 !#endif
       nnt=omp_get_max_threads()
+      print'("nodeid, nnt:",2i4)', nodeid,nnt
+
 
       td = 0.0
       te1 = 0.0
@@ -180,10 +182,10 @@ c$$$      do nchi = nchii, nchtop
 c$$$         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
 c$$$      enddo
 
-C Put the larger l states first for OpenMP efficiency
-      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
+c$$$C Put the larger l states first for OpenMP efficiency
+c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
       do nchtmp = nchii, nchif
-         nchi = nchinew(nchtmp,1)
+         nchi = nchtmp !nchinew(nchtmp,1)
 c$$$      do nchi = nchii, nchif
          call date_and_time(date,time,zone,valuesin)
          psii(:)=psi_t(:,nchi)
@@ -463,7 +465,7 @@ C  them.
       deallocate(temp2)
 
 
-      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
+c$$$      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
@@ -471,7 +473,7 @@ C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
 C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
 C$OMP& SHARED(nchinew)
       do nchftmp = nchi, nchtop
-         nchf = nchinew(nchftmp,2)
+         nchf = nchftmp !nchinew(nchftmp,2)
          if(pos(nchi).eqv.pos(nchf)) then
          vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + (vmatt(1,1,nchf,0)
      >                         + vmatt(1,1,nchf,1))/2 
@@ -599,12 +601,12 @@ C  End of NCHI loop
          deallocate(temp3,vmatt)
          call date_and_time(date,time,zone,valuesout)
          if (nqmi.gt.1) then
-            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished at:",
+            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
      >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
      >         chan(nt_t(nchi)),natomps(nchi),
      >         idiff(valuesin,valuesout)
-            write(42,'(2i5,a4,i6)') nchi,li,chan(nt_t(nchi)),
-     >         idiff(valuesin,valuesout)
+            write(42,'(2i5,a4,i6,i11)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout),natomps(nchi)
          endif
       end do
 

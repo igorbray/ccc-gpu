@@ -356,9 +356,25 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
-            if (e1.gt.e2*0.9999.or.
-     >         (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
-     >              states(n-1)%la.gt.states(n)%la)) then
+            if (e1.gt.e2) then
+               swapped = .true.
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
+               staten = states(n-1)
+               states(n-1) = states(n)
+               states(n) = staten
+            endif
+         enddo
+      enddo 
+      swapped = .true.
+      do while (swapped)
+         swapped = .false.
+         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
+            e1 = states(n-1)%energy
+            e2 = states(n)%energy
+            if (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
+     >         states(n-1)%la.gt.states(n)%la) then
                swapped = .true.
 c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
 c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy

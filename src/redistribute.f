@@ -198,7 +198,7 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
       integer :: kf
       integer :: OMP_GET_MAX_THREADS
 
-      nomp=max(1,OMP_GET_MAX_THREADS())
+      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
 !      nomp = 8  ! temporary fix for epic scalapack problem'
 
       call blacs_gridinfo(bctx,pgriddim(1),pgriddim(2)
