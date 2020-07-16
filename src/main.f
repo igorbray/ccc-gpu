@@ -71,7 +71,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       character date*8,time*10,zone*5
       integer*8 npernode
       integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
-     >     valuesinLG(8),incold(1000,0:1)
+     >     valuesinLG(8),incold(1000,0:1),nodesold(0:1)
       integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
@@ -239,6 +239,7 @@ C==== ANDREY ===================================================
       inc(:,:) = 0
       incold(:,:) = 0
       lgold(:) = -1
+      nodesold(:)=-1
       myid = -1
       ntasks = 1
       nbnd0(:) = 0
@@ -2348,6 +2349,14 @@ c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in th
      >               nn,nchistart(nn), natompsnode(nn), natompspernode,
      >               natompsc, natompstot
                enddo
+               nn = nodes
+               natompsnode(nn) = natompstot - natompsc
+               nchistop(nodes) = nchtop
+               if (nodeid.eq.1)
+     >            print"('nn,nchistart,natompsnode,natompspernode,',                                                                                                   
+     >               'natompsc,natompstot:',i3,i5,4i9)",
+     >               nn,nchistart(nn), natompsnode(nn),natompspernode,
+     >               natompstot, natompstot
 c$$$               if (natompsnode(nodes-1).lt.natompsnode(1)) then
 c$$$                  nchistop(nodes-1) = nchistart(nodes)
 c$$$                  nchistart(nodes) = nchistart(nodes) + 1
@@ -2360,14 +2369,13 @@ c$$$                     nchistop(nodes-1) = nchistop(nodes-1) + 1
 c$$$                     nchistart(nodes) = nchistart(nodes) + 1
 c$$$                  endif 
 c$$$               endif
-               nchistop(nodes) = nchtop
-               do nn = 1, nodes
-                  if (nodeid.eq.1) then
-                     print"('nodeid,nchistart,nchistop,nchtop',4i5)",
-     >               nn,nchistart(nn), nchistop(nn), nchtop
-                     if (nchistart(nn).gt.nchtop) stop'nchistart>nchtop'
-                  endif 
-               enddo                  
+c$$$               do nn = 1, nodes
+c$$$                  if (nodeid.eq.1) then
+c$$$                     print"('nodeid,nchistart,nchistop,nchtop',4i5)",
+c$$$     >               nn,nchistart(nn), nchistop(nn), nchtop
+c$$$                     if (nchistart(nn).gt.nchtop) stop'nchistart>nchtop'
+c$$$                  endif 
+c$$$               enddo                  
             endif 
                   
             tscale(:) = 1.0
@@ -2385,13 +2393,13 @@ c$$$               endif
  10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
      >            ntime(n,ip),nchistartold(n,ip),nchistopold(n,ip)
                lgold(ip) = lgp
-               nodesold = n ! nodesold + 1
+               nodesold(ip) = n ! nodesold + 1
 c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
                go to 10 !ensures read of last LG entry
  20            continue 
                close(42)
                print*,'Last LG read in time file:',lgold(ipar)
-               if (nodesold.eq.nodes.and.ntime(1,ipar).gt.0) then
+               if (nodesold(ipar).eq.nodes.and.ntime(1,ipar).gt.0) then
                   ntimemin=10000000
                   ntimemax=0
                   ntimetot = 0
@@ -2441,7 +2449,8 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                inquire(file=nodetfile,exist=exists)
             enddo
             nodesprev = n - 1
-            if (nodesprev.gt.1) then
+            if (nodesprev.gt.1.and.
+     >         nchistopold(nodesprev,ipar).eq.nchistop(nodes)) then
                tave(ipar) = float(nchtimetot)/float(nodesprev)
                print*,'prev nodes and tave:',nodesprev,tave(ipar)
                nt = 0
@@ -2466,13 +2475,13 @@ c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
                   endif
                   if (nodet.gt.nodetmax) nodetmax = nodet
                   nodettot = nodettot + nodet
-                  nistop = nch - 1
+                  nistop = max(nistart,nch - 1)
                   incold(n,ipar) = nistop-nistart-
      >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
                   if (nchistopold(nodesprev,ipar).eq.nchistop(nodes))
      >                 incold(n,ipar)=nistop-nistart-
      >                 (nchistop(n)-nchistart(n))-inc(n,ipar)
-                  nistart = nch
+                  nistart = nistop + 1 !nch
                   if (myid.le.0)
      >                 print'("LG,ipar,nodeid,inc,nistop,nodet:",6i6)',
      >                 lg,ipar,n,incold(n,ipar),nistop,nodet
@@ -2562,7 +2571,8 @@ c$$$c$$$                     tscale(:)=1.0
 c$$$c$$$                  endif 
                else
                   print*,
-     >               'CAUTION: nodes<>nodesold', nodesold
+     >               'CAUTION: nodes<>nodesold',ipar,nodesold(ipar)
+                  inc(:,:) = 0
                endif 
             endif
                   inct = 0
