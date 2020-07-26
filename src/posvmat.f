@@ -2756,9 +2756,9 @@ c      open(99,file='matritsa')
 *----------------------------------------------
 
       subroutine funleg(z, Lla, Q0, result)      
-C     returns the Legendre polinomial of the second kind - Ql
+C     returns the Legendre polynomial of the second kind - Ql
 C     for given Lla and z with the use of the recurrence
-C     realtion
+C     relation
             
       include 'par.f'
       include 'par.pos'
@@ -2946,7 +2946,8 @@ C     use analitical expression for small z
             result = r1 * z + r2 * Q0            
          case default
             
-            if (z-1.0d0.ge.1.0D-6) then
+c$$$            if (z-1.0d0.ge.1.0D-6) then
+            if (z-1.0d0.ge.0.021D0) then
                dLla=dble(Lla)
                a=dLla/2.d0+1.d0
                b=(dLla+1.d0)/2.d0
@@ -2956,14 +2957,22 @@ C     use analitical expression for small z
                S1 = 0.0D0
                s2=1.d0
                i=0
-               do while(abs(s2-s1).gt.1d-7)
+               zson = 1d0/(z*z)
+               do while(abs((s1-s2)/(s1+s2)).gt.1d-8)
+c$$$               do while(abs(s2-s1).gt.1d-7)
                   i=i+1
                   s2=s1
                   S1 = S1 + ABCF*XI
                   SI = DBLE(I-1)
                   ABCF = ABCF*(A+SI)*(B+SI)/((C+SI)*(SI+1.0D0))
-                  XI = XI/z/z
+! Below seems to be slower                  
+c$$$                  lp2i = Lla+2*i
+c$$$                  ABCF = ABCF*lp2i/(2*i)*(lp2i-1)/(lp2i+Lla+1)
+                  XI = XI*zson
+c$$$                  XI = XI/z/z
                end do
+c$$$               print*,i,(A+SI)*(B+SI)/((C+SI)*(SI+1.0D0)),
+c$$$     >            lp2i/(2.0*i)*(lp2i-1)/(lp2i+Lla+1)
                result=Qlfactor(Lla)/z**(Lla+1)*s1
             else
                call LQNB(Lla,z,QN)               
