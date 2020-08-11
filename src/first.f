@@ -36,7 +36,7 @@ C      use vmat_module
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3, nodetfile*8
+      character chan(knm)*3, nodetfile*9
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -98,8 +98,10 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       nf=0
       if (lg.lt.10) then
          write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,lg,ipar
-      else
+      elseif (lg.lt.100) then
          write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,lg,ipar
+      else
+         write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
       endif
 
 ! set number of GPUs, OpenMP threads per GPU and nested threads
@@ -315,6 +317,7 @@ c$$$            stop 'CJ6 and W do not agree in D'
          endif 
          
          c = c1 * c2 * c3
+c$$$         print*,'lg,nchf,nchi,c:',lg,nchf,nchi,c,c1,c2,c3
          if (abs(c).lt.1e-10) go to 10
 !          const = (-nze)*(-1)**(lg + lfa) * hat(li) *
          const = (-1)**(lg + lfa) * hat(li) *
@@ -329,7 +332,7 @@ C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
      >         nznuc,temp)
          endif
 
-       if(pos(nchf)) then 
+       if(pos(nchf).and.pos(nchi)) then 
 C     ANDREY: Hydrogen: ssalling + interpolation:
             if (.not.alkali) then
 C  The factor of two below is the reduced mass. We are working with
