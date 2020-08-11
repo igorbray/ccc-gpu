@@ -67,7 +67,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*8
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9
       character date*8,time*10,zone*5
       integer*8 npernode
       integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
@@ -2390,12 +2390,13 @@ c$$$               enddo
                   open(42,file='time_all')
                endif 
                ntime(:,:) = 0
+               ip = 0
  10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
      >            ntime(n,ip),nchistartold(n,ip),nchistopold(n,ip)
                lgold(ip) = lgp
                nodesold(ip) = n ! nodesold + 1
-c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
-               go to 10 !ensures read of last LG entry
+               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
+c$$$               go to 10 !ensures read of last LG entry
  20            continue 
                close(42)
                print*,'Last LG read in time file:',lgold(ipar)
@@ -2423,8 +2424,10 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
             n = 1
             if (lgold(ipar).lt.10) then
                write(nodetfile,'(i3,"_",i1,"_",i1)') n,lgold(ipar),ipar
-            else
+            elseif (lgold(ipar).lt.100) then
                write(nodetfile,'(i3,"_",i2,"_",i1)') n,lgold(ipar),ipar
+            else
+               write(nodetfile,'(i3,"_",i3,"_",i1)') n,lgold(ipar),ipar
             endif
             inquire(file=nodetfile,exist=exists)
             nchtimetot = 0
@@ -2442,8 +2445,11 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                if (lgold(ipar).lt.10) then
                   write(nodetfile,'(i3,"_",i1,"_",i1)') 
      >                 n,lgold(ipar),ipar
-               else
+               elseif (lgold(ipar).lt.100) then
                   write(nodetfile,'(i3,"_",i2,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               else
+                  write(nodetfile,'(i3,"_",i3,"_",i1)') 
      >                 n,lgold(ipar),ipar
                endif
                inquire(file=nodetfile,exist=exists)
@@ -2626,6 +2632,8 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                      if (.not.allocated(vmat1))
      >                  stop 'vmat1 not allocated'
                      vmat1(:,:) = 0.0
+                  else
+                     allocate(vmat1(1,1)) !avoid runtime errors
                   endif 
                else
                   allocate(vmat0(1,1),vmat1(1,1)) !avoid runtime errors
