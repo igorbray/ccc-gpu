@@ -730,27 +730,25 @@ C  Riccati-Bessel function for small rho. Same as spherical Bessel * rho that wo
       real appf1, ecmn, x, acc
       w = sqrt(abs(ecmn))
       s = ecmn / abs(ecmn+1d-30)
-      acc = 1.0
+      acc = 0.0
       appf1 = 0d0
       if (w.ne.0.0) then
 C  We use the expansion for the Riccati-Bessel function j(l,rho)
 C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
          kmax = 100
          rho=w*x
-         if (rho.gt.1e2) then
-            return
-         endif
+         k = 1
+         if (rho.gt.1e2) return
          ff = 1d0
          do i=1,ln
             ff = ff * rho / float(2*i+1)
          end do
-         if (abs(ff).lt.1d-100) return
          sum = ff
          summ = 0d0
          sump = ff
          zo2k = 1d0
-         k = 1
          sumold = 0d0
+         if (abs(ff).lt.1d-100) k = kmax
          do while (k.lt.kmax.and.abs(sumold/sum-1d0).gt.1d-6)
             zo2k = zo2k  * rho * rho / 2d0 / float(k) /
      >         float(2*(ln+k)+1)
@@ -763,18 +761,19 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
             sum = sump - s*summ
 c$$$            print '(i4,3e20.14)', k, sum, sump, summ
             k = k + 1
-            if (abs(summ/sump-1d0).lt.1d-12) then
+            if (abs(s*summ/sump-1d0).lt.1d-12) then
                k = kmax
+               acc = 0.0
                appf1 = 0.0
-c$$$               print'("Precision loss in APPF1, returning 0.0",
-c$$$     >            1pe14.4)',sum
+               print'("Precision loss in APPF1, returning 0.0",
+     >            1pe14.4)',-s*summ,sump
                return
             endif 
          enddo
-         acc = abs(summ/sump-1d0)
-         if (k.eq.kmax)
-     >      print'("Possible precision loss in APPF1;result and error",
-     >      1p,2e14.4)',sum,acc
+         acc = abs(s*summ/sump-1d0)
+         if (k.eq.kmax) acc = 0.0
+c$$$     >      print'("Possible precision loss in APPF1;result and error",
+c$$$     >      1p,2e14.4)',sum,acc
          appf1 = rho * sum
       else
 C  The following is the limiting case of the Riccati-Bessel/w**(ln+1) for w=0.0
