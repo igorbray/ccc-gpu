@@ -44,7 +44,7 @@
       common/gausz/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR 
        common/numericalpotential/ numericalv, lstoppos
       logical numericalv
-      dimension fpqb(2*nqmi*igpm+nqmi,0:ltmax+lamax)      
+      dimension fpqb(2*nqmi*igpm+nqmi,0:lmax)!ltmax+lamax)      
       dimension x(ipm),ylam(0:lm,ipm),y2lam(0:lm,ipm)
       real gki,gkf,etot,vmatt
       dimension gki(kmax),gkf(kmax),npk(nchan+1),vmatt(nqmfmax,nqmfmax)!vmatt(kmax,kmax,0:1)
@@ -77,7 +77,7 @@ C     dimension dQlp(nqmi,2*nqmi*igpm), dQlp2(nqmi, 2*nqmi*igpm)
      >     psinb(maxr,nnmax,0:lnabmax),istoppsinb(nnmax,0:lnabmax)
       
       real*8 lg2
-      real*8, dimension (2*nqmi*igpm+nqmi) :: xp2
+!      real*8, dimension (2*nqmi*igpm+nqmi) :: xp2
 
       character(len=20) :: fname*20
       character fname1*5 
@@ -95,7 +95,7 @@ C     ANDREY: end my variables ---------------------------------
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax)
       dimension coulm(nqmi,2*nqmi*igpm),subc(nqmi,2*nqmi*igpm),!Cfactor(nqmi),
-     >   fpqbC(2*nqmi*igpm+nqmi,0:ltmax+lamax)
+     >   fpqbC(2*nqmi*igpm+nqmi,0:lmax)!ltmax+lamax)
       dimension res2aC(1:2,1:nqmi),res2bC(1:2,1:nqmi)
 
       if (lg.gt.lstoppos) return
@@ -379,7 +379,7 @@ C     wp(j2)=qq(nqgen)*wgp(igp+1-ji)/xgp(igp+1-ji)/xgp(igp+1-ji)
 C     Calculate Q0p(iqa,i) & Qlp(i,iqa) for integration in (44).
 c     Very slow for direct integration so interpolation is used.
 c     dQls are calculated in main.f     
-      xp2(:) = xp(:)*xp(:)
+!      xp2(:) = xp(:)*xp(:) ! resulted in an overflow for large LG and unnatural parity
       if (alkali) then
          iii = 2*nqgen*igp     
          do while (xp(iii).gt.qmax)
@@ -453,7 +453,7 @@ c$$$         endif
             do i=1,2*nqgen*igp         
 c$$$               if (xp(i)*qa.ne.0.0) then
                   pp=xp(i)
-                  pp2=xp2(i)
+                  pp2=pp * pp !xp2(i)
                   arg=(pp2+qa2)/(2.0*pp*qa)
                   call funleg(arg,Lla,Q0p(iqa,i),Qlp1)
                   Qlp(i,iqa) = Qlp1 + dQL1(i)
@@ -788,8 +788,8 @@ C-----ANDREY: end mitroy simplification ------------------------------
             
             if(iq.eq.1) then
                do i=1,imax
-C                 pp2 = xp(i)*xp(i)
-                  pp2 = xp2(i)
+                 pp2 = xp(i)*xp(i)
+!                  pp2 = xp2(i)
                   qbpp = qb*xp(i)
                   qbpp2 = 2.d0 * qbpp
                   bb = 0.25d0*qb2 + pp2
@@ -904,6 +904,7 @@ c$$$                  enddo
                         reslam=0.d0
                         do lam=max0(iabs(Llb-l1),iabs(Lla-l2)),
      >                     min0(Llb+l1,Lla+l2)!,2
+                           if (lam.gt.lmax) stop 'lam > lmax'
                            flam=float(lam)
                            w3j3=cof3j(flam,fl1,fLlb,0.,0.,0.)
                            w3j4=cof3j(fl2,flam,fLla,0.,0.,0.)
@@ -1239,7 +1240,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                               if (imax.lt.nqmi2*igp) stop 'imax7'
                               do i=(nqmi2-1)*igp+1,nqmi2*igp
                                  pp=xp(i)
-                                 pp2 = xp2(i)
+                                 pp2 = pp * pp !xp2(i)
 !                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
                                  fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
      $                                -Fqa*(qa2+alfa2)*(qa2+alfa2) /(pp2
@@ -2958,7 +2959,7 @@ c$$$            if (z-1.0d0.ge.1.0D-6) then
                s2=1.d0
                i=0
                zson = 1d0/(z*z)
-               do while(abs((s1-s2)/(s1+s2)).gt.1d-8)
+               do while(abs((s1-s2)/(s1+s2)).gt.1d-6)
 c$$$               do while(abs(s2-s1).gt.1d-7)
                   i=i+1
                   s2=s1

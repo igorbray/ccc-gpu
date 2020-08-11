@@ -79,8 +79,8 @@ c$$$         if (ucentr(1) .eq. 0.0 .and. wnn .gt. 2.0) then
             reg(jstart) = s1
 c$$$C  Need to take care that jstart stays less than jstop. For this reason
 c$$$C  the wnn > 2 condition was added above.
-c$$$            do while (rho.lt.ln.and.acc.gt.1e-6.and.jstart.lt.jstop)
-            do while (abs(reg(jstart)).lt.regcut.and.jstart.lt.jstop)
+            do while (rho.lt.ln.and.acc.gt.1e-6.and.jstart.lt.jstop)
+c$$$            do while (abs(reg(jstart)).lt.regcut.and.jstart.lt.jstop)
 c$$$               if (ln.eq.2.and.jstart.gt.2) return
                jstart = jstart + 1
                rho = wnn * gridx(jstart)
@@ -803,7 +803,9 @@ C  solution is < REGSTART.
          tmp=log(float(2*l+1))
          w=1.0
       end if
- 10   xstart=min(exp((tmp+log(regcut))/(l+1))/w,gridx(nx))
+ 10   xstart = 0
+      if (regcut.ne.0)
+     >     xstart=min(exp((tmp+log(regcut))/(l+1))/w,gridx(nx))
       j=max(int(xstart*nx/gridx(nx)),1)
       j = min(j,nx)
       do while (gridx(j).lt.xstart.and.j.lt.nx)

@@ -2378,7 +2378,7 @@ C
 C     FG03A & FG03B - WIGNER 9-J SYMBOL
 C
 C
-      parameter (mmax=501)
+      parameter (mmax=1001)
       COMMON / CNJSAVE / H(mmax), J(mmax)
 c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)

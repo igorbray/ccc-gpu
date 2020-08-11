@@ -21,7 +21,7 @@ C are integers, = 2 * actual L and M numbers.
       subroutine threej(l1,l2,l3,m1,m2,m3,sym3)
       implicit double precision(a-h,o-z)
 C FL(I) = log(I!)
-      common/fl0/fl(0:300)
+      common/fl0/fl(0:1000)
 C FAC is used for precision loss checks
       dimension fac(0:100)
 
@@ -135,12 +135,12 @@ c$$$         print*,'Method 2:',sym3
 C  The following routine calculates and stores logs of factorials
       SUBROUTINE FACLOG0
       real*8 fl
-      COMMON/FL0/FL(0:300)
+      COMMON/FL0/FL(0:1000)
 C
 C ****  COMPUTE AND STORE, FL(I) = LOG((I)!)
 C
       fl(0)=0d0
-      do 10 i = 1, 300
+      do 10 i = 1, 1000
          fl(i) = fl(i-1) + log(dfloat(i))
  10   continue
       RETURN

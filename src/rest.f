@@ -578,9 +578,9 @@ c$$$      end if
 
       function nmpow(err)
       nmpow = 1
-      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
-         nmpow = nmpow + 1
-      enddo
+c$$$      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
+c$$$         nmpow = nmpow + 1
+c$$$      enddo
       return
       end
 
