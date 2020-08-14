@@ -748,7 +748,7 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
          sump = ff
          zo2k = 1d0
          sumold = 0d0
-         if (abs(ff).lt.1d-100) k = kmax
+         if (abs(ff).lt.1d-100) return
          do while (k.lt.kmax.and.abs(sumold/sum-1d0).gt.1d-6)
             zo2k = zo2k  * rho * rho / 2d0 / float(k) /
      >         float(2*(ln+k)+1)

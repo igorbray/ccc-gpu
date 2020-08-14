@@ -1622,12 +1622,14 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       crossmt(:) = 0.0
       print*,
      >   'Enter max J for extrapolation' ! and bornsub (1 or 0)'
-      read(*,err=100), jextrap
+c$$$      read(*,err=100), jextrap
+      read(*,*), jextrap
       bornsub = bornsubin
       print*, 'JEXTRAP, BORNSUBIN:',jextrap, bornsubin
  
  37   print*,'Please enter NISTART, NISTOP, NFSTART and NFSTOP:'
-      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+c$$$      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+      read(*,*), NISTART, NISTOP, NFSTART, NFSTOP
       print*,'NISTART, NISTOP, NFSTART, NFSTOP:',
      >   NISTART, NISTOP, NFSTART, NFSTOP
       if (nistart.le.0) then
