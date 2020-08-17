@@ -3687,10 +3687,10 @@ c$$$               endif
 C  Having defined the bound states we now define the distorted waves
          summax = 0.0
          ebmax = 0.0
-c$$$C$OMP parallel do default(private)
-c$$$C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
-c$$$C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-c$$$C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax)
+C$OMP parallel do default(private)
+C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
+C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
+C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
             if (gk(k,nch).eq.0.0) then
@@ -3889,7 +3889,7 @@ c$$$                  print*,'CHIL(:,kp,2)=0 for kp>qcut',sqrt(entail),qcut
                endif 
             end if !tails defined
          end do ! End of the loop over K
-c$$$C$OMP end parallel do
+C$OMP end parallel do
          if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
 
          if (nqm.gt.1.and.nbnd(lg).ne.0) print 
