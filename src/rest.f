@@ -3690,7 +3690,7 @@ C  Having defined the bound states we now define the distorted waves
 C$OMP parallel do default(private)
 C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
 C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail)
+C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail,trat,qcut)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
             if (gk(k,nch).eq.0.0) then
