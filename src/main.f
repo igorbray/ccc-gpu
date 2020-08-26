@@ -338,8 +338,8 @@ C
       cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
       write(ench,'(1p,"_",e10.4)') energy
       if (nodes.eq.1) cnode = ''
-      print*, 'nomp, nodes, myid and nodeid are:',
-     >   nomp,nodes,myid, cnode
+      print*, 'nomporig, nodes, myid and nodeid are:',
+     >   nomporig,nodes,myid,nodeid
 
 c
       call date_and_time(date,time,zone,valuesin)
@@ -1529,8 +1529,9 @@ c$$$     >         ch(mylstart)//ench
 c$$$            csfile = '/u/igor/potls/totalcs'//ench
 c$$$         endif 
          if (myid.eq.0) then
+         ipstart = 0
          call pwrite(nent,instate,nopen,energy,nznuc,zasym,ry,noprint,
-     >      ovlp,ovlpn,phasen,phaseq,mylstart,lstop,projectile,
+     >      ovlp,ovlpn,phasen,phaseq,mylstart,ipstart,lstop,projectile,
      >      target,nsmax,nchimax,nchanmax,abs(npar),hlike,
      >      nunit,vdcore_pr,minvdc,maxvdc,abs(ne2e),slowery,iborn,
      >      BornICS,tfile,abs(nnbtop),ovlpnl,ovlpnn)
@@ -1768,6 +1769,7 @@ c$$$  call egrid(npotgf,etot)
       endif ! mod(myid,nomp).eq.0
 
       call mpi_bcast(mylstart,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call mpi_bcast(ipstart, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(mylstop, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(iparmin, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(npar,    1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -1780,7 +1782,7 @@ C     Start the partial wave LG (=J total orbital angular momentum) loop
      >           LG,time
          endif
          do ipar = iparmin, min(abs(npar),lg)
-
+            if (lg.eq.mylstart.and.ipar.lt.ipstart) cycle !allow restart for ip=1
             if (mod(myid,nomp).eq.0) then
                nodeid = myid/nomp + 1
          nchtope2e = 0
@@ -2475,7 +2477,8 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                   enddo
 c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
                   if (nodet+nodettot-n*tave(ipar).gt.
-     >                 n*tave(ipar)-nodetprev-nodettot) then
+     >                 n*tave(ipar)-nodetprev-nodettot.or.
+     >                 nodet.gt.tave(ipar)*1.5) then
                      nch = nch - 1
                      nodet = nodetprev
                   endif
@@ -2828,7 +2831,7 @@ c
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1,natomps,lnch)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'

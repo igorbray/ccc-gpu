@@ -1,6 +1,6 @@
       subroutine pwrite(nent,instate,nopen,energy,nznuci,
-     >   zasymi,ry,noprint,ovlp,
-     >   ovlpn,phasen,phaseq,jstart,jstop,projectile,target,nsmax,
+     >   zasymi,ry,noprint,ovlp,ovlpn,phasen,phaseq,
+     >   jstart,ipstart,jstop,projectile,target,nsmax,
      >   nchimax,nchanmax,npar,hlike,NTunit,vdcore,minvdc,maxvdc,ne2e,
      >   slowery,iborn,bornICS,tfile,nnbtop,ovlpnl,ovlpnn)
       implicit real (a-h,o-z)
@@ -1159,6 +1159,7 @@ c$$$         endif
             open (88,file=tfile,position='append',status='old',
      >         recl=irecl)
             jstart = j
+            ipstart = ipar
 c$$$            call memfree(ptrv)
 c$$$            call memfree(ptrt)
             deallocate(ton,stat=istat1)
