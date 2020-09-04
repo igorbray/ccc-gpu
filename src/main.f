@@ -2707,7 +2707,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >         nchistart,nchistop,nodeid,scalapack,
      >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
          else
-            call scattering(1,0,theta,nold,etot,lg,gk,enionry,npkb,
+            call scattering(myid,0,theta,nold,etot,lg,gk,enionry,npkb,
      >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
          end if
@@ -2843,7 +2843,7 @@ c
             call clock(s2)
             t2nd = s2 - s1
          else
-            call scattering(ispeed,ifirst,theta,nold,etot,lg,gk,enionry,
+            call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
          end if 

@@ -159,13 +159,14 @@ C
       deta = real(eta1)
       xlmin = 0d0
       if (lrange.gt.jmax) stop 'L > JMAX in COULCC'
-c$$$      if (dx.gt.1d-7) then
-c$$$         call coul90(dx,deta,xlmin,lrange,dfc,dgc,dfcp,dgcp,kfn,ifail)
-c$$$         fc(1) = dcmplx(dfc(lrange),0d0)
-c$$$         gc(1) = dcmplx(dgc(lrange),dfc(lrange))
-c$$$         sig(1) = log(coulphase(deta,lrange))/ci
-c$$$         if (ifail.eq.0) return
-c$$$      endif
+      if (dx.gt.1d-7) then
+         call coul90(dx,deta,xlmin,lrange,dfc,dgc,dfcp,dgcp,kfn,ifail)
+         fc(1) = dcmplx(dfc(lrange),0d0)
+         gc(1) = dcmplx(dgc(lrange),dfc(lrange))
+c$$$         print'("dx,fc,gc",1p,5e11.2)',dx,fc(1),gc(1)
+         sig(1) = log(coulphase(deta,lrange))/ci
+         if (ifail.eq.0) return
+      endif
 
       MODE = MOD(ABS(MODE1),10)
       IFCP = MOD(MODE,2).EQ.1

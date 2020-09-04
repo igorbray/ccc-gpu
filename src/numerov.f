@@ -1172,7 +1172,8 @@ c$$$  print*,j3,cgc(1) * cfcp(1) - cgcp(1) * cfc(1)
          if (test.gt.1e-2) then
             print*,'Matching process has problems:',
      >         test, l, ecmn,j1,j2,j3,phase,
-     >         (f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1)
+     >         (f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1),
+     >        f1,h3,f3,h1,reg(j1),reg(j3)
          endif 
       endif
       return
