@@ -594,10 +594,10 @@ C  End of NCHI loop
          deallocate(temp3,vmatt)
          call date_and_time(date,time,zone,valuesout)
          if (nqmi.gt.1) then
-            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
-     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
-     >         chan(nt_t(nchi)),natomps(nchi),
-     >         idiff(valuesin,valuesout)
+c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
+c$$$     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
+c$$$     >         chan(nt_t(nchi)),natomps(nchi),
+c$$$     >         idiff(valuesin,valuesout)
             write(42,'(2i5,a4,i6,i11)') nchi,li,chan(nt_t(nchi)),
      >         idiff(valuesin,valuesout),natomps(nchi)
          endif

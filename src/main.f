@@ -2402,6 +2402,7 @@ c$$$               go to 10 !ensures read of last LG entry
  20            continue 
                close(42)
                print*,'Last LG read in time file:',lgold(ipar)
+               if (nchistopold(nodesold(ip),ip).ne.nchtop) inc(:,:)=0
                if (nodesold(ipar).eq.nodes.and.ntime(1,ipar).gt.0) then
                   ntimemin=10000000
                   ntimemax=0

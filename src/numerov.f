@@ -45,7 +45,8 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
             else
                s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
             endif 
-            if (abs(s1).gt.regcut.or.acc.lt.1e-6) then
+            if ((abs(s1).gt.regcut.or.acc.lt.1d-8).and.
+     >           wnn*gridx(jstart-1).gt.1.0) then
 c$$$               mode1 = 12
 c$$$               kfn = 0
 c$$$               zlmin = cmplx(ln)
@@ -55,7 +56,7 @@ c$$$               xx=sqrt(cmplx(dble(ecmn)))*dble(gridx(jstart-1))
 c$$$               call coulcc(xx,eta1,zlmin,nl,cfc,cgc,cfcp,cgcp,
 c$$$     >            sig,mode1,kfn,ifai)
 c$$$               print*,'reducing jstart:',
-c$$$     >            jstart, ecmn, real(cfc(1)), s1, acc
+c$$$     >            ln,wnn*gridx(jstart-1),s1,acc,jstart 
                jstart = jstart - 10
                go to 20
             endif 
@@ -85,6 +86,8 @@ c$$$               if (ln.eq.2.and.jstart.gt.2) return
                jstart = jstart + 1
                rho = wnn * gridx(jstart)
                reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
+c$$$               print*,'increased jstart:',
+c$$$     >            ln,rho,reg(jstart),acc,jstart 
             enddo
 C  make sure that we are not near a point where DX doubles
             do jd = 2, njdouble - 1
@@ -126,6 +129,10 @@ c$$$            print*,'S2,S2OLD,rho,l,jstart',s2,s2old,wnn*gridx(jstart),
 c$$$     >         jstart
 c$$$         endif 
 
+         if (s1.eq.s2.and.s2.eq.0.0) then
+            print*,'S1=S2=0 for ln,ecmn:',ln,ecmn
+            jstart = jstop+1
+         endif 
          call numerovf(ln,ecmn,ucentr,cntfug,gridx,nx,
      >      jdouble,njdouble,s1,s2,reg,jstart,jstop)
          if (eta.ne.0.0.and.jstart.eq.2.and.ln.eq.1) then
@@ -735,10 +742,10 @@ C  Riccati-Bessel function for small rho. Same as spherical Bessel * rho that wo
       if (w.ne.0.0) then
 C  We use the expansion for the Riccati-Bessel function j(l,rho)
 C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
-         kmax = 100
+         kmax = 1000
          rho=w*x
          k = 1
-         if (rho.gt.1e2) return
+         if (rho.gt.1e3) return
          ff = 1d0
          do i=1,ln
             ff = ff * rho / float(2*i+1)
@@ -765,16 +772,17 @@ c$$$            print '(i4,3e20.14)', k, sum, sump, summ
                k = kmax
                acc = 0.0
                appf1 = 0.0
-               print'("Precision loss in APPF1, returning 0.0",
-     >            1pe14.4)',-s*summ,sump
+c$$$               print'("Precision loss in APPF1 for ln, rho:",
+c$$$     >            i4,1p,e9.2,2e18.10)',ln,rho,-s*summ,sump
                return
             endif 
          enddo
          acc = abs(s*summ/sump-1d0)
-         if (k.eq.kmax) acc = 0.0
+         appf1 = rho * sum
+c$$$         print*,rho,k,s*summ,sump
+c$$$         if (k.eq.kmax) acc = 0.0
 c$$$     >      print'("Possible precision loss in APPF1;result and error",
 c$$$     >      1p,2e14.4)',sum,acc
-         appf1 = rho * sum
       else
 C  The following is the limiting case of the Riccati-Bessel/w**(ln+1) for w=0.0
          iprod = 2 * ln + 1
