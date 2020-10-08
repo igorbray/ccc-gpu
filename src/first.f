@@ -104,25 +104,8 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
          write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
       endif
 
-! set number of GPUs, OpenMP threads per GPU and nested threads
-#ifdef GPU
-      ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
-! 2 threads per GPU seems to be a good choice for P100 arch
-!      ntpg=1
-!      if(ngpus>0) then
-!        nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
-!        nthreads=ngpus*ntpg
-!      else
-!        nnt=1
-!        nthreads=max(1,omp_get_max_threads())
-!      endif
-#endif
-!      nnt=1
-!      nthreads=max(1,omp_get_max_threads())     
-!      write(*,*) "nnt,nthreads",nnt,nthreads
-!#endif
       nnt=omp_get_max_threads()
-      print'("nodeid, nnt:",2i4)', nodeid,nnt
+c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
 
 
       td = 0.0
@@ -162,11 +145,17 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
 !      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
 
 #ifdef GPU
-      do gpunum=0,ngpus-1
-         call acc_set_device_num(gpunum,acc_device_nvidia)
+      ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
+c$$$      do gpunum=0,ngpus-1
+      gpunum = mod(myid,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
+      print*,'NODEID, MYID associated with GPU:',nodeid,myid,
+     >     acc_get_device_num(acc_device_nvidia)
+
 !$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 !$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
-       end do
+
+c$$$       end do
 #endif
 
 !$omp parallel do private(nchf,nt) schedule(dynamic)
@@ -186,6 +175,7 @@ c$$$      enddo
 
 c$$$C Put the larger l states first for OpenMP efficiency
 c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
+      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
       do nchtmp = nchii, nchif
          nchi = nchtmp !nchinew(nchtmp,1)
 c$$$      do nchi = nchii, nchif
@@ -614,14 +604,14 @@ c$$$     >         idiff(valuesin,valuesout)
       end do
 
 #ifdef GPU
-      do gpunum=0,ngpus-1
-         call acc_set_device_num(gpunum,acc_device_nvidia)
-
+c$$$      do gpunum=0,ngpus-1
+      gpunum = mod(myid,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
 !$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 !$acc& finalize
 
-      enddo
+c$$$      enddo
 #endif
       if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)

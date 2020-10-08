@@ -23,7 +23,7 @@ $(OBJDIR):
 	if ( test ! -d $@ ) then ( mkdir -p $@ ) fi
 
 $(OBJDIR)/hevmat.o : hevmat.f $(OBJDIR)/modules.o
-	$(FC) $a -c hevmat.f -o $@
+	$(FC) $(aGPU) -c hevmat.f -o $@
 
 #$(OBJDIR)/modules.o:  modules.f
 #	$(FC) $a -c modules.f -o $@
@@ -38,7 +38,7 @@ $(OBJDIR)/posHeVmat.o:  posHeVmat.f par.f par.pos
 	$(FC) $a -c  posHeVmat.f -o $@
 
 $(OBJDIR)/scat.o:  scat.f par.f par.pos
-	$(FC) $a -O0 -c  scat.f -o $@
+	$(FC) $(aGPU) -O0 -c  scat.f -o $@
 
 $(OBJDIR)/%.o : %.f par.f
 	$(FC) $a -c $< -o $@
