@@ -3048,11 +3048,12 @@ C   Solve Ax=b inside the main routine; below will be replaced with scalapack
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")') 
+c$$$                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")')
+                  write(42,'(4i4,3i7,f8.1,2i8)') 
      >               lg,n,ipar,inc(n,ipar),
      >               nntime(n),nchistart(n),nchistop(n),timeperi,
      >               nchprs(nchistart(n),nchistop(n),nchtop),
-     >               naps, nint(tave(ipar))
+     >               naps
 !                  write(42,'(4i4,7i7," ave time of prev LG")') 
 !     >               lg,n,ipar,inc(n,ipar),
 !     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
@@ -3070,10 +3071,10 @@ c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
                write(42,'(4i4,3i7,f8.1,5i8,2i4,"% LG,node,ipar,inc,vt,",
-     >            "i1,i2,tperi,nch,naps,NMAX,tmax,mt,prev LG,eff",/)')
+     >            "i1,i2,tperi,nch,naps,NMAX,tave,mt,prev LG,eff",/)')
      >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
      >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
-     >            nchtop),naps,npk(nchtop+1)-1,ntmax,
+     >            nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
      >            idiff(valuesin,valuesout),lgold(ipar),neff
 !               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
 !     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
@@ -5081,7 +5082,7 @@ c      close(57)
 #ifdef NEW_SLEEPY_BARRIER
       integer buf,req,n1,n2,nomp,OMP_GET_MAX_THREADS
 #endif
-
+c$$$      return
       call mpi_comm_size(comm,n,ierr)
       call mpi_comm_rank(comm,me,ierr)
 #ifdef NEW_SLEEPY_BARRIER
