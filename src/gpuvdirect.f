@@ -27,22 +27,26 @@
         maxi2=0
       endif
 
-#ifdef GPU
-!$omp parallel num_threads(ngpus)
-!!$omp parallel num_threads(nnt)
-#else
+c$$$#ifdef GPU
+c$$$!$omp parallel num_threads(ngpus)
+c$$$!!$omp parallel num_threads(nnt)
+c$$$#else
+c$$$!$omp parallel num_threads(nnt)
+c$$$#endif
+#ifndef GPU
 !$omp parallel num_threads(nnt)
-#endif
 !$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
 !$omp& tnum)
 !$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
 !$omp& shared(nqmi,maxi2,ifirst)
-
-#ifdef GPU
-      tnum=omp_get_thread_num()
-      gpunum=mod(tnum,ngpus)
-      call acc_set_device_num(gpunum,acc_device_nvidia)
+!$omp do schedule(dynamic)
 #endif
+
+c$$$#ifdef GPU
+c$$$      tnum=omp_get_thread_num()
+c$$$      gpunum=mod(tnum,ngpus)
+c$$$      call acc_set_device_num(gpunum,acc_device_nvidia)
+c$$$#endif
 
 !$acc data 
 !$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
@@ -55,10 +59,10 @@
 !$acc& create(temp2)
 !$acc& create(tmp)
 !!$acc& create(vmatt)
-!$omp do schedule(dynamic)
+c$$$!$omp do schedule(dynamic)
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
-         maxi = maxtemp3(nchf)
+         maxi = min(maxtemp3(nchf),meshr)
 !$acc update device(temp2(1:maxi2,1:nqmi,nchf)) async(1)
 !!$acc update device(vmatt(1:nqmfmax,1:nqmi,nchf,0:1)) async(1)
 !$acc kernels 
@@ -103,7 +107,10 @@ c$$$               endif
 !$acc update self(vmatt(1:nqmf,1:nqmi,nchf,0:1)) async(2)
 
        end do
+#ifndef GPU
 !$omp end do
+!$omp end parallel
+#endif
 
 ! START
 ! !$acc kernels
@@ -148,7 +155,7 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 !$acc wait
 !$acc end data 
 
-!$omp end parallel
+c$$$!$omp end parallel
 
       deallocate(chitemp)
       deallocate(tmp)
