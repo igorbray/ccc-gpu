@@ -2302,7 +2302,7 @@ C  This is for very large incident energies
      >   PsTNBCSl(nchan,0:lamax),PsTICSl(nchan,0:lamax),
      >   PsTCSl(nchan,0:lamax),PsTICSJ(nchan),btics(2,nchan),
      >   PsTNBCSJ(nchan),SCSl(0:lamax,0:1,knm),SCS(0:1,knm),
-     >   TNBCSJ(nchan,0:1)
+     >   TNBCSJ(nchan,0:1),TICSJ(nchan,0:1)
       complex ovlpnn
      
       real units(3), BornICS(knm,knm),ovlp(knm),esum(0:1),rcond(0:1),
@@ -2467,8 +2467,8 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
          do nchp = 1, nchpmax
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             if (BornICS(nchp,nchip).ne.0.0) then
-               extra = BornICS(nchp,nchip) -
-     >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
+               extra = max(0.0,BornICS(nchp,nchip) -
+     >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip))
             else
                extra = 0.0
             endif 
@@ -2514,6 +2514,7 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
             PsTNBCS(nchip) = 0.0
             PsTICS(nchip) = 0.0
             PsTICSJ(nchip) = 0.0
+            TICSJ(nchip,0:1) = 0.0
             PsTNBCSJ(nchip) = 0.0
             TNBCSJ(nchip,ns) = 0.0
             PsTCS(nchip) = 0.0
@@ -2576,8 +2577,8 @@ c$$$     >                  PsTCSl(nchip,l) - PsTNBCSl(nchip,l)
                endif 
                sigtl(nchip,l,ns) = sigtl(nchip,l,ns) + sig
                if (BornICS(nchp,nchip).ne.0.0) then
-                  extra = BornICS(nchp,nchip) -
-     >               BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip)
+                  extra = max(0.0,BornICS(nchp,nchip) -
+     >               BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip))
                else
                   extra = 0.0
                endif 
@@ -2600,12 +2601,20 @@ c$$$              print*,'nchp,sigt-sigb,sigt,sigb',nchp,sigtl(nchip,l,ns)-
 c$$$     >            sigbl(nchip,l,ns),sigtl(nchip,l,ns),sigbl(nchip,l,ns)
                endif 
                if (enchan(nchp) .gt. 0.0) then
+                  TICSJ(nchip,ns) = TICSJ(nchip,ns) +
+     >                 partcs(nchp,nchip,ns) * unit
                   sigionl(nchip,l,ns) = sigionl(nchip,l,ns) + sig
+                  sigion(nchip,ns) = sigion(nchip,ns) + sig
                   ticssum(nchip,ns) = ticssum(nchip,ns) + sig
+                  ticsextra(nchip) = ticsextra(nchip) +
+     >                 extrap((partcs(nchp,nchip,0)+
+     >                 partcs(nchp,nchip,1))*unit,
+     >                 oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+
                   if (nicm.gt.nicmax) stop 'Increase NICMAX'
                   if (BornICS(nchp,nchip).ne.0.0) then
-                     extra = BornICS(nchp,nchip) -
-     >                  BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip)
+                     extra = max(0.0,BornICS(nchp,nchip) -
+     >                  BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip))
                   else
                      extra = 0.0
                   endif 
@@ -2638,8 +2647,8 @@ c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
 C  Redefine the ionization cross sections by SIGT - SIGB
             do l = 0, ltop
-               sigionl(nchip,l,ns) = max(0.0,
-     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
+c$$$               sigionl(nchip,l,ns) = max(0.0,
+c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
                do nc = 1, 5
                   if (nlast(nc,l).ne.0) then
 c$$$                     print*,'Last bound excitation cross sections:',
@@ -2710,28 +2719,28 @@ C  Use the optical theorem to define the total and ionization cross sections
 C  as then the code is suitable for both CCC and CCO. For CCC both 
 C  forms should give much the same answer.
 C  SIGION will be the total ionization cross section for all J
-            sigion(nchip,ns) = max(sigtop(nchip,ns) * unit
-     >         + sigtopold(nchip,ns) - sum,0.0)
-C  SIGIONOLD will be the total ionization cross section for all previous J
-            sigionold(nchip,ns) = max(sigtopold(nchip,ns) - sumold,0.0)
-C  SIGIONE will be the extrapolated total ionization cross section
-            sigione(nchip,ns) = sigionold(nchip,ns) +
-     >         extrap(sigtop(nchip,ns) * unit - sumo,
-     >         sigtopoldj(nchip,ns) - sume,0.0)
+c$$$            sigion(nchip,ns) = max(sigtop(nchip,ns) * unit
+c$$$     >         + sigtopold(nchip,ns) - sum,0.0)
+c$$$C  SIGIONOLD will be the total ionization cross section for all previous J
+c$$$            sigionold(nchip,ns) = max(sigtopold(nchip,ns) - sumold,0.0)
+c$$$C  SIGIONE will be the extrapolated total ionization cross section
+c$$$            sigione(nchip,ns) = sigionold(nchip,ns) +
+c$$$     >         extrap(sigtop(nchip,ns) * unit - sumo,
+c$$$     >         sigtopoldj(nchip,ns) - sume,0.0)
 C  SIGTOPE will be the extrapolated total cross section
             sigtope(nchip,ns) = sigtopold(nchip,ns) +
      >         extrap(sigtop(nchip,ns) * unit,sigtopoldj(nchip,ns),0.0)
 C  For pure Born approximation we get zero for the optical theorem. In this
 C  case use the form below. Can't define sigionold in this case, need more work
 C  Need to make SIGTOLD from the info above
-            if (sigtop(nchip,ns).eq.0.0) then
-               sigion(nchip,ns) = max(sigt(nchip,ns) - sum,0.0)
-               sigionold(nchip,ns) = 0.0
-            endif 
+c$$$            if (sigtop(nchip,ns).eq.0.0) then
+c$$$               sigion(nchip,ns) = max(sigt(nchip,ns) - sum,0.0)
+c$$$               sigionold(nchip,ns) = 0.0
+c$$$            endif 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         " TICS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * max(0.0,ein),chan(nchip),lg,ns,ip,
-     >         (sigtop(nchip,ns) * unit - sumo) 
+     >         TICSJ(nchip,ns) !(sigtop(nchip,ns) * unit - sumo) 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         "   TNBCS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * ein,chan(nchip),lg,ns,ip,
@@ -2885,8 +2894,8 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
             call getchnl(chan(nchp),n,l,nc)
             summedcs = partcs(nchp,nchip,0)*unit + oldp(nchp,nchip,0) +
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1)
-            Borne = BornICS(nchp,nchip) - 
-     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit
+            Borne = max(0.0,BornICS(nchp,nchip) - 
+     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit)
 C  The following is not right if Born extrapolation is used due to
 C  the fact that the spin weights are not available here
 c$$$            extrapcs0 = extrap(partcs(nchp,nchip,0) * unit,
@@ -3942,13 +3951,15 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   if (.true..or.nbmax.gt.npsbndin) then
                      zas=-zeff-1.0 ! check this
                      vnucl(:)=0.0
-                     print*, "L, ndble, nbmax, zas:",l,ndble,
-     >                  nbmax+ndble,zas
-                     call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l+ndble,
+                     print*, "L, nbmax, npk(nch+1)-npk(nch), zas:",l,
+     >                  nbmax,npk(nch+1)-npk(nch),zas
+                     call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l,
      >                  maxr,vnucl,erydout(2),waveout(1,2),lastpt)
                      maxps2(:)=lastpt
                      minps2(:)=1
                      kstep = 0
+c$$$                  print*,'l,erydout(1,...,3):',l,(erydout(i),i=1,3)
+c$$$                  print*,'nbmax-ndble+2,nbmax+1:',nbmax-ndble+2,nbmax+1
                      do k = nbmax-ndble+2,nbmax+1
                      print*,'k,k+kstep,k+kstep+1:',k,k+kstep,k+kstep+1,
      >                     erydout(k+kstep),erydout(k+kstep+1)
@@ -3987,7 +3998,7 @@ c$$$                  utemp(i) = - nze * (- zasym * 2.0/rmesh(i,1))
                      gk(k,nch) = sqrt(erydout(k))
                   endif
                   temp(:)=0d0
-
+                  tmp = 1.0
                   if (itail.lt.0.or.nze.eq.1.and.lptop.ge.0) then ! for positrons or analytic tail integrals need projections
                      call regular(l,erydout(k),eta,vnucl,
      >                  cntfug(1,l),ldw,rmesh,meshr,jdouble,id,
@@ -4005,6 +4016,12 @@ c$$$c$$$     >               *sin(2.0*gk(k,nch)*ra)/gk(k,nch))
 c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                      temp(1:lastpt)=temp(1:lastpt)*rmesh(1:lastpt,3)
                      tmp=dot_product(waveout(1:lastpt,k),temp(1:lastpt))
+                     if (tmp.eq.0.0) then
+                        print*,'tmp is 0.0;j1,j2,lastpt,k,waveout,temp:'
+     >                   ,j1,j2,lastpt,k,waveout(lastpt,k),temp(lastpt)
+                        print*,'erydout(1,...,3):',(erydout(i),i=1,3)
+                        stop 'tmp cannot be zero here in makechil'
+                     endif
                      entail = erydout(k) * (rmesh(meshr,1)/trat)**2
                      kp = k + npk(nch)-1
                      if (itail.lt.0) then
@@ -4053,8 +4070,10 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                      enddo 
                      chil(psibd(k-1+l,l)%max+1:meshr,k+npk(nch)-1,1)=0d0
                   else
-                     print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
-     >                  nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
+                     if (k.eq.2.or.k.eq.npk(nch+1)-npk(nch)) then
+                        print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
+     >                     nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
+                     endif
                   endif
                enddo
                Rpl(:) = 0.0

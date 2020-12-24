@@ -107,6 +107,11 @@ c$$$            if (eta.lt.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
          end if 
          s2=appf1(ln,ecmn,gridx(jstart),acc)
          if (eta.ne.0.0) s2=coulrho(ln,eta,ecmn,gridx(jstart),acc)
+         if (s2.eq.0.0) then
+            print*,"STOP: S2=0.0 in numerov.f;ln,jstart,s1,s2:",
+     >           ln,jstart,s1,s2
+            stop "STOP: cannot have S2=0.0 in numerov.f"
+         endif
 c$$$         print*,'jstart,S1,S2:',jstart,s1,s2 !was used to check the importance of jstart=2 above
 c$$$  if (eta.lt.0.0) then
 c$$$            s2 = coulrho(ln,eta,ecmn,gridx(jstart),acc)
@@ -769,12 +774,12 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
 c$$$            print '(i4,3e20.14)', k, sum, sump, summ
             k = k + 1
             if (abs(s*summ/sump-1d0).lt.1d-12) then
-               k = kmax
+c$$$               k = kmax
                acc = 0.0
                appf1 = 0.0
-c$$$               print'("Precision loss in APPF1 for ln, rho:",
-c$$$     >            i4,1p,e9.2,2e18.10)',ln,rho,-s*summ,sump
-               return
+               print'("Precision loss in APPF1 for ln, k, rho:",
+     >            2i5,1p,e9.2,2e18.10)',ln,k,rho,-s*summ,sump
+               if (k.gt.kmax/10) return
             endif 
          enddo
          acc = abs(s*summ/sump-1d0)
