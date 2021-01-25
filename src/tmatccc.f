@@ -1191,7 +1191,7 @@ c$$$      enddo
 c$$$      if (sprint) close(42)
 c$$$      print'('' JS f i  abs(T)    arg(T)       K        K2nd   '
 c$$$     >   //'   real(V)   imag(V)     Ef(Ry)'')'
-      print'('' JS f i  real(T)    imag(T)     K        K2nd   '
+      print'('' J S   f   i  real(T)    imag(T)     K        K2nd   '
      >   //'   real(V)   imag(V)     Ef(Ry)'')'
       return
       end

@@ -38,15 +38,15 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
 !      print*,'ecmn,s3,s4',ecmn,s3,s4
       if (ecmn.le.0.0.or.ln.gt.3.or.ucentr(1).ne.0.0) then
          jstart = jfirst1(ln,ecmn,gridx,nx,jdouble,njdouble,regcut)
-
- 20      if (jstart.gt.10) then
+         if (jstart.ge.nx) return
+ 20      if (jstart.gt.100) then
             if (eta.ge.0.0) then
                s1=appf1(ln,ecmn,gridx(jstart-1),acc)
             else
                s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
             endif 
-            if ((abs(s1).gt.regcut.or.acc.lt.1d-8).and.
-     >           wnn*gridx(jstart-1).gt.1.0) then
+            if (abs(s1).gt.regcut.or.acc.lt.1d-6) then
+c$$$     >           .and.wnn*gridx(jstart-1).gt.1.0) then
 c$$$               mode1 = 12
 c$$$               kfn = 0
 c$$$               zlmin = cmplx(ln)
@@ -55,9 +55,9 @@ c$$$               eta1 = eta
 c$$$               xx=sqrt(cmplx(dble(ecmn)))*dble(gridx(jstart-1))
 c$$$               call coulcc(xx,eta1,zlmin,nl,cfc,cgc,cfcp,cgcp,
 c$$$     >            sig,mode1,kfn,ifai)
-c$$$               print*,'reducing jstart:',
-c$$$     >            ln,wnn*gridx(jstart-1),s1,acc,jstart 
-               jstart = jstart - 10
+c$$$               print'("reducing jstart, ln, ecmn, s1, acc:",
+c$$$     >            2i5,1p,3d14.3)',jstart,ln,ecmn,s1,acc
+               jstart = jstart - 100
                go to 20
             endif 
 C  make sure that we are not near a point where DX doubles
@@ -104,12 +104,19 @@ C  make sure that we are not near a point where DX doubles
             s1=appf1(ln,ecmn,gridx(jstart-1),acc)
 c$$$            if (eta.lt.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
             if (eta.ne.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+            if (s1.eq.0.0) then
+               print*,
+     >       "STOP: S1=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
+     >       ln,jstartorig,jstart,rho,acc
+               stop "STOP: cannot have S1=0.0 in numerov.f"
+            endif
          end if 
          s2=appf1(ln,ecmn,gridx(jstart),acc)
          if (eta.ne.0.0) s2=coulrho(ln,eta,ecmn,gridx(jstart),acc)
          if (s2.eq.0.0) then
-            print*,"STOP: S2=0.0 in numerov.f;ln,jstart,s1,s2:",
-     >           ln,jstart,s1,s2
+            print*,
+     >       "STOP: S2=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
+     >       ln,jstartorig,jstart,rho,acc
             stop "STOP: cannot have S2=0.0 in numerov.f"
          endif
 c$$$         print*,'jstart,S1,S2:',jstart,s1,s2 !was used to check the importance of jstart=2 above
@@ -760,7 +767,7 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
          sump = ff
          zo2k = 1d0
          sumold = 0d0
-         if (abs(ff).lt.1d-100) return
+         if (abs(ff).lt.1d-300) return
          do while (k.lt.kmax.and.abs(sumold/sum-1d0).gt.1d-6)
             zo2k = zo2k  * rho * rho / 2d0 / float(k) /
      >         float(2*(ln+k)+1)
@@ -773,13 +780,14 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
             sum = sump - s*summ
 c$$$            print '(i4,3e20.14)', k, sum, sump, summ
             k = k + 1
-            if (abs(s*summ/sump-1d0).lt.1d-12) then
+            if (abs(s*summ/sump-1d0).lt.1d-12.and.(k.ge.kmax
+     >           .or.abs(sum).lt.1d-300)) then
 c$$$               k = kmax
                acc = 0.0
                appf1 = 0.0
-               print'("Precision loss in APPF1 for ln, k, rho:",
-     >            2i5,1p,e9.2,2e18.10)',ln,k,rho,-s*summ,sump
-               if (k.gt.kmax/10) return
+               print'("Precision loss in APPF1 for ln, k, ecmn:",
+     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
+               return
             endif 
          enddo
          acc = abs(s*summ/sump-1d0)

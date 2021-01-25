@@ -528,7 +528,7 @@ c
             r = grid(i)
             f(i,n) = exp(- alfl * r + dble(l + 1) * log(r)) * f(i,n)
          end do
-         call minmaxi(real(f(:,n)),nr,i1,i2)
+         call minmaxi(real(f(1,n)),nr,i1,i2)
          maxf(n)=i2
 c         print*, n, i1, i2
       end do 
@@ -934,7 +934,9 @@ c$$$      end
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
 
       COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+c$omp threadprivate(/PATH/)
       COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
+c$omp threadprivate(/POT/)
 *
       DIMENSION IHX(NDIM3),IRX(NDIM3)
       DIMENSION NMINL(0:LLMAX),NMAXL(0:LLMAX)

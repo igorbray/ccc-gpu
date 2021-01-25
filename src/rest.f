@@ -490,8 +490,8 @@ c$$$               rdel = atan2(aimag(eigv(nchf)),real(eigv(nchf))) / 2.0
                if (ef.le.etot)
 c$$$     >            print '(i2,a,i3,i2,1p,e10.3,0p,f9.5,2x,
 c$$$     >            1p,2(2(e10.3),1x),0p,f9.4)',
-     >            print '(i2,a,2i2,1p,3(2(e10.3),1x),0p,f9.4)',
-     >            j,spin(ns),nychan(nchf),nchi,
+     >            print '(i3,a,2i4,1p,3(2(e10.3),1x),0p,f9.4)',
+     >            lg,spin(ns),nychan(nchf),nchi,
 c$$$     >         tabs,targ,wt2nd(nchf,nchi), wvon(nchf,nchi),ef
      >         wton(nchf,nchi),wt2nd(nchf,nchi), wvon(nchf,nchi),ef
 c$$$     >         rdel, nmpow(aimag(ctmp))
@@ -2300,9 +2300,9 @@ C  This is for very large incident energies
      >   ticssum(nchan,0:1),ticsextra(knm),ovlpnn(knm,nnmax),
      >   PsTNBCS(nchan),PsTICS(nchan),PsTCS(nchan),
      >   PsTNBCSl(nchan,0:lamax),PsTICSl(nchan,0:lamax),
-     >   PsTCSl(nchan,0:lamax),PsTICSJ(nchan),btics(2,nchan),
+     >   PsTCSl(nchan,0:lamax),PsTICSJ(nchan),btics(3,nchan),
      >   PsTNBCSJ(nchan),SCSl(0:lamax,0:1,knm),SCS(0:1,knm),
-     >   TNBCSJ(nchan,0:1),TICSJ(nchan,0:1)
+     >   TNBCSJ(nchan,0:1),TICSJ(nchan,0:1),bticsl(nchan,0:lamax)
       complex ovlpnn
      
       real units(3), BornICS(knm,knm),ovlp(knm),esum(0:1),rcond(0:1),
@@ -2335,6 +2335,7 @@ C  This is for very large incident energies
       tiecs(:,:,:) = 0.0
       tiecse(:,:,:) = 0.0
       btics(:,:) = 0.0
+      bticsl(:,:) = 0.0
       ibl = 1
       do while (csfile(ibl:ibl).ne.' ')
          ibl = ibl + 1
@@ -2465,6 +2466,7 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
+            call getchnl(chan(nchp),n,l,nc)
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             if (BornICS(nchp,nchip).ne.0.0) then
                extra = max(0.0,BornICS(nchp,nchip) -
@@ -2481,6 +2483,10 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
                btics(1,nchip) = btics(1,nchip) + BornICS(nchp,nchip)
                if (enchan(nchp).lt.etot/2.0)
      >            btics(2,nchip) = btics(2,nchip) + BornICS(nchp,nchip)
+               btics(3,nchip) = btics(3,nchip) + 
+     >              BornPCS(nchp,nchip) * unit + oldBornPCS(nchp,nchip)
+               bticsl(nchip,l) = bticsl(nchip,l) +
+     >              BornPCS(nchp,nchip) * unit + oldBornPCS(nchp,nchip)
             endif 
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
             write(42,'(a5,'' <-'',a3,1p,e13.5,3e15.5,l5)') 
@@ -2787,6 +2793,10 @@ c$$$            endif
      >         1p,e8.2,19(a3,e8.2))') ry * ein,
      >         chan(nchip),PsTICS(nchip),
      >         (chs(l),PsTICSl(nchip,l),l=0,lPstop)
+            write(42,'(1p,e9.3,"eV on ",a3," PsBTICS:    ",
+     >         1p,e8.2,19(a3,e8.2))') ry * ein,
+     >         chan(nchip),btics(3,nchip),
+     >         (chs(l),bticsl(nchip,l),l=0,lPstop)
             write(42,'(1p,e9.3,"eV on ",a3,"   PsTCS:    ",
      >         1p,e8.2,19(a3,e8.2))') ry * ein,
      >         chan(nchip),PsTCS(nchip),
@@ -2814,9 +2824,9 @@ c$$$            endif
             enddo
          endif 
          write(42,'(1p,e9.3,''eV on '',a3,
-     >      '' BTICS: all, to E/2'',
+     >      '' BTICS: all e, e to E/2, partial sum'',
      >      1p,4e11.3)') ry * ein,
-     >      chan(nchip),btics(1,nchip),btics(2,nchip)
+     >      chan(nchip),btics(1,nchip),btics(2,nchip),btics(3,nchip)
          write(42,'(1p,e9.3,"eV on ",a3," TNBCS:      ",
      >      1p,e8.2,19(a3,e8.2))') ry * ein,
      >      chan(nchip),sigb(nchip,0)+sigb(nchip,1),
@@ -3899,7 +3909,7 @@ c$$$                  print*,'CHIL(:,kp,2)=0 for kp>qcut',sqrt(entail),qcut
             end if !tails defined
          end do ! End of the loop over K
 C$OMP end parallel do
-         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
+c$$$         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
 
          if (nqm.gt.1.and.nbnd(lg).ne.0) print 
      >      '("test integral for state:",a4,f10.6," =",f10.6," +",

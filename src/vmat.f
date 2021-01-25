@@ -1723,7 +1723,7 @@ C     npoints, endk, npoints2, endk2, nendk, endp, midnp, width
       width = skor(4,lset,ispeed)
 c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
-      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
+c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
       if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
       usetrapz = nkor(4,lset,ispeed).lt.0
