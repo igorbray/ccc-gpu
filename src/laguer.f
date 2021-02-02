@@ -528,7 +528,7 @@ c
             r = grid(i)
             f(i,n) = exp(- alfl * r + dble(l + 1) * log(r)) * f(i,n)
          end do
-         call minmaxi(real(f(1,n)),nr,i1,i2)
+         call minmaxi(real(f(:,n)),nr,i1,i2) !don't set : to 1 Li fails!
          maxf(n)=i2
 c         print*, n, i1, i2
       end do 
