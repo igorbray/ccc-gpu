@@ -534,49 +534,54 @@ C  Make the core states
          call makecorepsi(nznuc,zasym,ry,corep(0),r0(0))
 C  Get the direct core potential.
          call makevdcore(temp,minvdc,maxvdc,nznuc,uplane)
+         print*,'MAXVDC, MESHR:',maxvdc,meshr
+         temp(maxvdc+1:meshr) = 0.0
            
 C ANDREY: for pos-alkali and el-alkali without exchange
        ! if (alkali.or.ntype.eq.-3) then
          if (ntype.eq.-3) then
             if(i_sw_ng .eq. 0) then ! not noble gas   ! DFursa
-            if (nznuc.eq.3) then
+               if (nznuc.eq.3) then
                                 !     E_2s (eV)
 C                               !-------------------------------
-               epar = -0.3064   ! -5.34156764 HF-calculation
-               epar = -0.3831   ! -5.39206788 experimental value 
-            else if (nznuc.eq.11) then               
-                                ! epar = -0.26405341010256356 ! 
-               epar = 0.0282819 ! E_3s = -5.139 eV
-            else if (nznuc.eq.19) then               
-               epar=-0.14238185 ! K: E_4s = -4.341 eV   
-            else
-               if (nznuc.eq.12) then
-                  epar = 0.681008
-               else
-                  print*, 'main: *** warning *** : specify epar'
-                  print*, 'main: target structure may be inaccurate'                  
-                  epar = 0.0
-                  stop
+                  epar = -0.3064 ! -5.34156764 HF-calculation
+                  epar = -0.3831 ! -5.39206788 experimental value 
+               else if (nznuc.eq.11) then               
+!     epar = -0.26405341010256356 ! 
+                  epar = 0.0282819 ! E_3s = -5.139 eV
+               else if (nznuc.eq.19) then               
+                  epar=-0.14238185 ! K: E_4s = -4.341 eV   
+               else if (nznuc.eq.37) then
+                  epar=3.5      !in Ryd ==  Rb: E_5s = -4.177 eV
+               else if (nznuc.eq.55) then
+                  epar=-0.14    ! Cs: E_6s = -3.894 eV
+               else 
+                  if (nznuc.eq.12) then
+                     epar = 0.681008
+                  else 
+                     print*, 'main: *** warning *** : specify epar'
+                     print*, 'main: target structure may be inaccurate' 
+                     epar = 0.0
+                     stop
+                  end if
                end if
-            end if
-            else                   ! noble gas
+            else                ! noble gas
                if(nznuc.eq.10) then ! Ne
-                  epar = -0.1 ! not used (DF)
+                  epar = -0.1   ! not used (DF)
                endif
             endif
          end if
 
 C RAV-----------         
          if (helike) then
-               if (nznuc.eq.12) then
-                  epar = 0.681008
-               else
-                  print*, 'main: *** warning *** : specify epar'
-                  print*, 'main: target structure may be inaccurate'     
-     
-                 epar = 0.0
-                 stop
-               end if                   
+            if (nznuc.eq.12) then
+               epar = 0.681008
+            else
+               print*, 'main: *** warning *** : specify epar'
+               print*, 'main: target structure may be inaccurate'     
+               epar = 0.0
+               stop
+            end if                   
          end if
 
 
@@ -2402,7 +2407,7 @@ c$$$               go to 10 !ensures read of last LG entry
  20            continue 
                close(42)
                print*,'Last LG read in time file:',lgold(ipar)
-               if (nchistopold(nodesold(ip),ip).ne.nchtop) inc(:,:)=0
+               if (nchistopold(nodesold(ip),ip).ne.nchtop) inc(:,:)=0  !reset to zero as sometimes non-zero for repeated low LG
                if (nodesold(ipar).eq.nodes.and.ntime(1,ipar).gt.0) then
                   ntimemin=10000000
                   ntimemax=0
@@ -2461,40 +2466,49 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
             if (nodesprev.gt.1.and.
      >         nchistopold(nodesprev,ipar).eq.nchistop(nodes)) then
                tave(ipar) = float(nchtimetot)/float(nodesprev)
-               print*,'prev nodes and tave:',nodesprev,tave(ipar)
+               if (myid.le.0) print'(
+     >            "LGold,ipar,prev nodes,nchtimetot,ntmax,tave:",6i6)',
+     >            lgold(ipar),ipar,nodesprev,nchtimetot,
+     >              ntimemax,nint(tave(ipar))
                nt = 0
                n = 1
                nch = 1
                nistart = 1
                incsum = 0
-               nodettot = 0
-               nodetmax = 0
+               nodettot = 0 !tot node time before the current node
+               nodetmax = 0 !max node time
                do n = 1, nodesprev - 1
-                  nodet = 0
-                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
+                  nch = nistart
+                  nodet = nchtime(nistart) !current node time
+c$$$                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
+                  do while (nodet+nodettot.lt.n*tave(ipar).and.
+     >                 nodet.lt.tave(ipar)*1.4)
                      nodetprev = nodet
-                     nodet = nodet + nchtime(nch)
                      nch = nch + 1
+                     nodet = nodet + nchtime(nch)
                   enddo
 c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
                   if (nodet+nodettot-n*tave(ipar).gt.
-     >                 n*tave(ipar)-nodetprev-nodettot.or.
-     >                 nodet.gt.tave(ipar)*1.5) then
-                     nch = nch - 1
-                     nodet = nodetprev
+     >                 n*tave(ipar)-nodetprev-nodettot
+     >                 .or.nodet.gt.tave(ipar)*1.4) then
+                     if (nch.gt.nistart) then
+                        nch = nch - 1
+                        nodet = nodetprev
+                     endif
                   endif
                   if (nodet.gt.nodetmax) nodetmax = nodet
                   nodettot = nodettot + nodet
-                  nistop = max(nistart,nch - 1)
+                  nistop = nch !max(nistart,nch)
                   incold(n,ipar) = nistop-nistart-
      >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
                   if (nchistopold(nodesprev,ipar).eq.nchistop(nodes))
      >                 incold(n,ipar)=nistop-nistart-
      >                 (nchistop(n)-nchistart(n))-inc(n,ipar)
                   nistart = nistop + 1 !nch
-                  if (myid.le.0)
-     >                 print'("LG,ipar,nodeid,inc,nistop,nodet:",6i6)',
-     >                 lg,ipar,n,incold(n,ipar),nistop,nodet
+                  if (myid.le.0) print'(
+     >            "LG,ipar,nodeid,inc,nistop,nodet,nodettot,ntave:",
+     >                 8i6)', lg,ipar,n,incold(n,ipar),
+     >                 nistop,nodet,nodettot,nint(n*tave(ipar))
                   incsum = incsum + incold(n,ipar)
 c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
 c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
@@ -2505,8 +2519,8 @@ c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
                n = nodesprev
                nistop = nchistopold(n,ipar)
                if (myid.le.0)
-     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",7i6,"%")',
-     >            LG,ipar,n,-incsum,nistop,nodet,neff
+     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",
+     >            15x,7i6,"%")',LG,ipar,n,-incsum,nistop,nodet,neff
             endif
 
                   incsum = 0
@@ -2624,7 +2638,9 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                mv0 = 0
                mv1 = 0
                if (.not.allocated(vmat01)) stop 'vmat01 not allocated'
-               vmat01(:,:) = 0.0
+c$$$               vmat01(:,:) = 0.0
+               print*,'nodeid,ni,nf:',nodeid,ni,nf
+               vmat01(ni:nf,ni:nf+1) = 0.0
                if (nf.lt.nd) then
                   allocate(vmat0(nf+1:nd,ni:nf))
                   mv0 = nint(1.0/mb*(nd-nf)*(nf-ni+1)*nbytes)
@@ -2635,7 +2651,8 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                      mv1 = nint(1.0/mb*(nf-ni+1)*(nd-nf)*nbytes)
                      if (.not.allocated(vmat1))
      >                  stop 'vmat1 not allocated'
-                     vmat1(:,:) = 0.0
+c$$$                     vmat1(:,:) = 0.0
+                     vmat1(ni:nf,nf+1+1:nd+1) = 0.0
                   else
                      allocate(vmat1(1,1)) !avoid runtime errors
                   endif 
@@ -2786,6 +2803,34 @@ c$$$            vmatp(:,:) = 0.0
 c$$$         else 
             call update(6)
             vmat(:,:) = 0.0
+C The following code can be commented out to yield previously working results
+C Note that it does not touch on-shell wk (needed in ScaLAPACK).
+            if (scalapack) then
+               do nch = nchistart(nodeid), nchistop(nodeid)
+                  do k = npk(nch)+1,npk(nch+1)-1
+                     vmat01(k,k) = !-1.0/real(wk(k))
+     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+                     vmat01(k,k+1) = vmat01(k,k)
+                  enddo
+               enddo
+            else
+               do nch = 1, nchtop
+                  do k = npk(nch)+1,npk(nch+1)-1
+                     vmat(k,k) = !-1.0/real(wk(k))
+     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+c$$$                     print*,'nch,k,vmat(k,k):',nch,k,vmat(k,k),
+c$$$     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+                     vmat(k,k+1) = vmat(k,k) !-1.0/real(wk(k))
+                  enddo
+               enddo
+            endif
+            do nch = 1, nchtop 
+               do k = npk(nch)+1,npk(nch+1)-1
+                  wk(k)=cmplx(1e30,0.0) !offshell only, on every node
+               enddo
+            enddo
+C-----------------------------------------------------------------------------
+            
 c$$$  call initv(vmat,npk(nchtop+1)-1,nsmax)
 c$$$         endif 
 
@@ -3428,6 +3473,8 @@ c$$$     >      ntasks.eq.-1) go to 780
          call hfz54_ng(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.55 .and. i_sw_ng .eq. 0) then
          call hfz55(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
+      else if (nznuc.eq.74.and.nint(zasym).eq.5) then
+         call hfz74_5(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.69) then
          call hfz69(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.79) then
@@ -3589,6 +3636,15 @@ c$$$      corep = 15.0
          if (l.ge.3) nb = abs(nnbtop) - l 
          call fcz55(rmax, meshr, rmesh, expcut, regcut, 0.0, 0, 
      >      chi, iwff, nb, l, nznuc, phase, corep, r0)
+      else if (nznuc.eq.74.and.nint(zasym).eq.5) then  ! W VI target
+c$$$      r0 = 2.0
+c$$$      corep = 15.0
+         nb = abs(nnbtop) - 5
+         if (l.eq.2) nb = abs(nnbtop) - 4
+         if (l.ge.3) nb = abs(nnbtop) - 4
+         if (l.ge.4) nb = abs(nnbtop) - l
+         call fcz74_5(rmax, meshr, rmesh, expcut, regcut, 0.0, 0,
+     >      chi, iwff, nb, l, nznuc, phase, corep, r0)
       else if (nznuc-nint(zasym).eq.69) then  ! Tm-like targets
 c$$$      r0 = 2.0
 c$$$      corep = 15.0
@@ -3748,7 +3804,7 @@ c$$$            als(n) = al * 2.0 * 1.2**(nabot(l) - n)
       else 
          npsstates(1,l) = nps
          rlambda(1,l) = al * 2.0
-         if (al.gt.2.0*(zasymi+1)) then
+         if (al.gt.4.0*(zasymi+1)) then
 !            if (al*(zasymi+1)/rmesh(meshr,1).gt.5.0) then
             print*,'Using Box-based states'
             hmax = rmesh(meshr,2)
@@ -4407,7 +4463,10 @@ C  is used in case all channels are open, but input latop < 0.
          call fcz37(rmax, meshr, rmesh, expcut, regcut, q, 1, 
      >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
       elseif (nztest.eq.55) then
-         call fcz55(rmax, meshr, rmesh, expcut, regcut, q, 1, 
+         call fcz55(rmax, meshr, rmesh, expcut, regcut, q, 1,
+     >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
+      elseif (nznuc.eq.74.and.nint(zasym).eq.5) then
+         call fcz74_5(rmax, meshr, rmesh, expcut, regcut, q, 1,
      >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
       elseif (nztest.eq.69) then
          call fcz69(rmax, meshr, rmesh, expcut, regcut, q, 1, 
