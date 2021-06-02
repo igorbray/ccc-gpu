@@ -39,7 +39,7 @@ C  XIN,...,YOUT are used for (e,2e) and BORN interpolation
      >   nonnew(knm,-lamax:lamax,0:1,0:lmax)
       integer nstep(10),nnset(3),nopen(0:1),nopenold(0:1),
      >   nchfi(knm,0:1), iwf(2*100), nttop(0:1), instate(100)
-      parameter (lentr=8,lexit=lamax)
+      parameter (lentr=10,lexit=lamax)
 C ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), 
       complex phase, sigc, !vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop),
      >   phaseq(nchan),
@@ -338,15 +338,18 @@ C  from the 'tcs' file.
          print*,'POTL and IRECL:',tfile,irecl
          call update(6)
 c         open(88,file=tfile)
-         read(88,*,err=25,end=25)
-         read(88,*,err=25,end=25) enold, zasymold,nold
+         read(88,*,err=20,end=20) ! At 20 will append to potl
+         read(88,*,err=20,end=20) enold, zasymold,nold
          if (abs(enold-energy)/energy.gt.1e-4) then
 c$$$            print*,'Stopping: incident energy is not same in potl'
 c$$$            call update(6)
 c$$$            call mpi_finalize(ierr)
 c$$$            print*,'MPI_FINALIZE returned:',ierr
 c$$$            call update(6)
-            stop 'incident energy is not same in potl'
+c$$$            stop 'incident energy is not same in potl'
+            print*,'Will append to:',tfile
+            j = jstart
+            goto 20
          endif
          read(88,'(1000(i2,2(e12.4)))',err=25,end=25)
      >      (laold(n),ovlpnold(n),onshold(n),n=1,nold)
@@ -631,16 +634,16 @@ C  channels after say J=20, even though these cross sections are set to zero
 C  for J > 8. Note that this affects the accuracy of the TCS test using the
 C     optical theorem, since the imaginary part of the elastic amplitude
 C     is not altered. 
-                        if (j.gt.8) then 
-                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
-     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
-                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
-     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
-                              if (q.gt.1.0) q = 0.0
-                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
-     >                           ton(nchf,nchi,ns,np,j-1)
-                           endif
-                        endif 
+c$$$                        if (j.gt.8) then 
+c$$$                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
+c$$$     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
+c$$$                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
+c$$$     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
+c$$$                              if (q.gt.1.0) q = 0.0
+c$$$                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
+c$$$     >                           ton(nchf,nchi,ns,np,j-1)
+c$$$                           endif
+c$$$                        endif 
                         partcs(nchpf,nchpi,ns) = partcs(nchpf,nchpi,ns) 
      >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
                         tcs(ns) = tcs(ns)
@@ -1158,7 +1161,7 @@ c$$$         endif
             close(88)
             open (88,file=tfile,position='append',status='old',
      >         recl=irecl)
-            jstart = j
+            jstart = max(j,jstart) ! bad file name can result j=0
             ipstart = ipar
 c$$$            call memfree(ptrv)
 c$$$            call memfree(ptrt)
@@ -1573,7 +1576,7 @@ C  Incident on a hydrogenic target. Total spin S = ns.
      >   nunit,projectile,target,hlike,vdcore,minvdc,maxvdc,bornsubin,
      >   nchfi,ovlpn,phaseq,ne2e,slowery,nonnew,tfile)
       include 'par.f'
-      parameter (lentr=8,lexit=lamax,npoints=30,ntype=20)
+      parameter (lentr=10,lexit=lamax,npoints=30,ntype=20)
       character projectile*(*), target*(*), tfile*(*)
       integer nchfi(nomax,0:1)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),

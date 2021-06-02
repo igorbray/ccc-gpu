@@ -310,7 +310,7 @@ c$$$            inquire(FILE="analytic",EXIST=analytic)
 c$$$
 c$$$            print*,"analytic = ",analytic
 
-            if (analytic) then
+            if (.false.) then !nbox.eq.1) then !analytic) then
 
 c$$$               allocate( kernel(ichi,ichi))
 c$$$
@@ -543,7 +543,6 @@ c$$$     >                     (kernel(kf,ki),kf=npk(nchf),npk(nchf+1)-1)
                endif 
             else ! original single node code
                if (ns.eq.0) then
-                  if (sprint) call splot(vmat,npk,nchtop,ns,gk)
                   do ki = 1, nd
                      do kf = ki, nd
                         vmat(kf,ki) = - vmat(kf,ki)
@@ -555,7 +554,6 @@ C  but this gives more ill-conditioned matrices
                      enddo
                   enddo
                else
-                  if (sprint) call splot(vmat,npk,nchtop,ns,gk)
                   do ki = 1, nd
                      do kf = ki, nd         
                         vmat(ki,kf+1) = - vmat(ki,kf+1)
@@ -565,10 +563,13 @@ C  but this gives more ill-conditioned matrices
                   enddo 
                endif
 C  Add the I matrix to -K
+               if (sprint) call splot(vmat,npk,nchtop,ns,gk)
                do kf = 1, nd
 !                  s = (real(wk(kf))+1e-30) / abs(real(wk(kf))+1e-30)
-                  s = 1.0/ (real(wk(kf))+1e-30)
+                  s = 1.0/(real(wk(kf))+1e-30)
                   vmat(kf,kf+ns) = vmat(kf,kf+ns) + s
+c$$$                  print*,'kf,v,vmat,wk:',kf,v(kf,1,1),vmat(kf,kf+ns),
+c$$$     >                 real(wk(kf))
                end do 
             endif!alexan
 
@@ -826,11 +827,12 @@ C               write(lfile,'"lplot.",2i2) nchf,nchi
             divk = gk(1,nchi) * gk(1,nchf)
             if (divk.eq.0.0) divk = 1.0
 c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),
-            write(52,'("# ",a3," <- ",a3,";  k, K(k,ki), V(k,ki)")') 
+            write(52,'("# ",a3," <- ",a3,";  k, K(k,ki), V(k,ki), wk")') 
      >           chan(nchf), chan(nchi)
-            write(52,*) gk(1,nchf),             
+            write(52,"(1p,4e14.5)") gk(1,nchf),             
      >         real(ton(nchf,nchi))/divk,
-     >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi))
+     >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi)),
+     >           real(wk(npk(nchf)))
 c$$$     >         ,ovlpn(nchf), ovlpn(nchi)
 C  The order is k, K(k), V(k), V(k) * K(k) / (E - En - k**2/2)
             do n = npk(nchf) + 1, npk(nchf+1) - 1
@@ -842,13 +844,18 @@ c$$$                  write(nchi*100+nchf*10+ns,*) gk(kn,nchf),
                   if (scalapack) then
                      write(52,*) gk(kn,nchf),
      >                  v(n,nchi,1) / divk /
-     >                  real(wk(n)),
+     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
      >                  v(n,nchi,2) / divk
                   else 
-                     write(52,*) gk(kn,nchf),
-     >                  v(n,nchi,1) / divk
-     >                  / real(wk(n)) !* sqrt(abs(wk(n)))
-     >                  ,v(n,nchi,2) /divk !/ sqrt(abs(wk(n)))
+                     boxnorm = 1.0
+                     if (nbox.eq.1) boxnorm = sqrt(2.0/rmesh(meshr,1))
+                     write(52,"(1p,4e14.5)") gk(kn,nchf),
+     >                  v(n,nchi,1) / divk / boxnorm
+     >                  / gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf) 
+!     >                  /  real(wk(n)) !* sqrt(abs(wk(n)))
+     >                  ,v(n,nchi,2) /divk /boxnorm!/ sqrt(abs(wk(n)))
+     >                  ,gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf)!
+!     >                    ,real(wk(n))
 c$$$                  write(52,*) gk(kn,nchf),
 c$$$     >               v(n-nchf,nchi,1) / divk /
 c$$$     >               real(wk(n)) * sqrt(abs(wk(n))),
@@ -1191,7 +1198,7 @@ c$$$      enddo
 c$$$      if (sprint) close(42)
 c$$$      print'('' JS f i  abs(T)    arg(T)       K        K2nd   '
 c$$$     >   //'   real(V)   imag(V)     Ef(Ry)'')'
-      print'('' J S   f   i  real(T)    imag(T)     K        K2nd   '
+      print'('' JS f i  real(T)    imag(T)     K        K2nd   '
      >   //'   real(V)   imag(V)     Ef(Ry)'')'
       return
       end
@@ -1949,10 +1956,10 @@ c$$$      end
       do nchi = 1, min(nchtop,maxnch)
          do nchf = nchi, min(nchtop,maxnch)
             open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
-            do ki = npk(nchi) + 1, npk(nchi+1) - 1
+            do ki = npk(nchi) + 0, npk(nchi+1) - 1
                kii = ki - npk(nchi) + 1
                rki = gk(kii,nchi)
-               do kf = npk(nchf) + 1, npk(nchf+1) - 1
+               do kf = npk(nchf) + 0, npk(nchf+1) - 1
                   kff = kf - npk(nchf) + 1
                   rkf = gk(kff,nchf)
                   d = 1.0 ! rkf * rki

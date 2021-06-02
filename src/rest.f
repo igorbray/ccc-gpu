@@ -490,8 +490,8 @@ c$$$               rdel = atan2(aimag(eigv(nchf)),real(eigv(nchf))) / 2.0
                if (ef.le.etot)
 c$$$     >            print '(i2,a,i3,i2,1p,e10.3,0p,f9.5,2x,
 c$$$     >            1p,2(2(e10.3),1x),0p,f9.4)',
-     >            print '(i3,a,2i4,1p,3(2(e10.3),1x),0p,f9.4)',
-     >            lg,spin(ns),nychan(nchf),nchi,
+     >            print '(i2,a,2i2,1p,3(2(e10.3),1x),0p,f9.4)',
+     >            j,spin(ns),nychan(nchf),nchi,
 c$$$     >         tabs,targ,wt2nd(nchf,nchi), wvon(nchf,nchi),ef
      >         wton(nchf,nchi),wt2nd(nchf,nchi), wvon(nchf,nchi),ef
 c$$$     >         rdel, nmpow(aimag(ctmp))
@@ -1152,6 +1152,14 @@ c            r0(1) = 2.5
             enddo
             r0(0) = 2.05
             r0(1) = 2.25
+!! Rav: parameters from Migdalek and Baylis Phys Rev A 24, 649 (1981)
+            do l = 0, lamax
+               corep(l) = 11.15
+            enddo
+            r0(0)=1.478 
+            r0(1)=1.581
+            r0(2)=1.767
+!!
          elseif (nzasym.eq.1) then ! Sr II
             target = 'Sr II'
             enlevel = 88964.0
@@ -1290,6 +1298,15 @@ c            r0(1) = 2.5
             enion  = 12.176
             do l = 0, lamax
                corep(l) = 28.4 
+               r0(l)  = 3.0
+            enddo
+         else if (nzasym.eq.5) then
+            lactop = 3
+            target = 'W VI'
+            enlevel = 522370
+            enion  = 64.77
+            do l = 0, lamax
+               corep(l) = 0.0
                r0(l)  = 3.0
             enddo
          endif 
@@ -2300,13 +2317,14 @@ C  This is for very large incident energies
      >   ticssum(nchan,0:1),ticsextra(knm),ovlpnn(knm,nnmax),
      >   PsTNBCS(nchan),PsTICS(nchan),PsTCS(nchan),
      >   PsTNBCSl(nchan,0:lamax),PsTICSl(nchan,0:lamax),
-     >   PsTCSl(nchan,0:lamax),PsTICSJ(nchan),btics(3,nchan),
+     >   PsTCSl(nchan,0:lamax),PsTICSJ(nchan),btics(2,nchan),
      >   PsTNBCSJ(nchan),SCSl(0:lamax,0:1,knm),SCS(0:1,knm),
-     >   TNBCSJ(nchan,0:1),TICSJ(nchan,0:1),bticsl(nchan,0:lamax)
+     >   TNBCSJ(nchan,0:1)
       complex ovlpnn
      
       real units(3), BornICS(knm,knm),ovlp(knm),esum(0:1),rcond(0:1),
-     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm)
+     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm),
+     >   oldpjp(knm,knm,0:1)
       common /corepartarray/ corepart(KNM,nicmax),ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
       real*8 t(ncmax,0:lamax),wts(ncmax),wf(2*ncmax),dstart,dstop,
@@ -2325,7 +2343,7 @@ C  This is for very large incident energies
       common /chanen/ enchan(knm)
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
-      save ext
+      save ext,oldpjp
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       
       data pi,ry,chunit/3.1415927,13.6058,
@@ -2335,7 +2353,6 @@ C  This is for very large incident energies
       tiecs(:,:,:) = 0.0
       tiecse(:,:,:) = 0.0
       btics(:,:) = 0.0
-      bticsl(:,:) = 0.0
       ibl = 1
       do while (csfile(ibl:ibl).ne.' ')
          ibl = ibl + 1
@@ -2466,11 +2483,10 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
-            call getchnl(chan(nchp),n,l,nc)
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             if (BornICS(nchp,nchip).ne.0.0) then
-               extra = max(0.0,BornICS(nchp,nchip) -
-     >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip))
+               extra = BornICS(nchp,nchip) -
+     >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
             else
                extra = 0.0
             endif 
@@ -2483,10 +2499,6 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
                btics(1,nchip) = btics(1,nchip) + BornICS(nchp,nchip)
                if (enchan(nchp).lt.etot/2.0)
      >            btics(2,nchip) = btics(2,nchip) + BornICS(nchp,nchip)
-               btics(3,nchip) = btics(3,nchip) + 
-     >              BornPCS(nchp,nchip) * unit + oldBornPCS(nchp,nchip)
-               bticsl(nchip,l) = bticsl(nchip,l) +
-     >              BornPCS(nchp,nchip) * unit + oldBornPCS(nchp,nchip)
             endif 
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
             write(42,'(a5,'' <-'',a3,1p,e13.5,3e15.5,l5)') 
@@ -2520,7 +2532,6 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
             PsTNBCS(nchip) = 0.0
             PsTICS(nchip) = 0.0
             PsTICSJ(nchip) = 0.0
-            TICSJ(nchip,0:1) = 0.0
             PsTNBCSJ(nchip) = 0.0
             TNBCSJ(nchip,ns) = 0.0
             PsTCS(nchip) = 0.0
@@ -2583,8 +2594,8 @@ c$$$     >                  PsTCSl(nchip,l) - PsTNBCSl(nchip,l)
                endif 
                sigtl(nchip,l,ns) = sigtl(nchip,l,ns) + sig
                if (BornICS(nchp,nchip).ne.0.0) then
-                  extra = max(0.0,BornICS(nchp,nchip) -
-     >               BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip))
+                  extra = BornICS(nchp,nchip) -
+     >               BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip)
                else
                   extra = 0.0
                endif 
@@ -2607,20 +2618,12 @@ c$$$              print*,'nchp,sigt-sigb,sigt,sigb',nchp,sigtl(nchip,l,ns)-
 c$$$     >            sigbl(nchip,l,ns),sigtl(nchip,l,ns),sigbl(nchip,l,ns)
                endif 
                if (enchan(nchp) .gt. 0.0) then
-                  TICSJ(nchip,ns) = TICSJ(nchip,ns) +
-     >                 partcs(nchp,nchip,ns) * unit
                   sigionl(nchip,l,ns) = sigionl(nchip,l,ns) + sig
-                  sigion(nchip,ns) = sigion(nchip,ns) + sig
                   ticssum(nchip,ns) = ticssum(nchip,ns) + sig
-                  ticsextra(nchip) = ticsextra(nchip) +
-     >                 extrap((partcs(nchp,nchip,0)+
-     >                 partcs(nchp,nchip,1))*unit,
-     >                 oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
-
                   if (nicm.gt.nicmax) stop 'Increase NICMAX'
                   if (BornICS(nchp,nchip).ne.0.0) then
-                     extra = max(0.0,BornICS(nchp,nchip) -
-     >                  BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip))
+                     extra = BornICS(nchp,nchip) -
+     >                  BornPCS(nchp,nchip)*unit-oldBornPCS(nchp,nchip)
                   else
                      extra = 0.0
                   endif 
@@ -2653,8 +2656,8 @@ c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
 C  Redefine the ionization cross sections by SIGT - SIGB
             do l = 0, ltop
-c$$$               sigionl(nchip,l,ns) = max(0.0,
-c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
+               sigionl(nchip,l,ns) = max(0.0,
+     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
                do nc = 1, 5
                   if (nlast(nc,l).ne.0) then
 c$$$                     print*,'Last bound excitation cross sections:',
@@ -2725,28 +2728,28 @@ C  Use the optical theorem to define the total and ionization cross sections
 C  as then the code is suitable for both CCC and CCO. For CCC both 
 C  forms should give much the same answer.
 C  SIGION will be the total ionization cross section for all J
-c$$$            sigion(nchip,ns) = max(sigtop(nchip,ns) * unit
-c$$$     >         + sigtopold(nchip,ns) - sum,0.0)
-c$$$C  SIGIONOLD will be the total ionization cross section for all previous J
-c$$$            sigionold(nchip,ns) = max(sigtopold(nchip,ns) - sumold,0.0)
-c$$$C  SIGIONE will be the extrapolated total ionization cross section
-c$$$            sigione(nchip,ns) = sigionold(nchip,ns) +
-c$$$     >         extrap(sigtop(nchip,ns) * unit - sumo,
-c$$$     >         sigtopoldj(nchip,ns) - sume,0.0)
+            sigion(nchip,ns) = max(sigtop(nchip,ns) * unit
+     >         + sigtopold(nchip,ns) - sum,0.0)
+C  SIGIONOLD will be the total ionization cross section for all previous J
+            sigionold(nchip,ns) = max(sigtopold(nchip,ns) - sumold,0.0)
+C  SIGIONE will be the extrapolated total ionization cross section
+            sigione(nchip,ns) = sigionold(nchip,ns) +
+     >         extrap(sigtop(nchip,ns) * unit - sumo,
+     >         sigtopoldj(nchip,ns) - sume,0.0)
 C  SIGTOPE will be the extrapolated total cross section
             sigtope(nchip,ns) = sigtopold(nchip,ns) +
      >         extrap(sigtop(nchip,ns) * unit,sigtopoldj(nchip,ns),0.0)
 C  For pure Born approximation we get zero for the optical theorem. In this
 C  case use the form below. Can't define sigionold in this case, need more work
 C  Need to make SIGTOLD from the info above
-c$$$            if (sigtop(nchip,ns).eq.0.0) then
-c$$$               sigion(nchip,ns) = max(sigt(nchip,ns) - sum,0.0)
-c$$$               sigionold(nchip,ns) = 0.0
-c$$$            endif 
+            if (sigtop(nchip,ns).eq.0.0) then
+               sigion(nchip,ns) = max(sigt(nchip,ns) - sum,0.0)
+               sigionold(nchip,ns) = 0.0
+            endif 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         " TICS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * max(0.0,ein),chan(nchip),lg,ns,ip,
-     >         TICSJ(nchip,ns) !(sigtop(nchip,ns) * unit - sumo) 
+     >         (sigtop(nchip,ns) * unit - sumo) 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         "   TNBCS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * ein,chan(nchip),lg,ns,ip,
@@ -2793,10 +2796,6 @@ c$$$            endif
      >         1p,e8.2,19(a3,e8.2))') ry * ein,
      >         chan(nchip),PsTICS(nchip),
      >         (chs(l),PsTICSl(nchip,l),l=0,lPstop)
-            write(42,'(1p,e9.3,"eV on ",a3," PsBTICS:    ",
-     >         1p,e8.2,19(a3,e8.2))') ry * ein,
-     >         chan(nchip),btics(3,nchip),
-     >         (chs(l),bticsl(nchip,l),l=0,lPstop)
             write(42,'(1p,e9.3,"eV on ",a3,"   PsTCS:    ",
      >         1p,e8.2,19(a3,e8.2))') ry * ein,
      >         chan(nchip),PsTCS(nchip),
@@ -2824,9 +2823,9 @@ c$$$            endif
             enddo
          endif 
          write(42,'(1p,e9.3,''eV on '',a3,
-     >      '' BTICS: all e, e to E/2, partial sum'',
+     >      '' BTICS: all, to E/2'',
      >      1p,4e11.3)') ry * ein,
-     >      chan(nchip),btics(1,nchip),btics(2,nchip),btics(3,nchip)
+     >      chan(nchip),btics(1,nchip),btics(2,nchip)
          write(42,'(1p,e9.3,"eV on ",a3," TNBCS:      ",
      >      1p,e8.2,19(a3,e8.2))') ry * ein,
      >      chan(nchip),sigb(nchip,0)+sigb(nchip,1),
@@ -2904,8 +2903,8 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
             call getchnl(chan(nchp),n,l,nc)
             summedcs = partcs(nchp,nchip,0)*unit + oldp(nchp,nchip,0) +
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1)
-            Borne = max(0.0,BornICS(nchp,nchip) - 
-     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit)
+            Borne = BornICS(nchp,nchip) - 
+     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit
 C  The following is not right if Born extrapolation is used due to
 C  the fact that the spin weights are not available here
 c$$$            extrapcs0 = extrap(partcs(nchp,nchip,0) * unit,
@@ -2932,14 +2931,22 @@ c$$$            asymcs = asym(extrapcs0, extrapcs1,fac)
 c$$$               summedcs = oldp(nchp,nchip,0) + oldp(nchp,nchip,1) !need to sort this out, Igor
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
-     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+     >            oldpjp(nchp,nchip,ipar), 0.0)
+c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+               if (ipar.eq.0) then 
+                  ext(nchp,nchip) = extrapcs
+               else
+                  extrapcs = extrapcs + ext(nchp,nchip)
+               endif
+c$$$               if (chan(nchp).eq.'p7S'.and.chan(nchip).eq.'p6H') then
+c$$$                  print'("J,IPAR,PCS1,PCS2:",2i3,1p,2e12.3)',lg,ipar,
+c$$$     >                 (partcs(nchp,nchip,0)+partcs(nchp,nchip,1))*unit,
+c$$$     >                 oldpjp(nchp,nchip,ipar)
+c$$$               endif
+C below ensures correct extrapolation for each parity
+               oldpjp(nchp,nchip,modulo(ipar+1,2)) = 
+     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             endif
-! Below doubled up extrapolation when Borne was non zero for H-like targets
-c$$$            if (ipar.eq.0) then 
-c$$$               ext(nchp,nchip) = extrapcs
-c$$$            else
-c$$$               extrapcs = extrapcs + ext(nchp,nchip)
-c$$$            endif
             extrapcs = summedcs + extrapcs
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
@@ -2979,8 +2986,11 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.9) then
-         extrap = x / (1.0 - x / xp + 1e-20)
+c$$$      else if (0.0.lt.x.and.x.lt.xp) then
+      else
+         r = x/(xp+1e-20)
+         if (r.gt.0.995) r = 0.995
+         extrap = x / (1.0 - r)
       endif
       end
       
@@ -3335,19 +3345,19 @@ C     End add
 #endif
 c$$$      inquire(FILE="analytic",EXIST=analytic)
       analytic = nanalytic.le.-2 !.and.e.ge.aenergyswitch
-      if (analytic) then
+c$$$      if (analytic) then
 c$$$         open(42,file = "analytic")
 c$$$         read(42,*) nbox
 c$$$         close(42)
-         nkmax = 0
+         kmaxgf = 0
          do nch = 1, nchtop
-            if (npk(nch+1)-npk(nch).gt.nkmax) nkmax=npk(nch+1)-npk(nch)
+            if (npk(nch+1)-npk(nch).gt.kmaxgf)kmaxgf=npk(nch+1)-npk(nch)
          enddo
-         if (allocated(gf)) deallocate(gf)
-         allocate(gf(nkmax,nkmax,nchtop))
          if (allocated(c)) deallocate(c)
-         allocate(c(maxr,nkmax))    ! Form routine expects maxr
-      endif 
+         allocate(c(maxr,kmaxgf))    ! Form routine expects maxr
+c$$$      endif 
+      if (allocated(gf)) deallocate(gf)
+      allocate(gf(kmaxgf,kmaxgf,nchtop))
       inquire(FILE="ndble",EXIST=torf)
       ndble = 0
       if (torf) then
@@ -3928,8 +3938,14 @@ C Alex for box basis.
             eta = zeff / sqrt(abs(eproj))
          endif
          nbmax=npk(nch+1)-npk(nch)-1
+         GF(:,:,nch)=0.0
+         do kp=2,npk(nch+1)-npk(nch)
+            GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
+         enddo 
          if (analytic .AND. nbmax .GT. 1) then
             if (eproj.ge.aenergyswitch) then !aenergyswitch is in modules.f
+               if (nbox.ne.0) then !below is only for the box basis
+                  print*,'Box basis for nch:',nch
                hmax=rmesh(meshr,2)
 c$$$               zas=-nze*zasym-1.0 ! check this
                zas=-zeff-1.0 ! check this
@@ -3961,15 +3977,13 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   if (.true..or.nbmax.gt.npsbndin) then
                      zas=-zeff-1.0 ! check this
                      vnucl(:)=0.0
-                     print*, "L, nbmax, npk(nch+1)-npk(nch), zas:",l,
-     >                  nbmax,npk(nch+1)-npk(nch),zas
-                     call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l,
+                     print*, "L, ndble, nbmax, zas:",l,ndble,
+     >                  nbmax+ndble,zas
+                     call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l+ndble,
      >                  maxr,vnucl,erydout(2),waveout(1,2),lastpt)
                      maxps2(:)=lastpt
                      minps2(:)=1
                      kstep = 0
-c$$$                  print*,'l,erydout(1,...,3):',l,(erydout(i),i=1,3)
-c$$$                  print*,'nbmax-ndble+2,nbmax+1:',nbmax-ndble+2,nbmax+1
                      do k = nbmax-ndble+2,nbmax+1
                      print*,'k,k+kstep,k+kstep+1:',k,k+kstep,k+kstep+1,
      >                     erydout(k+kstep),erydout(k+kstep+1)
@@ -4008,7 +4022,7 @@ c$$$                  utemp(i) = - nze * (- zasym * 2.0/rmesh(i,1))
                      gk(k,nch) = sqrt(erydout(k))
                   endif
                   temp(:)=0d0
-                  tmp = 1.0
+
                   if (itail.lt.0.or.nze.eq.1.and.lptop.ge.0) then ! for positrons or analytic tail integrals need projections
                      call regular(l,erydout(k),eta,vnucl,
      >                  cntfug(1,l),ldw,rmesh,meshr,jdouble,id,
@@ -4026,12 +4040,6 @@ c$$$c$$$     >               *sin(2.0*gk(k,nch)*ra)/gk(k,nch))
 c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                      temp(1:lastpt)=temp(1:lastpt)*rmesh(1:lastpt,3)
                      tmp=dot_product(waveout(1:lastpt,k),temp(1:lastpt))
-                     if (tmp.eq.0.0) then
-                        print*,'tmp is 0.0;j1,j2,lastpt,k,waveout,temp:'
-     >                   ,j1,j2,lastpt,k,waveout(lastpt,k),temp(lastpt)
-                        print*,'erydout(1,...,3):',(erydout(i),i=1,3)
-                        stop 'tmp cannot be zero here in makechil'
-                     endif
                      entail = erydout(k) * (rmesh(meshr,1)/trat)**2
                      kp = k + npk(nch)-1
                      if (itail.lt.0) then
@@ -4080,12 +4088,23 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                      enddo 
                      chil(psibd(k-1+l,l)%max+1:meshr,k+npk(nch)-1,1)=0d0
                   else
-                     if (k.eq.2.or.k.eq.npk(nch+1)-npk(nch)) then
-                        print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
-     >                     nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
-                     endif
+                     print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
+     >                  nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
                   endif
-               enddo
+               enddo !k loop
+               boxnorm = 1.0
+               else !nbox.eq.0
+                  lastpt = meshr
+                  do k=2,npk(nch+1)-npk(nch)
+                     do j=1,lastpt
+                        chil(j,k+npk(nch)-1,1)=chil(j,k+npk(nch)-1,1)
+!     >                  * tmp
+!     >                  /sqrt(real(wk(k+npk(nch)-1)))
+!     >                  *sqrt(pi/2d0)
+                     enddo
+                  enddo        
+                  boxnorm = 2.0/rmesh(meshr,1)
+               endif !nbox.ne.0
                Rpl(:) = 0.0
                Rpg(:) = 0.0
 
@@ -4119,45 +4138,72 @@ c$$$            endif
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP& SCHEDULE(dynamic)
                do kpp=2,npk(nch+1)-npk(nch)
-                  do kp=2,npk(nch+1)-npk(nch)
+                  do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
                      GF(kp,kpp,nch) =
      >                  - dot_product(chil(1:meshr,npk(nch)-1+kp,1),
-     >                  C(1:meshr,kpp)) * pi / const * !*(2.0/pi)
-     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+     >                  C(1:meshr,kpp)) * pi / const 
+     >                  *real(wk(kp+npk(nch)-1))!*real(wk(kpp+npk(nch)-1))
+     >                    *boxnorm
+c$$$                     if (kp.eq.kpp.and.kp.eq.2) print*,
+c$$$     >                  GF(kp,kpp,nch), pi / const * 
+c$$$     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+c$$$     >                    *boxnorm 
                   enddo
                enddo
 C$OMP END PARALLEL DO
-            else !negative energies
+               if (nbox.eq.0) then !analytic with true continuum functions
+                  do kp = 2, npk(nch+1)-npk(nch)
+                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+!     >                    real(wk(kp+npk(nch)-1))
+!     >               real(wk(kp+npk(nch)-1))*
+!     >                    2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+                  enddo
+               else ! for scalapack
+c$$$                  do kp = 2, npk(nch+1)-npk(nch)
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+c$$$                  enddo
+               endif
+            else !eproj.lt.aenergyswitch (closed channels)
+               GF(:,:,nch)=0.0
                do kp=2,npk(nch+1)-npk(nch)
                   GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
 c$$$     >               *2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
 c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
                enddo 
             endif 
+         endif                  !analytic
 
-            write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
-            inquire(file='writegreen',exist=exists)
-            if (exists) then
-               open(42,file=stringtemp)
-               do kp = 2, npk(nch+1)-npk(nch)
-                  do kpp = kp,kp !2, npk(nch+1)-npk(nch)
-                     write(42,'(1p,3e13.2)') 
-     >                  gk(kpp,nch),GF(kp,kpp,nch),
-     >                  pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
-c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)
-                  enddo
-c$$$                  write(42,*)
+         write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
+         inquire(file='writegreen',exist=exists)
+         if (exists) then
+            open(42,file=stringtemp)
+c$$$               GF(:,:,nch) = 0.0
+            do kp = 2, npk(nch+1)-npk(nch)
+               do kpp = kp,kp   !2, npk(nch+1)-npk(nch)
+c$$$                     GF(kp,kpp,nch) = pi/(eproj-gk(kp,nch)*
+c$$$     >                    abs(gk(kp,nch)))*real(wk(kp+npk(nch)-1))
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kpp,nch)/
+c$$$     >                    real(wk(kp+npk(nch)-1))/pi/pi
+c$$$     >                    pi/(eproj-gk(kp,nch)*
+c$$$     >                    abs(gk(kp,nch)))
+                  write(42,'(1p,4e13.2)') 
+     >                 gk(kpp,nch),GF(kp,kpp,nch),
+     >                 pi/(eproj-gk(kp,nch)*abs(gk(kp,nch))),
+     >                 real(wk(kp+npk(nch)-1))
+c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)/
+c$$$     >                  real(wk(kp+npk(nch)-1))/real(wk(kpp+npk(nch)-1))
                enddo
+c$$$                  write(42,*)
+            enddo
 c$$$               write(42,'("#   r    ",1p,500e24.3)') (gk(kp,nch),
 c$$$     >            kp=2,npk(nch+1)-npk(nch),10)
 c$$$               do i = 1, istop
 c$$$                  write(42,'(1p,500e12.3)') rmesh(i,1),(c(i,kp),
 c$$$     >               chil(i,kp,1)/rmesh(i,3),kp=2,npk(nch+1)-npk(nch),10)
 c$$$               enddo 
-               close(42)
-               print*,'Written:',stringtemp
-            endif 
-         endif                  !analytic
+            close(42)
+            print*,'Written:',stringtemp
+         endif 
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)

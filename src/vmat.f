@@ -309,7 +309,7 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       nchpmax = nchp
       if (np(1).eq.0) then
          print*,' reordering in getchinfo with NCHPMAX:',nchpmax
-         call reorderstates(states,nchpmax)
+         call reorderstates(states,nchpmax,lptop.ge.0)
       endif 
       else ! not first_time
          if (nch.eq.0) stop 'nch = 0 in getchinfo'
@@ -339,9 +339,9 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       return
       end
 
-      subroutine reorderstates(states,nchpmax)
+      subroutine reorderstates(states,nchpmax,ps)
       include 'par.f'
-      logical swapped
+      logical swapped,ps
       type state
          real radial(maxr), energy
          integer na, la, maxpsi, lapar
@@ -349,10 +349,15 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end type state
       type(state) states(knm), staten
 
+      if (ps) then
+         nstart = 3
+      else
+         nstart = 2
+      endif
       swapped = .true.
       do while (swapped)
          swapped = .false.
-         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
@@ -369,7 +374,7 @@ c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
       swapped = .true.
       do while (swapped)
          swapped = .false.
-         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
@@ -1646,7 +1651,7 @@ c$$$      logical analytic
 
 c$$$      analytic = lg.le.(-nqm-2) !Use NQM in ccc.in as a switch.
       nanalytic = nqm
-      nbox = 1
+c$$$      nbox = 1
 
 c$$$      inquire(FILE="analytic",EXIST=analytic)  
 c$$$
@@ -1763,7 +1768,7 @@ C Define the intervals and the number of points in each interval
 c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       call makeints(mint,sk,nk,rk,npoints,width,
      >   midnp,enk,nendk,endp,npoints2,endk2)
-      if (.not.analytic) then
+c$$$      if (.not.analytic) then
       if (midnp.lt.0) then
          dstop = 0d0
          do j=1,mint-1
@@ -1804,8 +1809,8 @@ c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       endif 
       if (width .le. 0.0.and.rk.lt.2.0*abs(width)) then
          print*,'WIDTH:', width
-         if (.not.analytic)
-     >      call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
+c$$$         if (.not.analytic)
+           call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
          sk(1) = endf
       endif 
       dstop = 0d0
@@ -2017,6 +2022,14 @@ C  Check that the integration rule will handle the principle value singularity
      >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,2i4,3i3,
      >      1p,e13.4,''    closed'')',chan(ntmp),nch,ntmp,na,la,li,e
       end if 
+      if (nch.eq.1.and.analytic) then
+         if (nqk.eq.-nanalytic) then
+            nbox = 0
+         else
+            nbox = 1
+         endif
+         print*,"NBOX:", nbox!, nqk, nanalytic
+      endif
       if (nqm.le.0.and.lg.le.1.and.ifirst.ne.0.and.hlike
      >   .and.theta.ne.0.0.and.nze.eq.-1.and.nodes.eq.1) then
          nchp = 1
@@ -2075,10 +2088,11 @@ C$OMP END PARALLEL DO
       endif 
 
  40   continue
-      else !analytic
-         nqk = -nqm - nbnd(lset) !nbnd get's added below
-         sum = 0.0
-      endif 
+!      else !analytic
+c$$$      if (analytic) then
+c$$$        nqk = -nqm - nbnd(lset) !nbnd get's added below
+c$$$         sum = 0.0
+c$$$      endif 
       do i = 1, nqk + 1
          kp = npk(nch) + i - 1
          if (i.eq.1) then
@@ -2130,6 +2144,11 @@ c$$$            wk(kp) = wk(kp) * cint(na-nnbtop)
 c$$$         endif 
       end do !nqk loop
 
+      if (analytic) then
+        nqk = -nqm - nbnd(lset) !nbnd get's added below
+         sum = 0.0
+      endif 
+
       if (lg.le.lprint) print*
       nchtop = nch
       if (nqm.gt.0) nqk = min(nqk,nqm-1)
@@ -2138,7 +2157,7 @@ c$$$         endif
          print*,'Channel, NQK+1, KMAX:',nch,nqk+1,kmax
          stop 'Increase KMAX'
       endif
-      print*,'NKQ:',nqk
+      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
       
       npk(nchtop+1) = npk(nchtop) + nqk + 1 
       ldumm = -1

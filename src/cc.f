@@ -136,6 +136,7 @@ C     (they are not essential to working of the code)
       COMMON /RCFCM1/ PK,EK,CLGAA,CLGAB,CLGBB,DSIG,TPK1,W,RL,FCL1,Q,GAM,
      X                HCL,HPL,FCM,HCL1,ALPHA,BETA,PL
 c$omp threadprivate(/RCFCM1/)
+C The following line may need to be commented to run with gfortran and OMP
       EQUIVALENCE            (PK,XRCF(1,1))
 C
       DATA ZERO,ONE,TWO,LIMIT /0.0D+0, 1.0D+0, 2.0D+0, 20000 /,

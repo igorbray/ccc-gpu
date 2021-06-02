@@ -220,6 +220,7 @@ C  which contains VDCORE.
      >      nnt,ngpus,temp2,maxi2)
          endif
 
+         maxtemp3(:) = 0
          allocate(temp3(1:meshr,nchi:nchtop),
      >        vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
          vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
