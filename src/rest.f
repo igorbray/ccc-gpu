@@ -2488,10 +2488,10 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
                extra = BornICS(nchp,nchip) -
      >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
             else
-               extra = 0.0
+               extra = ext(nchp,nchip) ! this is from the "save" statement (was 0.0)
             endif 
             tbextra(nchip) = tbextra(nchip) + extra
-            if (enchan(nchp).lt.0) then
+            if (enchan(nchp).lt.0.and.chan(nchp)(1:1).ne.'p') then
                tnbBextra(nchip) = tnbBextra(nchip) +
      >            ovlp(nchp) * extra
             else 
@@ -2654,7 +2654,7 @@ c$$$     >               sigbprev(nc,l)*(n-1)**3/n**3, sig, n
 c$$$            print*,'SIGB, SIGBO:',sigb(nchip,ns), sigbo
 c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
-C  Redefine the ionization cross sections by SIGT - SIGB
+c$$$C  Redefine the ionization cross sections by SIGT - SIGB
 c$$$            do l = 0, ltop
 c$$$               sigionl(nchip,l,ns) = max(0.0,
 c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
@@ -2847,6 +2847,13 @@ C  Need to make SIGTOLD from the info above
      >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
      >      asym(sigb(nchip,0),sigb(nchip,1),fac)
 
+         write(43,'(i3,1p,e11.3,''eV on '',a3,
+     >      '' TNBCS,+extra, spin asymmetry:'',
+     >      1p,4e11.3)') lg, ry * ein,
+     >      chan(nchip),sigb(nchip,0)+sigb(nchip,1),
+     >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
+     >      asym(sigb(nchip,0),sigb(nchip,1),fac)
+
          write(42,'(1p,e9.3,''eV on '',a3,
      >      '' TICS: s, t-s, +, a'',
      >      1p,4e11.3)') ry * ein,
@@ -2928,13 +2935,13 @@ c$$$            asymcs = asym(extrapcs0, extrapcs1,fac)
             else if (BornICS(nchp,nchip).ne.0.0) then
                extrapcs = Borne
             else 
-c$$$               summedcs = oldp(nchp,nchip,0) + oldp(nchp,nchip,1) !need to sort this out, Igor
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
      >            oldpjp(nchp,nchip,ipar), 0.0)
 c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
                if (ipar.eq.0) then 
-                  ext(nchp,nchip) = extrapcs
+                  if (partcs(nchp,nchip,0).ne.0.0) ! to help when rearrangement suddenly stops
+     >                 ext(nchp,nchip) = extrapcs
                else
                   extrapcs = extrapcs + ext(nchp,nchip)
                endif
