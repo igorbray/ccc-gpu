@@ -2655,16 +2655,16 @@ c$$$            print*,'SIGB, SIGBO:',sigb(nchip,ns), sigbo
 c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
 C  Redefine the ionization cross sections by SIGT - SIGB
-            do l = 0, ltop
-               sigionl(nchip,l,ns) = max(0.0,
-     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
-               do nc = 1, 5
-                  if (nlast(nc,l).ne.0) then
-c$$$                     print*,'Last bound excitation cross sections:',
-c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
-                  endif
-               enddo 
-            enddo
+c$$$            do l = 0, ltop
+c$$$               sigionl(nchip,l,ns) = max(0.0,
+c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
+c$$$               do nc = 1, 5
+c$$$                  if (nlast(nc,l).ne.0) then
+c$$$c$$$                     print*,'Last bound excitation cross sections:',
+c$$$c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
+c$$$                  endif
+c$$$               enddo 
+c$$$            enddo
             
             write(42,'(1p,2e13.5,0p,f10.5,a4,
      >         '' TCS (op. th.), last cont., ratio to sum'')')
@@ -3166,7 +3166,7 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       do i = 1, min(maxf,maxi)
          sum = sum + psif(i) * rmesh(i,1) * psii(i) * rmesh(i,3)
       enddo
-      oscil = (ef - ei) * sum**2 / 3.0
+      oscil = (ef - ei) * sum**2 / 3.0 !specific to s-p transitions, see main.f for generality
       return
       end
       

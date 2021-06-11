@@ -3731,6 +3731,26 @@ c$$$            if (nznuc-nint(zasym).ne.69)
 c$$$     >         stop 'PROBLEM WITH WAVEFUNCTION'
 c$$$         endif 
       end do
+C General set of oscillator strengths, see Dmitry's notes
+      if (l.gt.0) then
+         print*,"nl->n'l' Oscillator strengths"
+         do nm = nabot(l-1), 5
+            do np = nabot(l), 5
+               if (enpsinb(np,l)-enpsinb(nm,l-1).gt.0) then
+                  print'(2i1,"->",2i1,1p,20e10.2)',nm,l-1,np,l,
+     >               oscil(enpsinb(np,l),psinb(1,np,l),istoppsinb(np,l),
+     >               enpsinb(nm,l-1),psinb(1,nm,l-1),
+     >               istoppsinb(nm,l-1),rmesh,meshr)/(2.0*l-1)*l
+               else
+                  print'(2i1,"->",2i1,1p,20e10.2)',np,l,nm,l-1,
+     >               oscil(
+     >               enpsinb(nm,l-1),psinb(1,nm,l-1),istoppsinb(nm,l-1),
+     >               enpsinb(np,l),psinb(1,np,l),istoppsinb(np,l),rmesh,
+     >               meshr)/(2.0*l+1)*l
+               endif
+            enddo
+         enddo
+      endif
       return
       end
       
