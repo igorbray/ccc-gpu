@@ -32,14 +32,14 @@
       use ftps_module, only: interpol ! , error
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
 
       common/gausp/xgp(igpm),wgp(igpm),igp
       common /laguercoeffs/ cknd(ncmax,ncmax,0:lnabmax),
      $    rlambda(2,0:lnabmax), npsstates(2,0:lnabmax)      
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax)
+     >   Qlfactor(0:maxl)
       common/gauszR/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
       common/gausz/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR 
        common/numericalpotential/ numericalv, lstoppos
@@ -825,7 +825,10 @@ c                          call getftps(pb,nbi,lb,sk2,res0sk0)
                               do k=Nl1-2,0,-1
                                  sk1=sk1*x1+pc1(k,na,la)
                               end do
+c$$$                              if (abs(brap1).gt.1d10) print*,
+c$$$     >                           sk1,bsp1,brap1,la
                               sk1=sk1*bsp1/brap1**(la+2)
+!                              sk1=sk1*exp(log(bsp1)-log(brap1)*(la+2))
                            end if ! Nl1                         
                         end if  ! interpol.or.alkali                          
 c     this is for positronium
@@ -1246,6 +1249,9 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
      $                                -Fqa*(qa2+alfa2)*(qa2+alfa2) /(pp2
      $                                +alfa2)/(pp2+alfa2)*Q0p(iqa,i)
                                  res3 = res3 + wp(i)*fp
+                              if (iqa.eq.1.and.iqb.eq.1) print*,
+     >                              'i,fpqb,Qlp,Q0p:',i,fpqb(i,lam),
+     >                              Qlp(i,iqa),Q0p(iqa,i)
                               end do
                               
                               res1c=(-2.*qa*ATan(qa/alfa) + 
@@ -1255,7 +1261,8 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
      >                             qa**lab2*(qa2+alfa2)*(qa2+alfa2)
                               
                               res3=res3+res1c
-
+c$$$                              if (iqa.eq.1.and.iqb.eq.1) print*,
+c$$$     >                           'res1,res2,res3:',res1,res2,res3
                               res1=res1+res2+res3
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1603,7 +1610,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 c            close (90)
 c            stop
             result=sumlb1*c0*qb*sqrt(2.0d0)
-c            print*,'posv',result
+c     print*,'posv',result
 
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical  
@@ -1669,10 +1676,10 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       dimension pc0(0:ncmax-1,ncmax,0:lamax),
      >     pc1(0:ncmax-1,ncmax,0:lamax)
 
@@ -1716,10 +1723,10 @@ c--
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
 c$$$      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
       
       call gnlp(bohr,ll,pp2,nni,res0,res1) !,res2,res3)
@@ -1732,7 +1739,7 @@ c$$$      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
       real*8 function f1z(pp,z,qb,lb,la,nb,na,nbi,pc1)
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
 c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
@@ -1740,7 +1747,7 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
         
       qb2=qb*qb
@@ -1793,13 +1800,13 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
       include 'par.f'
       include 'par.pos'
       implicit real*8 (a-h,o-z)
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
       dimension x(ipm),y(ipm),y2(ipm),u(ipm)
       data yp1,ypn /0.d0,0.d0/
@@ -1977,7 +1984,7 @@ c      pause ' wrote to unit 10'
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/cheb/x(ich),w(ich)
       common/funQl/Qlarray(0:ltmax,ich)
@@ -1985,7 +1992,7 @@ c      pause ' wrote to unit 10'
       common/gausp/xgp(igpm),wgp(igpm),igp
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       dimension pc1(0:ncmax-1,ncmax,0:lamax)!(0:19,20,0:3)
       external f1z
         
@@ -2027,7 +2034,7 @@ c      print*,'chebyshev result=',result,'is used'
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/cheb/x(ich),w(ich)
       common/funQl/Qlarray(0:ltmax,ich)
@@ -2035,7 +2042,7 @@ c      print*,'chebyshev result=',result,'is used'
       common/gausp/xgp(igpm),wgp(igpm),igp
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
@@ -2145,10 +2152,10 @@ c      print*,'chebyshev result=',result,'is used'
       subroutine geigen(bohr,nn,ll,pp2,result)
 
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
 
       bn=bohr*nn
       basis=bn*bn*pp2
@@ -2204,10 +2211,10 @@ c      print*,'chebyshev result=',result,'is used'
       subroutine gegenbauer(m,ll,brap,gegen)
 
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
 
 c      gegen=1.
 c      if(m.eq.0) return
@@ -2226,10 +2233,10 @@ c      if(m.eq.0) return
       subroutine gpseudo(ll,nopt,Nl,rlam,pp2,res0,res1)
 
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
@@ -2344,10 +2351,10 @@ c         res3 = res3 + psir * rr * chi0 * dble(rmesh(i,3))
       subroutine wpseudo(bohr,ll,rr,nopt,psir)
 
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
      >   npsstates(2,0:lnabmax)
@@ -2381,10 +2388,10 @@ c      pause
       subroutine laguerre(nn,ll,arg,result)
 
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
 
       sum=0.d0
       do mm=0,nn
@@ -2401,9 +2408,9 @@ c      print*,' laguerre: res=',result,arg,sum
       subroutine laguer1(nn,ll,arg,sum)
 
 c      include 'par.f'
-c      parameter(maxl=2*ltmax+1)
+c      parameter(maxl=5*ltmax)
 c      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-c     >   Qlfactor(0:ltmax+lamax)
+c     >   Qlfactor(0:maxl)
       implicit real*8 (a-h,o-z)
 
       sum=0.d0
@@ -2685,18 +2692,18 @@ C     modifyed spherical Bessel function
 
       include 'par.f'
       include 'par.pos'
-      parameter( maxl=2*ltmax+1)
+      parameter( maxl=5*ltmax)
       implicit real*8 (a-h,o-z)    
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       common/fik/fik(0:19,0:19)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igza
       common/gauszR/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR
        common/gausp/xgp(igpm),wgp(igpm),igpa
       common/funQl/Qlarray(0:ltmax,ich)
       common/cheb/x(ich),w(ich)
-      real*8 dfactrl(0:ltmax),dfactrl2(0:ltmax),arg(ich)
+      real*8 dfactrl(0:maxl),dfactrl2(0:maxl),arg(ich)
       
 c      open(99,file='matritsa')
       pi = acos(-1d0)
@@ -2750,6 +2757,7 @@ c      open(99,file='matritsa')
 *        end do
       enddo
       call polleg(2*lstopm+1,igz,igp)
+      
       print*
       return
       end subroutine Qltable
@@ -2763,19 +2771,19 @@ C     relation
             
       include 'par.f'
       include 'par.pos'
-      parameter( maxl=2*ltmax+1)
+      parameter( maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
       real *8, dimension (0:Lla) :: QN
 
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >     Qlfactor(0:ltmax+lamax)      
+     >     Qlfactor(0:maxl)      
 
 *     arg of Legendre function is always .ge. 1
 *     min[z]=1 at pp=qa
 *     Mathematica cannot handle this region.
             
       Q0 = 0.5d0 * log((z+1d0)/(z-1d0+1d-10))
-      Q0sp = real(Q0)      
+c$$$  Q0sp = real(Q0)      
       
       select case (Lla)
       case (0:4)
@@ -2784,8 +2792,10 @@ C     relation
          zc = 3.0d0
       case (6:7)
          zc = 2.5d0
-      case (8:)
+      case (8:20)
          zc = 2.0d0
+      case (21:)
+         zc = 1d20
       end select
       
 C     use analitical expression for small z
@@ -2975,13 +2985,21 @@ c$$$                  XI = XI/z/z
 c$$$               print*,i,(A+SI)*(B+SI)/((C+SI)*(SI+1.0D0)),
 c$$$     >            lp2i/(2.0*i)*(lp2i-1)/(lp2i+Lla+1)
                result=Qlfactor(Lla)/z**(Lla+1)*s1
+c$$$               print*,'i,s1,s2,Qlfactor:',i,s1,s2,Qlfactor(Lla)
             else
                call LQNB(Lla,z,QN)               
+c$$$               print*,'z,Lla,QN:',z,Lla,QN(Lla)
                result = QN(Lla)
             end if
          end select        
       else           
-         result = FlegQ(min(Lla,20), z) !  series expansion for large z                        
+!         result = FlegQ(min(Lla,20), z) !  series expansion for large z
+         if (Lla.le.20) then
+            result = FlegQ(Lla, z) !  series expansion for large z                        
+c$$$            print*,'z,Lla,FleQ:',z,Lla,FlegQ(Lla, z)
+         else
+            stop 'must have Lla<=20 to call FlegQ'
+         endif
       end if                    ! z
 !     resultsp = real(result)      
       return
@@ -2991,14 +3009,14 @@ c$$$     >            lp2i/(2.0*i)*(lp2i-1)/(lp2i+Lla+1)
 c$$$      use apar, only : alkali
 c$$$      include 'par.f'
 c$$$      include 'par.pos'
-c$$$      parameter( maxl=2*ltmax+1)
+c$$$      parameter( maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
 c$$$      real zasym
 c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
 c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
 c$$$      common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
 c$$$      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-c$$$     >     Qlfactor(0:ltmax+lamax)
+c$$$     >     Qlfactor(0:maxl)
       
 *     arg of Legendre function is always .ge. 1
 *     min[z]=1 at pp=qa
@@ -3028,7 +3046,7 @@ c$$$      end if
       subroutine polleg(limit,igz,igp)
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=2*ltmax+1)
+      parameter (maxl=5*ltmax)
       implicit real*8 (a-h,o-z)       
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igza
       common/gauszR/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR
@@ -3040,6 +3058,7 @@ c$$$      end if
       real*8, dimension (igp) :: xgb, wgb
       real*8 :: x1, x2, z
 
+      if (limit.gt.maxl) stop 'polleg: increase maxl'
 ***** for z integral
       x1=-1.d0; x2=1.d0
 
@@ -3200,11 +3219,11 @@ c      print*,' x = ',x,' anal sk0 = ',sk0
 *     pp. 6 and 7 are not (real*8)
       
       include 'par.f'
-      parameter( maxl=2*ltmax+1)
+      parameter( maxl=5*ltmax)
       implicit real*8 (a-h,o-z)
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
-     >   Qlfactor(0:ltmax+lamax)
+     >   Qlfactor(0:maxl)
       common/fik/fik(0:19,0:19)
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
@@ -3496,7 +3515,7 @@ c      endif
 * numerically in double precision.
 
       include 'par.f'
-      parameter( maxl=2*ltmax+1)
+      parameter( maxl=5*ltmax)
       parameter(limlst=100, limit=100, maxp1=100)
       implicit real*8 (a-h,o-z)
 c$$$      common/const/pi
@@ -3575,7 +3594,7 @@ c      result=real(res*rlam*rlam/pi)
 
       real*8 function fr21(r2)
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       parameter(limit=100)
       implicit real*8 (a-h,o-z)
       dimension alist(limit),blist(limit),elist(limit),iord(limit),
@@ -3603,7 +3622,7 @@ c      endif
 
       real*8 function fr22(r2)
       include 'par.f'
-      parameter(maxl=2*ltmax+1)
+      parameter(maxl=5*ltmax)
       parameter(limit=100)
       implicit real*8 (a-h,o-z)
       dimension alist(limit),blist(limit),elist(limit),iord(limit),
