@@ -1249,9 +1249,9 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
      $                                -Fqa*(qa2+alfa2)*(qa2+alfa2) /(pp2
      $                                +alfa2)/(pp2+alfa2)*Q0p(iqa,i)
                                  res3 = res3 + wp(i)*fp
-                              if (iqa.eq.1.and.iqb.eq.1) print*,
-     >                              'i,fpqb,Qlp,Q0p:',i,fpqb(i,lam),
-     >                              Qlp(i,iqa),Q0p(iqa,i)
+c$$$                              if (iqa.eq.1.and.iqb.eq.1) print*,
+c$$$     >                              'i,fpqb,Qlp,Q0p:',i,fpqb(i,lam),
+c$$$     >                              Qlp(i,iqa),Q0p(iqa,i)
                               end do
                               
                               res1c=(-2.*qa*ATan(qa/alfa) + 
