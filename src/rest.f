@@ -2494,7 +2494,7 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
             if (enchan(nchp).lt.0.and.chan(nchp)(1:1).ne.'p') then
                tnbBextra(nchip) = tnbBextra(nchip) +
      >            ovlp(nchp) * extra
-            else 
+            else if (enchan(nchp).gt.0.0) then
                ticsextra(nchip) = ticsextra(nchip) + extra
                btics(1,nchip) = btics(1,nchip) + BornICS(nchp,nchip)
                if (enchan(nchp).lt.etot/2.0)

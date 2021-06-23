@@ -2984,7 +2984,10 @@ c$$$                  XI = XI/z/z
                end do
 c$$$               print*,i,(A+SI)*(B+SI)/((C+SI)*(SI+1.0D0)),
 c$$$     >            lp2i/(2.0*i)*(lp2i-1)/(lp2i+Lla+1)
-               result=Qlfactor(Lla)/z**(Lla+1)*s1
+c$$$               result=Qlfactor(Lla)/z**(Lla+1)*s1
+c$$$               if (s1.lt.1e-10.or.Qlfactor(Lla).lt.1e-10) print*,
+c$$$     >              'z,Lla,s1,Qlfactor(Lla):',z,Lla,s1,Qlfactor(Lla)
+               result=exp(log(Qlfactor(Lla)) - log(z)*(Lla+1) + log(s1))
 c$$$               print*,'i,s1,s2,Qlfactor:',i,s1,s2,Qlfactor(Lla)
             else
                call LQNB(Lla,z,QN)               
