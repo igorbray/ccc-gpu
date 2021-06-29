@@ -432,12 +432,14 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10)
-     >     call maketail(itail,ctemp(nchf),chil(1,npk(nchi),2),
-     >     minchil(npk(nchi),2),gk(1,nchi),phasei,li,nqmi,
-     >     chil(1,npk(nchf),2),minchil(npk(nchf),2),gk(1,nchf),phasef,
-     >     lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
-
+      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10) then
+         it = 1
+         if (itail.eq.-1) it = 2
+         call maketail(itail,ctemp(nchf),chil(1,npk(nchi),it),
+     >      minchil(npk(nchi),it),gk(1,nchi),phasei,li,nqmi,
+     >      chil(1,npk(nchf),it),minchil(npk(nchf),it),gk(1,nchf),phasef
+     >      ,lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
+      endif
 C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
 C  them.
       do i = mini, maxi
