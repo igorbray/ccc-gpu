@@ -70,14 +70,13 @@ c$$$         if (ecmn.gt.200.0) then
 c$$$            jstop = nx
 c$$$            jstart = nx + 1
 c$$$         endif 
-
          jstartorig = jstart
 
-         if (ucentr(1) .eq. 0.0.and.jstart.gt.1) then
+         if (ucentr(1) .eq. 0.0.and.jstart.ge.1) then
 c$$$         if (ucentr(1) .eq. 0.0 .and. wnn .gt. 2.0) then
             rho = wnn * gridx(jstart)
             acc = 1.0
-            reg(jstart) = s1
+            reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
 c$$$C  Need to take care that jstart stays less than jstop. For this reason
 c$$$C  the wnn > 2 condition was added above.
             do while (rho.lt.ln.and.acc.gt.1e-6.and.jstart.lt.jstop)
@@ -152,6 +151,8 @@ c$$$         endif
             reg(1) = s1
          endif 
 
+c$$$         if (abs(reg(jstop)).gt.1.5) print*,'WARNING reg(j)>>1:',
+c$$$     >      reg(jstop),ln,ecmn,jstartorig,jstart
          jstart = jstartorig
          jmatch = min(nx,jstop)
          rho = wnn * gridx(jmatch)
@@ -631,8 +632,8 @@ C    integration loop
             s3 = t3/(1d0-h2*f3)
 c$$$            if (j.lt.jstart+10) then
 c$$$               test=appf1(ln,en,gridx(j),acc)
-c$$$               print*,test/s3
-c$$$               s3 = test
+c$$$               print*,j,test/s3,f3,t3
+c$$$c$$$               s3 = test
 c$$$            endif 
             reg(j)=s3      
 
