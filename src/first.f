@@ -434,7 +434,7 @@ C  Born case. The units are Rydbergs.
       endif
       if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10) then
          it = 1
-         if (itail.eq.-1) it = 2
+         if (itail.lt.0) it = 2
          call maketail(itail,ctemp(nchf),chil(1,npk(nchi),it),
      >      minchil(npk(nchi),it),gk(1,nchi),phasei,li,nqmi,
      >      chil(1,npk(nchf),it),minchil(npk(nchf),it),gk(1,nchf),phasef

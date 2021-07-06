@@ -276,10 +276,12 @@ c$$$     >      cwork,lwork,rwork,bwork,info)
 c$$$         if (info.ne.0) print*,'INFO from CGEES:',info
 C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
-            esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
-            esum2 = esum2 +
-     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+            if (abs(eigv(nch)).gt.0.0) then
+               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
+               esum2 = esum2 +
+     >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
 c$$$            esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+            endif
          enddo
          esum(ns) = esum2
          nchi = 0
@@ -3516,9 +3518,9 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       enddo
       trat = 1.0
       if (itail.lt.0) then
-         trat = 5.0 !gk(1,1)/qcut*rmesh(meshr,1)
-         print'("tail integral Rmax, Rtail, ratio:",3f6.1)',
-     >      rmesh(meshr,1),rmesh(meshr,1)/trat,trat
+         trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
+         print'("Rtail, max ktail:",2f6.1)',
+     >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*rmesh(meshr,1)/trat
       endif 
 
       do nch = 1, nchtop
@@ -4030,7 +4032,7 @@ c$$$                  utemp(i) = - nze * (- zasym * 2.0/rmesh(i,1))
                   endif
                   temp(:)=0d0
 
-                  if (itail.lt.0.or.nze.eq.1.and.lptop.ge.0) then ! for positrons or analytic tail integrals need projections
+                  if (itail.lt.0.or.(nze.eq.1.and.lptop.ge.0)) then ! for positrons or analytic tail integrals need projections
                      call regular(l,erydout(k),eta,vnucl,
      >                  cntfug(1,l),ldw,rmesh,meshr,jdouble,id,
      >                  regcut,expcut,temp,j1,j2,phase,sig)
@@ -4055,7 +4057,7 @@ c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                         end do
                         minchil(kp,2) = meshr
                      endif 
-                     if (entail.lt.qcut**2*2.0.and.itail.lt.0) then
+                     if (entail.lt.qcut**2*1.1.and.itail.lt.0) then
                         call regular(l,entail,eta,utemp,cntfug(1,l),
      >                     ldw,rmesh,meshr,jdouble,id,regcut,expcut,
      >                     temp,minchil(kp,2),j2,phase,sig)

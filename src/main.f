@@ -34,7 +34,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       complex*16 coulphase
       complex vmatop(kmax,kmax,0:nchanop,nchanop)
       pointer (ptrvopt,vmatop)
-      include 'par.for'
+!      include 'par.for'
       real*8 ffgg, factl, api, x2, w2, res, gamx, rylm, cknd, rlambda,
      >   Z, deta
       common /Zatom/ Z

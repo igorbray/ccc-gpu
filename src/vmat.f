@@ -1378,7 +1378,7 @@ c$$$      ch(i)=char(i+ichar('0'))
 c$$$      vmatt(:,:) = 0.0
 !      if (itail.eq.0.or.ctemp.eq.0.0) return !.or.ltmin.ne.1) return
 
-      if (itail.eq.-1) then
+      if (itail.lt.0) then
          lt = ltmin
          const = ctemp * (trat / rmesh(meshr,1))**lt
          do ki = 1, nqmi
@@ -1417,10 +1417,13 @@ c$$$      if (itail.lt.0.and.ltmin.le.-itail) then
          lm = lt
          IZR = 0
          IONE = 1
-         RT10 = SQRT(10.0D0)
+         scale = 1d3
+!         RT10 = SQRT(10.0D0)
+         RT10 = SQRT(scale)
          T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
      >      *GAMX(IONE,L2-L1+LM+1))
-         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
+!         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
+         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(scale**LM))
          S3 = RT10**(L2-L1-LM-1)
          T3 = (GAMX(IZR,L1+L2+2-LM)*S3)/GAMX(IZR,2*L1+3)
          S4 = RT10**(L1-L2-LM-1)
@@ -1475,7 +1478,7 @@ c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
 C  Have not got the following t work for rk2=0.0
                if (rk2.lt.0.0) cycle
 c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
-               it = it + 1
+c$$$               it = it + 1
                ztormax = 0.0
                if (n.gt.0) ztormax =
      >              dot_product(chif(mini:meshr,kf),temp(mini:meshr))
@@ -1494,6 +1497,8 @@ C
                TK = (RK1/RK2) - 1.0D0
                IF((ABS(TK).LT.1.0D-8)) THEN
                   YINF = ((RK1*0.5D0)**LM)*T1*T2
+c$$$                  print*,'yinf,rk1,lm,t1,t2',
+c$$$     >                 yinf,rk1,lm,t1,t2
 C
 C ****  NEXT CASES, RK1 < RK2  OR RK1 > RK2
 C
@@ -1513,6 +1518,8 @@ C
                         NTERM = -1
                         F21 = FDHY(WA,WB,WC,NTERM,ARGF)
                         YINF = F21*VK*TK11*T3/(T5*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T3,T5,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T3,T5,TWOL
                         if (rk1.eq.0.0) YINF = F21*VK*T3/(T5*TWOL)
                      ELSE
                         ARGF = 1.0D0 - TK*TK
@@ -1526,6 +1533,8 @@ C
                         VC = DBLE(LM)
                         F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T3*T10)
                         YINF = TK11*VK*T3*(F2X - F2Y)/(TWOL*T5)
+c$$$                        print*,'YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5',
+c$$$     >                       YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5
                      END IF
 C     
 C     ****  RK2 < RK1
@@ -1541,6 +1550,8 @@ C
                         NTERM = -1
                         F21 = FDHY(WA,WB,WC,NTERM,ARGF)
                         YINF = F21*VK*TK11*T4/(T6*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T4,T6,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T4,T6,TWOL
                         if (rk2.eq.0.0) YINF = F21*VK*T4/(T6*TWOL)
 c$$$                        if (nchf.eq.6.and.nchi.eq.2.and.ki.eq.1)
 c$$$     >                       print*,'kf,argf,xrt,yinf-ztormax:',
@@ -1557,6 +1568,8 @@ c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
                         VC = DBLE(LM)
                         F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T4*T11)
                         YINF = TK11*VK*T4*(F2X - F2Y)/(TWOL*T6)
+c$$$                        print*,'YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6',
+c$$$     >                       YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6
 c$$$                        print*,'kf,argf,xrt,yinf-ztormax:',
 c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
                      END IF
@@ -1579,8 +1592,8 @@ c$$$                     tail(kf,ki) = (YINF - ztormax
      >              ) * ctemp
 c$$$                     if (abs((YINF-ztormax)/(YINF+ztormax+1e-20)).lt.
 c$$$     >                  1e-4) tail(kf,ki) = 0d0
-c$$$     >                  print*,'lt,rk1,rk2,yinf,ztormax:',
-c$$$     >                  lt,rk1,rk2,yinf,ztormax
+c$$$               print*,'lt,rk1,rk2,yinf,ztormax,ctemp:',
+c$$$     >              lt,rk1,rk2,yinf,ztormax,ctemp
             enddo
          enddo
       endif

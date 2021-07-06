@@ -657,7 +657,7 @@ c$$$            endif
 
       function coulrho(l,seta,ecmn,x,acc)
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       parameter (nmax=1000)
       implicit real*8 (a-h,o-z)
       real seta, ecmn, x, coulrho, acc
