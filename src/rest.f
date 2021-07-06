@@ -3520,7 +3520,7 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       if (itail.lt.0) then
          trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
          print'("Rtail, max ktail:",2f6.1)',
-     >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*rmesh(meshr,1)/trat
+     >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
       do nch = 1, nchtop
