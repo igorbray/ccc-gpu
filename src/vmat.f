@@ -308,8 +308,8 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end do
       nchpmax = nchp
       if (np(1).eq.0) then
-         call reorderstates(states,nchpmax)
          print*,' reordering in getchinfo with NCHPMAX:',nchpmax
+         call reorderstates(states,nchpmax,lptop.ge.0)
       endif 
       else ! not first_time
          if (nch.eq.0) stop 'nch = 0 in getchinfo'
@@ -339,9 +339,9 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       return
       end
 
-      subroutine reorderstates(states,nchpmax)
+      subroutine reorderstates(states,nchpmax,ps)
       include 'par.f'
-      logical swapped
+      logical swapped,ps
       type state
          real radial(maxr), energy
          integer na, la, maxpsi, lapar
@@ -349,19 +349,40 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end type state
       type(state) states(knm), staten
 
+      if (ps) then
+         nstart = 3
+      else
+         nstart = 2
+      endif
       swapped = .true.
       do while (swapped)
          swapped = .false.
-         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
-            if (e1.gt.e2*0.99999.or.
-     >         (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
-     >              states(n-1)%la.gt.states(n)%la)) then
+            if (e1.gt.e2) then
                swapped = .true.
-c$$$               print*,'swapping:',n-1,n,
-c$$$     >              states(n-1)%energy,states(n)%energy
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
+               staten = states(n-1)
+               states(n-1) = states(n)
+               states(n) = staten
+            endif
+         enddo
+      enddo 
+      swapped = .true.
+      do while (swapped)
+         swapped = .false.
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
+            e1 = states(n-1)%energy
+            e2 = states(n)%energy
+            if (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
+     >         states(n-1)%la.gt.states(n)%la) then
+               swapped = .true.
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
                staten = states(n-1)
                states(n-1) = states(n)
                states(n) = staten
@@ -370,7 +391,7 @@ c$$$     >              states(n-1)%energy,states(n)%energy
       enddo 
       return
       end
-      
+ 
       subroutine makev1e(nqmi,psii,maxpsii,ei,lia,li,
      >   chii,minchii,gki,ni,etot,thetain,ne2e,
      >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,gkf,nf,
@@ -384,8 +405,8 @@ c$$$     >              states(n-1)%energy,states(n)%energy
       dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
      >          npk(nchan+1)
 !      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1),ve2e(nf,ni), temp(maxr),
-     >   ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1),ve2e(nf,ni), 
+     >   temp(maxr), ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
@@ -822,10 +843,15 @@ c$$$      close(42)
       mini1 = mini
 C put IF statement as chil(,,2) may not be allocated, but see below
       tail(:,:) = 0.0
-      if (itail.ne.0)
-     >call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
+      if (itail.eq.-1) then
+      call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
      >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),2),minchil(npk(nchf),2)
-     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+      elseif (itail.eq.1) then
+      call maketail(itail,ctemp,chil(1,npk(nchi),1),minchil(npk(nchi),1)
+     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),1),minchil(npk(nchf),1)
+     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+      endif
 c$$$      call maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
 c$$$     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
 
@@ -1341,8 +1367,8 @@ c$$$      use gf_module
       implicit double precision (a-h,o-z)
       common/meshrr/ meshr,rmesh(maxr,3)
       common/matchph/rphase(kmax,nchan),trat
-      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmi),chii(meshr,nqmi),r,
-     >   chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
+      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmfmax),chii(meshr,nqmi),r
+     >   ,chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
       integer minchii(nqmi),minchif(nqmf)
       complex phasei(kmax),phasef(kmax)
       data pi,small/3.141592653589793238,0.001/
@@ -1352,24 +1378,25 @@ c$$$      ch(i)=char(i+ichar('0'))
 c$$$      vmatt(:,:) = 0.0
 !      if (itail.eq.0.or.ctemp.eq.0.0) return !.or.ltmin.ne.1) return
 
-      lt = ltmin
-      const = ctemp * (trat / rmesh(meshr,1))**lt
-      do ki = 1, nqmi
-         rk1 = gki(ki)
-         if (rk1.lt.0.0) cycle
-         do i = minchii(ki), meshr
-            temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
-         enddo 
-         do kf = 1, nqmf
-            mini = max(minchii(ki), minchif(kf))
-            n = meshr - mini + 1
-            rk2 = gkf(kf)
-            if (rk2.lt.0.0) cycle
-            vmatt(kf,ki) = const *
-     >         dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+      if (itail.lt.0) then
+         lt = ltmin
+         const = ctemp * (trat / rmesh(meshr,1))**lt
+         do ki = 1, nqmi
+            rk1 = gki(ki)
+            if (rk1.lt.0.0) cycle
+            do i = minchii(ki), meshr
+               temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
+            enddo 
+            do kf = 1, nqmf
+               mini = max(minchii(ki), minchif(kf))
+c$$$               n = meshr - mini + 1
+               rk2 = gkf(kf)
+               if (rk2.lt.0.0) cycle
+               vmatt(kf,ki) = const *
+     >              dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+            enddo
          enddo
-      enddo
-
+      elseif (itail.eq.1) then
 c$$$      if (itail.ge.0.or.ctemp.eq.0.0.or.phasei(1).ne.(1.0,0.0).
 c$$$     >   or.phasef(1).ne.(1.0,0.0)) return
 c$$$
@@ -1377,179 +1404,199 @@ c$$$c$$$      analytic = nanalytic.le.-2.and.gki(1).ge.0.0.and.gkf(1).ge.0.0
 c$$$c$$$      inquire(FILE="analytic",EXIST=analytic)
 c$$$c$$$      if (analytic) print*,'tail integrals only for onshell points'
 c$$$
-c$$$      r = rmesh(meshr,1)
+         r = rmesh(meshr,1)
 c$$$      if (itail.lt.0.and.ltmin.le.-itail) then 
-c$$$         if (mod(li+lf,2).eq.0) then
-c$$$            lt = 2
-c$$$         else
-c$$$            lt = 1
-c$$$         endif
-c$$$         lt = ltmin !need to modify He code for ltmin
-c$$$         l1 = li
-c$$$         l2 = lf
-c$$$         lm = lt
-c$$$         IZR = 0
-c$$$         IONE = 1
-c$$$         RT10 = SQRT(10.0D0)
-c$$$         T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
-c$$$     >      *GAMX(IONE,L2-L1+LM+1))
-c$$$         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
-c$$$         S3 = RT10**(L2-L1-LM-1)
-c$$$         T3 = (GAMX(IZR,L1+L2+2-LM)*S3)/GAMX(IZR,2*L1+3)
-c$$$         S4 = RT10**(L1-L2-LM-1)
-c$$$         T4 = (GAMX(IZR,L1+L2+2-LM)*S4)/GAMX(IZR,2*L2+3)
-c$$$         T5 = GAMX(IONE,L2-L1+LM+1)
-c$$$         T6 = GAMX(IONE,L1-L2+LM+1)
-c$$$         T7 = GAMX(IONE,2*LM)
-c$$$         S8 = RT10**(L1-L2-LM+1)
-c$$$         T8 = S8*GAMX(IZR,2*L1+3)/GAMX(IZR,L1+L2+LM+2)
-c$$$         T8 = T8/GAMX(IONE,L1-L2+LM+1)
-c$$$         S9 = RT10**(L2-L1-LM+1)
-c$$$         T9 = S9*GAMX(IZR,2*L2+3)/GAMX(IZR,L1+L2+LM+2)
-c$$$         T9 = T9/GAMX(IONE,L2-L1+LM+1)
-c$$$         T10 = GAMX(IONE,L1-L2-LM+1)
-c$$$         T11 = GAMX(IONE,L2-L1-LM+1)
-c$$$         TWOL = DBLE(2**LM)
-c$$$
-c$$$c$$$         open(42,file='chif'//ch(lf))
-c$$$c$$$         write(42,'("#           ",200i12)') (minchif(k),k=1,nqmf)
-c$$$c$$$         do i = 1, meshr
-c$$$c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3)
-c$$$c$$$C     >         ,k=1,nqmf)
-c$$$c$$$     >            /rmesh(i,1)**(lt+1),k=1,nqmf)
-c$$$c$$$         enddo
-c$$$c$$$         close(42)
-c$$$         
-c$$$c$$$         open(42,file='chif'//ch(lf))
-c$$$c$$$         write(42,'("#           ",200i12)') lf,(minchif(k),k=1,1)
-c$$$c$$$         do i = 1, meshr
-c$$$c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3),
-c$$$c$$$     >         sin(gkf(k)*rmesh(i,1)+lf*pi/2d0*(-1)**lf),k=1,1)
-c$$$c$$$         enddo
-c$$$c$$$         close(42)
-c$$$         do ki = 1, nqmi
-c$$$            rk1 = gki(ki)
-c$$$C  Have not got the following t work for rk1=0.0
-c$$$            if (rk1.gt.0.0.and.abs(aimag(phasei(ki))).le.small) then
-c$$$c$$$               n1 = rk1*rmesh(meshr,1)/2d0/pi
-c$$$c$$$               d =  rk1*rmesh(meshr,1) - 2d0*n1*pi 
-c$$$c$$$               phi1 = asin(chii(meshr,ki)/rmesh(meshr,3))
-c$$$c$$$     >            - d
-c$$$c$$$               print*,'li,rki,phii,sin(kr),chii:',li,rk1,phi1,
-c$$$c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
-c$$$               do i = minchii(ki), meshr
-c$$$                  temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
-c$$$               enddo 
-c$$$               do kf = 1, nqmf
-c$$$                  mini = max(minchii(ki), minchif(kf))
-c$$$                  n = meshr - mini + 1
-c$$$                  rk2 = gkf(kf)
-c$$$C  Have not got the following t work for rk2=0.0
-c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
-c$$$                     it = it + 1
-c$$$                     ztormax = 0.0
-c$$$                     if (n.gt.0) ztormax =
-c$$$     >               dot_product(chif(mini:meshr,kf),temp(mini:meshr))
-c$$$c$$$     >                  ddot(n,chif(mini,kf),1,temp(mini),1)
-c$$$C
-c$$$C ****  THIS SECTION EVALUATES THE DEFINITE INTEGRAL FROM
-c$$$C ****  ZERO TO INFINITY. TWO DIFFERENT REPRESENTATIONS OF
-c$$$C ****  THE HYPERGEOMETRIC FUNCTION ARE USED TO SPEED UP
-c$$$C ****  THE CALCULATIONS. THE HYPERGEOMETRIC SERIES IS
-c$$$C ****  NOTORIOUSLY SLOW TO CONVERGE WHEN THE ARGUMENT IS
-c$$$C ****  CLOSE TO ONE.
-c$$$                     XRT = MAX(0.85D0,1.0D0-1.0D0/DBLE(L1+L2+1))
-c$$$C
-c$$$C ****  FIRST SPECIAL CASE, RK1 = RK2
-c$$$C
-c$$$                     TK = (RK1/RK2) - 1.0D0
-c$$$                     IF((ABS(TK).LT.1.0D-8)) THEN
-c$$$                        YINF = ((RK1*0.5D0)**LM)*T1*T2
-c$$$C
-c$$$C ****  NEXT CASES, RK1 < RK2  OR RK1 > RK2
-c$$$C
-c$$$                     ELSE
-c$$$C
-c$$$C ****  RK1 < RK2
-c$$$C
-c$$$                        WA = 0.5D0*DBLE(L1+L2+2-LM)
-c$$$                        IF(RK1.LT.RK2) THEN
-c$$$                           TK = RK1/RK2
-c$$$                           ARGF = TK*TK
-c$$$                           TK11 = (TK**(L1+1))
-c$$$                           VK = RK2**LM
-c$$$                           IF(ARGF.LE.XRT) THEN
-c$$$                              WB = 0.5D0*DBLE(L1-L2-LM+1)
-c$$$                              WC = 0.5D0*DBLE(2*L1+3)
-c$$$                              NTERM = -1
-c$$$                              F21 = FDHY(WA,WB,WC,NTERM,ARGF)
-c$$$                              YINF = F21*VK*TK11*T3/(T5*TWOL)
-c$$$                              if (rk1.eq.0.0) YINF = F21*VK*T3/(T5*TWOL)
-c$$$
-c$$$                           ELSE
-c$$$                              ARGF = 1.0D0 - TK*TK
-c$$$                              WL = (-ARGF)**LM
-c$$$                              NTERM = LM - 1
-c$$$                              UB = 0.5D0*DBLE(L1-L2-LM+1)
-c$$$                              UC = DBLE(1-LM)
-c$$$                              F2X = T7*T8*FDHY(WA,UB,UC,NTERM,ARGF)
-c$$$                              VA = 0.5D0*DBLE(L1+L2+LM+2)
-c$$$                              VB = 0.5D0*DBLE(L1-L2+LM+1)
-c$$$                              VC = DBLE(LM)
-c$$$                              F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T3*T10)
-c$$$                              YINF = TK11*VK*T3*(F2X - F2Y)/(TWOL*T5)
-c$$$                           END IF
-c$$$C     
-c$$$C     ****  RK2 < RK1
-c$$$C
-c$$$                        ELSE
-c$$$                           TK = RK2/RK1
-c$$$                           ARGF = TK*TK
-c$$$                           TK11 = (TK**(L2+1))
-c$$$                           VK = RK1**LM
-c$$$                           IF(ARGF.LE.XRT) THEN
-c$$$                              WB = 0.5D0*DBLE(L2-L1-LM+1)
-c$$$                              WC = 0.5D0*DBLE(2*L2+3)
-c$$$                              NTERM = -1
-c$$$                              F21 = FDHY(WA,WB,WC,NTERM,ARGF)
-c$$$                              YINF = F21*VK*TK11*T4/(T6*TWOL)
-c$$$                              if (rk2.eq.0.0) YINF = F21*VK*T4/(T6*TWOL)
-c$$$                           ELSE
-c$$$                              ARGF = 1.0D0 - TK*TK
-c$$$                              WL = (-ARGF)**LM
-c$$$                              NTERM = LM - 1
-c$$$                              UB = 0.5D0*DBLE(L2-L1-LM+1)
-c$$$                              UC = DBLE(1-LM)
-c$$$                              F2X = T7*T9*FDHY(WA,UB,UC,NTERM,ARGF)
-c$$$                              VA = 0.5D0*DBLE(L1+L2+LM+2)
-c$$$                              VB = 0.5D0*DBLE(L2-L1+LM+1)
-c$$$                              VC = DBLE(LM)
-c$$$                              F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T4*T11)
-c$$$                              YINF = TK11*VK*T4*(F2X - F2Y)/(TWOL*T6)
-c$$$                           END IF
-c$$$                        END IF
-c$$$                     END IF
-c$$$                     
-c$$$c$$$                     write(50+ki,'(1p,4e12.3)') rk1,rk2,yinf*ctemp,
-c$$$c$$$     >                  ztormax*ctemp
-c$$$c$$$                     if (kf.eq.nqmf) write(50+ki,*)
-c$$$                     
-c$$$                     yinf = yinf * pi / 2.0
-c$$$c$$$                     if (lt.eq.3.and.(li.eq.0.or.lf.eq.0))
-c$$$c$$$     >                  print*,'ztormax,yinf,rk1,rk2,li,lf,lt:',
-c$$$c$$$     >                  ztormax,yinf,rk1,rk2,li,lf,lt
-c$$$                     tail(kf,ki) = (YINF - ztormax
-c$$$     >                  *real(phasei(ki))*real(phasef(kf))
-c$$$     >                  ) * ctemp
-c$$$c$$$                     if (abs((YINF-ztormax)/(YINF+ztormax+1e-20)).lt.
-c$$$c$$$     >                  1e-4) tail(kf,ki) = 0d0
-c$$$c$$$     >                  print*,'lt,rk1,rk2,yinf,ztormax:',
-c$$$c$$$     >                  lt,rk1,rk2,yinf,ztormax
-c$$$                  endif ! end of if rkf > 0 loop
-c$$$               enddo
-c$$$            endif ! end of if rki > 0 loop
+         if (mod(li+lf,2).eq.0) then
+            lt = 2
+         else
+            lt = 1
+         endif
+         lt = ltmin !need to modify He code for ltmin
+         l1 = li
+         l2 = lf
+         lm = lt
+         IZR = 0
+         IONE = 1
+         scale = 1d3
+!         RT10 = SQRT(10.0D0)
+         RT10 = SQRT(scale)
+         T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
+     >      *GAMX(IONE,L2-L1+LM+1))
+!         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
+         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(scale**LM))
+         S3 = RT10**(L2-L1-LM-1)
+         T3 = (GAMX(IZR,L1+L2+2-LM)*S3)/GAMX(IZR,2*L1+3)
+         S4 = RT10**(L1-L2-LM-1)
+         T4 = (GAMX(IZR,L1+L2+2-LM)*S4)/GAMX(IZR,2*L2+3)
+         T5 = GAMX(IONE,L2-L1+LM+1)
+         T6 = GAMX(IONE,L1-L2+LM+1)
+         T7 = GAMX(IONE,2*LM)
+         S8 = RT10**(L1-L2-LM+1)
+         T8 = S8*GAMX(IZR,2*L1+3)/GAMX(IZR,L1+L2+LM+2)
+         T8 = T8/GAMX(IONE,L1-L2+LM+1)
+         S9 = RT10**(L2-L1-LM+1)
+         T9 = S9*GAMX(IZR,2*L2+3)/GAMX(IZR,L1+L2+LM+2)
+         T9 = T9/GAMX(IONE,L2-L1+LM+1)
+         T10 = GAMX(IONE,L1-L2-LM+1)
+         T11 = GAMX(IONE,L2-L1-LM+1)
+         TWOL = DBLE(2**LM)
+
+c$$$         open(42,file='chif'//ch(lf))
+c$$$         write(42,'("#           ",200i12)') (minchif(k),k=1,nqmf)
+c$$$         do i = 1, meshr
+c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3)
+c$$$C     >         ,k=1,nqmf)
+c$$$     >            /rmesh(i,1)**(lt+1),k=1,nqmf)
 c$$$         enddo
-c$$$      endif
+c$$$         close(42)
+         
+c$$$         open(42,file='chif'//ch(lf))
+c$$$         write(42,'("#           ",200i12)') lf,(minchif(k),k=1,1)
+c$$$         do i = 1, meshr
+c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3),
+c$$$     >         sin(gkf(k)*rmesh(i,1)+lf*pi/2d0*(-1)**lf),k=1,1)
+c$$$         enddo
+c$$$         close(42)
+         do ki = 1, nqmi
+            rk1 = gki(ki)
+C  Have not got the following t work for rk1=0.0
+            if (rk1.lt.0.0) cycle
+c$$$            if (rk1.gt.0.0.and.abs(aimag(phasei(ki))).le.small) then
+c$$$               n1 = rk1*rmesh(meshr,1)/2d0/pi
+c$$$               d =  rk1*rmesh(meshr,1) - 2d0*n1*pi 
+c$$$               phi1 = asin(chii(meshr,ki)/rmesh(meshr,3))
+c$$$     >            - d
+c$$$               print*,'li,rki,phii,sin(kr),chii:',li,rk1,phi1,
+c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
+            do i = minchii(ki), meshr
+               temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
+            enddo 
+            do kf = 1, nqmf
+               mini = max(minchii(ki), minchif(kf))
+               n = meshr - mini + 1
+               rk2 = gkf(kf)
+C  Have not got the following t work for rk2=0.0
+               if (rk2.lt.0.0) cycle
+c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
+c$$$               it = it + 1
+               ztormax = 0.0
+               if (n.gt.0) ztormax =
+     >              dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+c$$$     >                  ddot(n,chif(mini,kf),1,temp(mini),1)
+C
+C ****  THIS SECTION EVALUATES THE DEFINITE INTEGRAL FROM
+C ****  ZERO TO INFINITY. TWO DIFFERENT REPRESENTATIONS OF
+C ****  THE HYPERGEOMETRIC FUNCTION ARE USED TO SPEED UP
+C ****  THE CALCULATIONS. THE HYPERGEOMETRIC SERIES IS
+C ****  NOTORIOUSLY SLOW TO CONVERGE WHEN THE ARGUMENT IS
+C ****  CLOSE TO ONE.
+               XRT = MAX(0.85D0,1.0D0-1.0D0/DBLE(L1+L2+1))
+C
+C ****  FIRST SPECIAL CASE, RK1 = RK2
+C
+               TK = (RK1/RK2) - 1.0D0
+               IF((ABS(TK).LT.1.0D-8)) THEN
+                  YINF = ((RK1*0.5D0)**LM)*T1*T2
+c$$$                  print*,'yinf,rk1,lm,t1,t2',
+c$$$     >                 yinf,rk1,lm,t1,t2
+C
+C ****  NEXT CASES, RK1 < RK2  OR RK1 > RK2
+C
+               ELSE
+C
+C ****  RK1 < RK2
+C
+                  WA = 0.5D0*DBLE(L1+L2+2-LM)
+                  IF(RK1.LT.RK2) THEN
+                     TK = RK1/RK2
+                     ARGF = TK*TK
+                     TK11 = (TK**(L1+1))
+                     VK = RK2**LM
+                     IF(ARGF.LE.XRT) THEN
+                        WB = 0.5D0*DBLE(L1-L2-LM+1)
+                        WC = 0.5D0*DBLE(2*L1+3)
+                        NTERM = -1
+                        F21 = FDHY(WA,WB,WC,NTERM,ARGF)
+                        YINF = F21*VK*TK11*T3/(T5*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T3,T5,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T3,T5,TWOL
+                        if (rk1.eq.0.0) YINF = F21*VK*T3/(T5*TWOL)
+                     ELSE
+                        ARGF = 1.0D0 - TK*TK
+                        WL = (-ARGF)**LM
+                        NTERM = LM - 1
+                        UB = 0.5D0*DBLE(L1-L2-LM+1)
+                        UC = DBLE(1-LM)
+                        F2X = T7*T8*FDHY(WA,UB,UC,NTERM,ARGF)
+                        VA = 0.5D0*DBLE(L1+L2+LM+2)
+                        VB = 0.5D0*DBLE(L1-L2+LM+1)
+                        VC = DBLE(LM)
+                        F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T3*T10)
+                        YINF = TK11*VK*T3*(F2X - F2Y)/(TWOL*T5)
+c$$$                        print*,'YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5',
+c$$$     >                       YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5
+                     END IF
+C     
+C     ****  RK2 < RK1
+C
+                  ELSE
+                     TK = RK2/RK1
+                     ARGF = TK*TK
+                     TK11 = (TK**(L2+1))
+                     VK = RK1**LM
+                     IF(ARGF.LE.XRT) THEN
+                        WB = 0.5D0*DBLE(L2-L1-LM+1)
+                        WC = 0.5D0*DBLE(2*L2+3)
+                        NTERM = -1
+                        F21 = FDHY(WA,WB,WC,NTERM,ARGF)
+                        YINF = F21*VK*TK11*T4/(T6*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T4,T6,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T4,T6,TWOL
+                        if (rk2.eq.0.0) YINF = F21*VK*T4/(T6*TWOL)
+c$$$                        if (nchf.eq.6.and.nchi.eq.2.and.ki.eq.1)
+c$$$     >                       print*,'kf,argf,xrt,yinf-ztormax:',
+c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
+                     ELSE
+                        ARGF = 1.0D0 - TK*TK
+                        WL = (-ARGF)**LM
+                        NTERM = LM - 1
+                        UB = 0.5D0*DBLE(L2-L1-LM+1)
+                        UC = DBLE(1-LM)
+                        F2X = T7*T9*FDHY(WA,UB,UC,NTERM,ARGF)
+                        VA = 0.5D0*DBLE(L1+L2+LM+2)
+                        VB = 0.5D0*DBLE(L2-L1+LM+1)
+                        VC = DBLE(LM)
+                        F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T4*T11)
+                        YINF = TK11*VK*T4*(F2X - F2Y)/(TWOL*T6)
+c$$$                        print*,'YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6',
+c$$$     >                       YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6
+c$$$                        print*,'kf,argf,xrt,yinf-ztormax:',
+c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
+                     END IF
+                  END IF
+               endif
+c$$$                     write(50+ki,'(1p,4e12.3)') rk1,rk2,yinf*ctemp,
+c$$$     >                  ztormax*ctemp
+c$$$                     if (kf.eq.nqmf) write(50+ki,*)
+                     
+               yinf = yinf * pi / 2.0
+c$$$                     if (lt.eq.3.and.(li.eq.0.or.lf.eq.0))
+c$$$     >                  print*,'ztormax,yinf,rk1,rk2,li,lf,lt:',
+c$$$     >                  ztormax,yinf,rk1,rk2,li,lf,lt
+c$$$                     tail(kf,ki) = (YINF - ztormax
+!                     if (ki.eq.1.and.kf.eq.1) print*,
+!     >                    'yinf,ztormax,phasei,phasef,ctemp:',
+!     >                    yinf,ztormax,phasei(ki),phasef(kf),ctemp
+               vmatt(kf,ki) = (YINF - ztormax
+!     >                  *real(phasei(ki))*real(phasef(kf))
+     >              ) * ctemp
+c$$$                     if (abs((YINF-ztormax)/(YINF+ztormax+1e-20)).lt.
+c$$$     >                  1e-4) tail(kf,ki) = 0d0
+c$$$               print*,'lt,rk1,rk2,yinf,ztormax,ctemp:',
+c$$$     >              lt,rk1,rk2,yinf,ztormax,ctemp
+            enddo
+         enddo
+      endif
       
 c$$$      else if (itail.eq.-1) then
 c$$$         do ki = 1, nqmi
@@ -1630,7 +1677,7 @@ c$$$      logical analytic
 
 c$$$      analytic = lg.le.(-nqm-2) !Use NQM in ccc.in as a switch.
       nanalytic = nqm
-      nbox = 1
+c$$$      nbox = 1
 
 c$$$      inquire(FILE="analytic",EXIST=analytic)  
 c$$$
@@ -1707,7 +1754,7 @@ C     npoints, endk, npoints2, endk2, nendk, endp, midnp, width
       width = skor(4,lset,ispeed)
 c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
-      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
+c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
       if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
       usetrapz = nkor(4,lset,ispeed).lt.0
@@ -1747,7 +1794,7 @@ C Define the intervals and the number of points in each interval
 c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       call makeints(mint,sk,nk,rk,npoints,width,
      >   midnp,enk,nendk,endp,npoints2,endk2)
-      if (.not.analytic) then
+c$$$      if (.not.analytic) then
       if (midnp.lt.0) then
          dstop = 0d0
          do j=1,mint-1
@@ -1788,8 +1835,8 @@ c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       endif 
       if (width .le. 0.0.and.rk.lt.2.0*abs(width)) then
          print*,'WIDTH:', width
-         if (.not.analytic)
-     >      call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
+c$$$         if (.not.analytic)
+           call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
          sk(1) = endf
       endif 
       dstop = 0d0
@@ -2001,6 +2048,14 @@ C  Check that the integration rule will handle the principle value singularity
      >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,2i4,3i3,
      >      1p,e13.4,''    closed'')',chan(ntmp),nch,ntmp,na,la,li,e
       end if 
+      if (nch.eq.1.and.analytic) then
+         if (nqk.eq.-nanalytic) then
+            nbox = 0
+         else
+            nbox = 1
+         endif
+         print*,"NBOX:", nbox!, nqk, nanalytic
+      endif
       if (nqm.le.0.and.lg.le.1.and.ifirst.ne.0.and.hlike
      >   .and.theta.ne.0.0.and.nze.eq.-1.and.nodes.eq.1) then
          nchp = 1
@@ -2059,10 +2114,11 @@ C$OMP END PARALLEL DO
       endif 
 
  40   continue
-      else !analytic
-         nqk = -nqm - nbnd(lset) !nbnd get's added below
-         sum = 0.0
-      endif 
+!      else !analytic
+c$$$      if (analytic) then
+c$$$        nqk = -nqm - nbnd(lset) !nbnd get's added below
+c$$$         sum = 0.0
+c$$$      endif 
       do i = 1, nqk + 1
          kp = npk(nch) + i - 1
          if (i.eq.1) then
@@ -2114,6 +2170,11 @@ c$$$            wk(kp) = wk(kp) * cint(na-nnbtop)
 c$$$         endif 
       end do !nqk loop
 
+      if (analytic) then
+        nqk = -nqm - nbnd(lset) !nbnd get's added below
+         sum = 0.0
+      endif 
+
       if (lg.le.lprint) print*
       nchtop = nch
       if (nqm.gt.0) nqk = min(nqk,nqm-1)
@@ -2122,7 +2183,7 @@ c$$$         endif
          print*,'Channel, NQK+1, KMAX:',nch,nqk+1,kmax
          stop 'Increase KMAX'
       endif
-      print*,'NKQ:',nqk
+      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
       
       npk(nchtop+1) = npk(nchtop) + nqk + 1 
       ldumm = -1
@@ -2362,7 +2423,7 @@ C
 C     FG03A & FG03B - WIGNER 9-J SYMBOL
 C
 C
-      parameter (mmax=501)
+      parameter (mmax=1001)
       COMMON / CNJSAVE / H(mmax), J(mmax)
 c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)

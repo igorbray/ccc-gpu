@@ -34,7 +34,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       complex*16 coulphase
       complex vmatop(kmax,kmax,0:nchanop,nchanop)
       pointer (ptrvopt,vmatop)
-      include 'par.for'
+!      include 'par.for'
       real*8 ffgg, factl, api, x2, w2, res, gamx, rylm, cknd, rlambda,
      >   Z, deta
       common /Zatom/ Z
@@ -45,7 +45,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax),itail
-      integer nptopin(0:lamax),lnch(nchan,2)
+      integer nptopin(0:lamax),lnch(nchan,2),nchtime(nchan)
       common /worksp/
      >   ps2(maxr,ncmax),psen2(ncmax),minps2(ncmax),maxps2(ncmax)
       dimension minps(ncmax),npk(nchan+1),npkb(nchan+1),npkeep(nchan+1),
@@ -67,12 +67,12 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9
       character date*8,time*10,zone*5
       integer*8 npernode
-      integer valuesin(8), valuesout(8), inc(100,0:1), lgold(0:1),
-     >     valuesinLG(8)
-      integer lmatch(0:lamax), nopen(0:1), instate(100)
+      integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
+     >     valuesinLG(8),incold(1000,0:1),nodesold(0:1)
+      integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
@@ -234,9 +234,12 @@ C==== ANDREY ===================================================
       nspm = 0
       i_sw_ng = 0
 
-
+      lstoppos = -1
+      lptop = -1
       inc(:,:) = 0
+      incold(:,:) = 0
       lgold(:) = -1
+      nodesold(:)=-1
       myid = -1
       ntasks = 1
       nbnd0(:) = 0
@@ -257,7 +260,8 @@ c note: make these your first (or nearly so) executable statements
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, ntasks, ierr )
-      nomp = max(1,OMP_GET_MAX_THREADS())
+      nomporig = max(1,OMP_GET_MAX_THREADS())
+      nomp = 1 ! nomporig ! revert for many tasks per node, see same comment below and in redistribute.f
 c$$$      print*,'NUM_PROCESSES_PER_NODE:',NUM_PROCESSES_PER_NODE()
 c$$$      if (ntasks.ge.8.and.nomp.ne.8) stop 'ntasks.ge.8.and.nomp.ne.8'
       nodes = max(1, ntasks / nomp)
@@ -334,8 +338,8 @@ C
       cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
       write(ench,'(1p,"_",e10.4)') energy
       if (nodes.eq.1) cnode = ''
-      print*, 'nomp, nodes, myid and nodeid are:',
-     >   nomp,nodes,myid, cnode
+      print*, 'nomporig, nodes, myid and nodeid are:',
+     >   nomporig,nodes,myid,nodeid
 
 c
       call date_and_time(date,time,zone,valuesin)
@@ -530,49 +534,54 @@ C  Make the core states
          call makecorepsi(nznuc,zasym,ry,corep(0),r0(0))
 C  Get the direct core potential.
          call makevdcore(temp,minvdc,maxvdc,nznuc,uplane)
+         print*,'MAXVDC, MESHR:',maxvdc,meshr
+         temp(maxvdc+1:meshr) = 0.0
            
 C ANDREY: for pos-alkali and el-alkali without exchange
        ! if (alkali.or.ntype.eq.-3) then
          if (ntype.eq.-3) then
             if(i_sw_ng .eq. 0) then ! not noble gas   ! DFursa
-            if (nznuc.eq.3) then
+               if (nznuc.eq.3) then
                                 !     E_2s (eV)
 C                               !-------------------------------
-               epar = -0.3064   ! -5.34156764 HF-calculation
-               epar = -0.3831   ! -5.39206788 experimental value 
-            else if (nznuc.eq.11) then               
-                                ! epar = -0.26405341010256356 ! 
-               epar = 0.0282819 ! E_3s = -5.139 eV
-            else if (nznuc.eq.19) then               
-               epar=-0.14238185 ! K: E_4s = -4.341 eV   
-            else
-               if (nznuc.eq.12) then
-                  epar = 0.681008
-               else
-                  print*, 'main: *** warning *** : specify epar'
-                  print*, 'main: target structure may be inaccurate'                  
-                  epar = 0.0
-                  stop
+                  epar = -0.3064 ! -5.34156764 HF-calculation
+                  epar = -0.3831 ! -5.39206788 experimental value 
+               else if (nznuc.eq.11) then               
+!     epar = -0.26405341010256356 ! 
+                  epar = 0.0282819 ! E_3s = -5.139 eV
+               else if (nznuc.eq.19) then               
+                  epar=-0.14238185 ! K: E_4s = -4.341 eV   
+               else if (nznuc.eq.37) then
+                  epar=3.5      !in Ryd ==  Rb: E_5s = -4.177 eV
+               else if (nznuc.eq.55) then
+                  epar=-0.14    ! Cs: E_6s = -3.894 eV
+               else 
+                  if (nznuc.eq.12) then
+                     epar = 0.681008
+                  else 
+                     print*, 'main: *** warning *** : specify epar'
+                     print*, 'main: target structure may be inaccurate' 
+                     epar = 0.0
+                     stop
+                  end if
                end if
-            end if
-            else                   ! noble gas
+            else                ! noble gas
                if(nznuc.eq.10) then ! Ne
-                  epar = -0.1 ! not used (DF)
+                  epar = -0.1   ! not used (DF)
                endif
             endif
          end if
 
 C RAV-----------         
          if (helike) then
-               if (nznuc.eq.12) then
-                  epar = 0.681008
-               else
-                  print*, 'main: *** warning *** : specify epar'
-                  print*, 'main: target structure may be inaccurate'     
-     
-                 epar = 0.0
-                 stop
-               end if                   
+            if (nznuc.eq.12) then
+               epar = 0.681008
+            else
+               print*, 'main: *** warning *** : specify epar'
+               print*, 'main: target structure may be inaccurate'     
+               epar = 0.0
+               stop
+            end if                   
          end if
 
 
@@ -1285,9 +1294,9 @@ c$$$                  endif
       enddo 
 
 * Alisher's addendum
-      if (nze.eq.1.and.LPTOP.ge.LPBOT) then
+      if (nze.eq.1.and.LPTOP.ge.LPBOT.and.lstart.le.lstoppos) then
 * forms Qlarray with Leg.functions of the 2nd kind
-         call Qltable(min(lstop+latop,lstoppos,ltmax),igz,igp)         
+         call Qltable(min(lstop+2*latop+1,lstoppos+2*latop+1),igz,igp)         
 c$$$         call Qltable(lstop+latop,igz,igp)         
       endif                
 
@@ -1525,8 +1534,9 @@ c$$$     >         ch(mylstart)//ench
 c$$$            csfile = '/u/igor/potls/totalcs'//ench
 c$$$         endif 
          if (myid.eq.0) then
+         ipstart = 0
          call pwrite(nent,instate,nopen,energy,nznuc,zasym,ry,noprint,
-     >      ovlp,ovlpn,phasen,phaseq,mylstart,lstop,projectile,
+     >      ovlp,ovlpn,phasen,phaseq,mylstart,ipstart,lstop,projectile,
      >      target,nsmax,nchimax,nchanmax,abs(npar),hlike,
      >      nunit,vdcore_pr,minvdc,maxvdc,abs(ne2e),slowery,iborn,
      >      BornICS,tfile,abs(nnbtop),ovlpnl,ovlpnn)
@@ -1764,6 +1774,7 @@ c$$$  call egrid(npotgf,etot)
       endif ! mod(myid,nomp).eq.0
 
       call mpi_bcast(mylstart,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+      call mpi_bcast(ipstart, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(mylstop, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(iparmin, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(npar,    1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -1776,7 +1787,7 @@ C     Start the partial wave LG (=J total orbital angular momentum) loop
      >           LG,time
          endif
          do ipar = iparmin, min(abs(npar),lg)
-
+            if (lg.eq.mylstart.and.ipar.lt.ipstart) cycle !allow restart for ip=1
             if (mod(myid,nomp).eq.0) then
                nodeid = myid/nomp + 1
          nchtope2e = 0
@@ -2254,14 +2265,14 @@ c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
                const = 1.0 
-               if (pos(nchf).neqv.pos(nchi)) const = 10.0
+               if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
-     >              2.0**lnch(nchf,1)*2.0**lnch(nchi,1)*
+     >              1.6**lnch(nchf,1)*1.6**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
-     >              (npk(2)-npk(1))**2/
-     >              1.2**abs(lnch(nchi,2)-lg)/1.2**abs(lnch(nchf,2)-lg)
+     >              (npk(2)-npk(1))**2
+c$$$     >           /1.15**abs(lnch(nchi,2)-lg)/1.15**abs(lnch(nchf,2)-lg)
 c$$$               endif
             enddo
          enddo
@@ -2304,10 +2315,12 @@ C Determine nchistart and nchistop for each node
             nchistart(1) = 1
             ! made nodes.ge.1 below due to inefficiency with many Ps-states
 !            if (natompstot.eq.0.or.nodes.ge.1.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
+c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
             if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
                do nn = 1, nodes-1
+                  print*,'nn,nchprspernode:',nn,nchprspernode
                   nchistop(nn) = nchistart(nn)
-                  do while(nchprs(nchistart(nn),nchistop(nn),nchtop).lt.
+                  do while(nchprs(nchistart(nn),nchistop(nn),nchtop).le.
      >               nchprspernode) !was .le., but problems for many Ps states
                      nchistop(nn) = nchistop(nn) + 1
                   enddo
@@ -2343,6 +2356,14 @@ C Determine nchistart and nchistop for each node
      >               nn,nchistart(nn), natompsnode(nn), natompspernode,
      >               natompsc, natompstot
                enddo
+               nn = nodes
+               natompsnode(nn) = natompstot - natompsc
+               nchistop(nodes) = nchtop
+               if (nodeid.eq.1)
+     >            print"('nn,nchistart,natompsnode,natompspernode,',                                                                                                   
+     >               'natompsc,natompstot:',i3,i5,4i9)",
+     >               nn,nchistart(nn), natompsnode(nn),natompspernode,
+     >               natompstot, natompstot
 c$$$               if (natompsnode(nodes-1).lt.natompsnode(1)) then
 c$$$                  nchistop(nodes-1) = nchistart(nodes)
 c$$$                  nchistart(nodes) = nchistart(nodes) + 1
@@ -2355,15 +2376,15 @@ c$$$                     nchistop(nodes-1) = nchistop(nodes-1) + 1
 c$$$                     nchistart(nodes) = nchistart(nodes) + 1
 c$$$                  endif 
 c$$$               endif
-               nchistop(nodes) = nchtop
-               do nn = 1, nodes
-                  if (nodeid.eq.1) then
-                     print"('nodeid,nchistart,nchistop,nchtop',4i5)",
-     >               nn,nchistart(nn), nchistop(nn), nchtop
-                     if (nchistart(nn).gt.nchtop) stop'nchistart>nchtop'
-                  endif 
-               enddo                  
+c$$$               do nn = 1, nodes
+c$$$                  if (nodeid.eq.1) then
+c$$$                     print"('nodeid,nchistart,nchistop,nchtop',4i5)",
+c$$$     >               nn,nchistart(nn), nchistop(nn), nchtop
+c$$$                     if (nchistart(nn).gt.nchtop) stop'nchistart>nchtop'
+c$$$                  endif 
+c$$$               enddo                  
             endif 
+                  
             tscale(:) = 1.0
             tave(:)= 0.0
             tscale(nodes) = sfactor
@@ -2376,16 +2397,18 @@ c$$$               endif
                   open(42,file='time_all')
                endif 
                ntime(:,:) = 0
- 10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),ntime(n,ip),
-     >            nchistartold(n,ip),nchistopold(n,ip)
+               ip = 0
+ 10            read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
+     >            ntime(n,ip),nchistartold(n,ip),nchistopold(n,ip)
                lgold(ip) = lgp
-               nodesold = n ! nodesold + 1
-c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
-               go to 10 !ensures read of last LG entry
+               nodesold(ip) = n ! nodesold + 1
+               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
+c$$$               go to 10 !ensures read of last LG entry
  20            continue 
                close(42)
                print*,'Last LG read in time file:',lgold(ipar)
-               if (nodesold.eq.nodes.and.ntime(1,ipar).gt.0) then
+               if (nchistopold(nodesold(ip),ip).ne.nchtop) inc(:,:)=0  !reset to zero as sometimes non-zero for repeated low LG
+               if (nodesold(ipar).eq.nodes.and.ntime(1,ipar).gt.0) then
                   ntimemin=10000000
                   ntimemax=0
                   ntimetot = 0
@@ -2402,9 +2425,104 @@ c$$$               if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
                   enddo
                   tave(ipar) = float(ntimetot)/nodes
                   diffp = (ntimemax-ntimemin)/tave(ipar)
-                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
-     >                 diffp
+c$$$                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
+c$$$     >                 diffp
 c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
+
+            n = 1
+            if (lgold(ipar).lt.10) then
+               write(nodetfile,'(i3,"_",i1,"_",i1)') n,lgold(ipar),ipar
+            elseif (lgold(ipar).lt.100) then
+               write(nodetfile,'(i3,"_",i2,"_",i1)') n,lgold(ipar),ipar
+            else
+               write(nodetfile,'(i3,"_",i3,"_",i1)') n,lgold(ipar),ipar
+            endif
+            inquire(file=nodetfile,exist=exists)
+            nchtimetot = 0
+            do while (exists)
+               open(42,file=nodetfile)
+               nchistartold(n,ipar) = 10000000
+               nchistopold(n,ipar) = 0
+ 13            read(42,'(i5,9x,i6)',end=14) nch,nchtime(nch)
+               nchtimetot = nchtimetot + nchtime(nch)
+               if (nch.lt.nchistartold(n,ipar)) nchistartold(n,ipar)=nch
+               if (nch.gt.nchistopold(n,ipar)) nchistopold(n,ipar)=nch
+               goto 13
+ 14            close(42)
+               n = n + 1
+               if (lgold(ipar).lt.10) then
+                  write(nodetfile,'(i3,"_",i1,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               elseif (lgold(ipar).lt.100) then
+                  write(nodetfile,'(i3,"_",i2,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               else
+                  write(nodetfile,'(i3,"_",i3,"_",i1)') 
+     >                 n,lgold(ipar),ipar
+               endif
+               inquire(file=nodetfile,exist=exists)
+            enddo
+            nodesprev = n - 1
+            if (nodesprev.gt.1.and.
+     >         nchistopold(nodesprev,ipar).eq.nchistop(nodes)) then
+               tave(ipar) = float(nchtimetot)/float(nodesprev)
+               if (myid.le.0) print'(
+     >            "LGold,ipar,prev nodes,nchtimetot,ntmax,tave:",6i6)',
+     >            lgold(ipar),ipar,nodesprev,nchtimetot,
+     >              ntimemax,nint(tave(ipar))
+               nt = 0
+               n = 1
+               nch = 1
+               nistart = 1
+               incsum = 0
+               nodettot = 0 !tot node time before the current node
+               nodetmax = 0 !max node time
+               do n = 1, nodesprev - 1
+                  nch = nistart
+                  nodet = nchtime(nistart) !current node time
+c$$$                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
+                  do while (nodet+nodettot.lt.n*tave(ipar).and.
+     >                 nodet.lt.tave(ipar)*1.4)
+                     nodetprev = nodet
+                     nch = nch + 1
+                     nodet = nodet + nchtime(nch)
+                  enddo
+c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
+                  if (nodet+nodettot-n*tave(ipar).gt.
+     >                 n*tave(ipar)-nodetprev-nodettot
+     >                 .or.nodet.gt.tave(ipar)*1.4) then
+                     if (nch.gt.nistart) then
+                        nch = nch - 1
+                        nodet = nodetprev
+                     endif
+                  endif
+                  if (nodet.gt.nodetmax) nodetmax = nodet
+                  nodettot = nodettot + nodet
+                  nistop = nch !max(nistart,nch)
+                  incold(n,ipar) = nistop-nistart-
+     >                 (nchistopold(n,ipar)-nchistartold(n,ipar))
+                  if (nchistopold(nodesprev,ipar).eq.nchistop(nodes))
+     >                 incold(n,ipar)=nistop-nistart-
+     >                 (nchistop(n)-nchistart(n))-inc(n,ipar)
+                  nistart = nistop + 1 !nch
+                  if (myid.le.0) print'(
+     >            "LG,ipar,nodeid,inc,nistop,nodet,nodettot,ntave:",
+     >                 8i6)', lg,ipar,n,incold(n,ipar),
+     >                 nistop,nodet,nodettot,nint(n*tave(ipar))
+                  incsum = incsum + incold(n,ipar)
+c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
+c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
+               enddo
+               nodet = nchtimetot - nodettot
+               if (nodet.gt.nodetmax) nodetmax = nodet
+               neff = nint(100.0*nchtimetot/nodetmax/nodesprev)
+               n = nodesprev
+               nistop = nchistopold(n,ipar)
+               if (myid.le.0)
+     >            print'("LG,ipar,nodeid,inc,nistop,nodet:",
+     >            15x,7i6,"%")',LG,ipar,n,-incsum,nistop,nodet,neff
+            endif
+
                   incsum = 0
                   do n = 1, nodes - 1
 c$$$                     timeperi = max(1.0 , float(ntime(n,ipar))/
@@ -2413,33 +2531,38 @@ c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
 ! c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1) +
 ! c$$$     >                  0.5 * ntime(n+1,ipar)/
 ! c$$$     >                  (nchistopold(n+1,ipar)-nchistartold(n+1,ipar)+1)
-c$$$                     ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
-c$$$                     timeperi = max(float(ntime(n,ipar))/ni, 1.0)
-c$$$                     incstep = nint((tave(ipar)-ntime(n,ipar))/timeperi)
-c$$$                     if (lptop.ge.0) incstep = 0
-c$$$                     if (incstep.gt.ni/2) incstep = ni/2
-c$$$                     if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
-c$$$     >                  .lt.0.0) then
-c$$$                        if (incstep.gt.1) incstep = 1
-c$$$                        if (incstep.lt.-1) incstep = -1
-c$$$                     else 
-c$$$                        if (incstep.gt.ni) incstep = ni
+c$$$                     if (lptop.ge.0) then
+c$$$                        if (diffp.gt.0.1) then
+c$$$                           if (n.eq.nodemint) then
+c$$$                              incstep = 1
+c$$$                           elseif (n.eq.nodemaxt) then
+c$$$                              incstep = -1
+c$$$                           else
+c$$$                              incstep = 0
+c$$$                           endif
+c$$$                        endif
+c$$$                        incstep = 0
+c$$$                        inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
+c$$$                     else
+c$$$                        ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
+c$$$                        timeperi = max(float(ntime(n,ipar))/ni, 1.0)
+c$$$                       incstep=nint((tave(ipar)-ntime(n,ipar))/timeperi)
+c$$$                        if (incstep.gt.ni/2) incstep = ni/2
 c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$                     endif 
-                     if (diffp.gt.0.1) then
-                        if (n.eq.nodemint) then
-                           incstep = 1
-                        elseif (n.eq.nodemaxt) then
-                           incstep = -1
-                        else
-                           incstep = 0
-                        endif
-                     endif
-                     inc(n,ipar) = inc(n,ipar) + incstep
+c$$$c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
+c$$$c$$$     >                  .lt.0.0) then
+c$$$c$$$                        if (incstep.gt.1) incstep = 1
+c$$$c$$$                        if (incstep.lt.-1) incstep = -1
+c$$$c$$$                     else 
+c$$$c$$$                        if (incstep.gt.ni) incstep = ni
+c$$$c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
+c$$$c$$$                     endif 
+c$$$                     endif
+c$$$                     inc(n,ipar) = inc(n,ipar) + incstep
+                     inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
                      incsum = incsum + inc(n,ipar)
-                     print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
-     >                  n,incstep,inc(n,ipar),timeperi
+c$$$                     print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
+c$$$     >                  n,incstep,inc(n,ipar),timeperi
                   enddo 
                   inc(nodes,ipar) = - incsum
 c$$$                  tave = ntimetot / nodes
@@ -2472,9 +2595,10 @@ c$$$c$$$                     tscale(:)=1.0
 c$$$c$$$                  endif 
                else
                   print*,
-     >               'CAUTION: nodes<>nodesold', nodesold
+     >               'CAUTION: nodes<>nodesold',ipar,nodesold(ipar)
+                  inc(:,:) = 0
                endif 
-            endif 
+            endif
                   inct = 0
                   do n = 1, nodes - 1
                      inct = inct + inc(n,ipar)
@@ -2514,7 +2638,9 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                mv0 = 0
                mv1 = 0
                if (.not.allocated(vmat01)) stop 'vmat01 not allocated'
-               vmat01(:,:) = 0.0
+c$$$               vmat01(:,:) = 0.0
+               print*,'nodeid,ni,nf:',nodeid,ni,nf
+               vmat01(ni:nf,ni:nf+1) = 0.0
                if (nf.lt.nd) then
                   allocate(vmat0(nf+1:nd,ni:nf))
                   mv0 = nint(1.0/mb*(nd-nf)*(nf-ni+1)*nbytes)
@@ -2525,7 +2651,10 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                      mv1 = nint(1.0/mb*(nf-ni+1)*(nd-nf)*nbytes)
                      if (.not.allocated(vmat1))
      >                  stop 'vmat1 not allocated'
-                     vmat1(:,:) = 0.0
+c$$$                     vmat1(:,:) = 0.0
+                     vmat1(ni:nf,nf+1+1:nd+1) = 0.0
+                  else
+                     allocate(vmat1(1,1)) !avoid runtime errors
                   endif 
                else
                   allocate(vmat0(1,1),vmat1(1,1)) !avoid runtime errors
@@ -2594,9 +2723,9 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
      >         nchmaxe2e1,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
          else
-            call scattering(1,0,theta,nold,etot,lg,gk,enionry,npkb,
+            call scattering(myid,0,theta,nold,etot,lg,gk,enionry,npkb,
      >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
          end if
@@ -2674,6 +2803,34 @@ c$$$            vmatp(:,:) = 0.0
 c$$$         else 
             call update(6)
             vmat(:,:) = 0.0
+C The following code can be commented out to yield previously working results
+C Note that it does not touch on-shell wk (needed in ScaLAPACK).
+            if (scalapack) then
+               do nch = nchistart(nodeid), nchistop(nodeid)
+                  do k = npk(nch)+1,npk(nch+1)-1
+                     vmat01(k,k) = !-1.0/real(wk(k))
+     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+                     vmat01(k,k+1) = vmat01(k,k)
+                  enddo
+               enddo
+            else
+               do nch = 1, nchtop
+                  do k = npk(nch)+1,npk(nch+1)-1
+                     vmat(k,k) = !-1.0/real(wk(k))
+     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+c$$$                     print*,'nch,k,vmat(k,k):',nch,k,vmat(k,k),
+c$$$     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+                     vmat(k,k+1) = vmat(k,k) !-1.0/real(wk(k))
+                  enddo
+               enddo
+            endif
+            do nch = 1, nchtop 
+               do k = npk(nch)+1,npk(nch+1)-1
+                  wk(k)=cmplx(1e30,0.0) !offshell only, on every node
+               enddo
+            enddo
+C-----------------------------------------------------------------------------
+            
 c$$$  call initv(vmat,npk(nchtop+1)-1,nsmax)
 c$$$         endif 
 
@@ -2720,7 +2877,7 @@ c
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,-1,natomps)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'
@@ -2732,7 +2889,7 @@ c
             call clock(s2)
             t2nd = s2 - s1
          else
-            call scattering(ispeed,ifirst,theta,nold,etot,lg,gk,enionry,
+            call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
          end if 
@@ -2778,7 +2935,8 @@ c$$$         reconstruct_psi = .false.
          if (scalapack) then
 C The following allows scalapack to run efficiently with threaded libraries
 #ifndef LIBSCI
-            call mkl_set_num_threads(1) 
+c$$$            call mkl_set_num_threads(1) ! revert for many tasks per node
+            call mkl_set_num_threads(nomporig) 
 #endif
             call sleepy_barrier(MPI_COMM_WORLD)
             if (mod(myid,nomp).eq.0) then
@@ -2908,6 +3066,7 @@ c$$$            enddo
          if (allocated(vmat1)) deallocate(vmat1)
 
          nntime(:) = 0
+! The following is causing problems on Frontera
          CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER, 
      >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
@@ -2934,11 +3093,12 @@ C   Solve Ax=b inside the main routine; below will be replaced with scalapack
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")') 
+c$$$                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")')
+                  write(42,'(4i4,3i7,f8.1,2i8)') 
      >               lg,n,ipar,inc(n,ipar),
      >               nntime(n),nchistart(n),nchistop(n),timeperi,
      >               nchprs(nchistart(n),nchistop(n),nchtop),
-     >               naps, nint(tave(ipar))
+     >               naps
 !                  write(42,'(4i4,7i7," ave time of prev LG")') 
 !     >               lg,n,ipar,inc(n,ipar),
 !     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
@@ -2955,12 +3115,18 @@ c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
-     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
+               write(42,'(4i4,3i7,f8.1,5i8,2i4,"% LG,node,ipar,inc,vt,",
+     >            "i1,i2,tperi,nch,naps,NMAX,tave,mt,prev LG,eff",/)')
      >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
      >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
-     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
-     >            neff
+     >            nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
+     >            idiff(valuesin,valuesout),lgold(ipar),neff
+!               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
+!     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
+!     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
+!     >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
+!     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
+!     >            neff
 !               write(42,'(4i4,7i7,2i4,"% LG,node,ipar,inc,vt,",
 !     >            "i1,i2,tperi,nch,naps,mt,LGold,eff")')
 !     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
@@ -3307,6 +3473,8 @@ c$$$     >      ntasks.eq.-1) go to 780
          call hfz54_ng(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.55 .and. i_sw_ng .eq. 0) then
          call hfz55(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
+      else if (nznuc.eq.74.and.nint(zasym).eq.5) then
+         call hfz74_5(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.69) then
          call hfz69(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.79) then
@@ -3468,6 +3636,15 @@ c$$$      corep = 15.0
          if (l.ge.3) nb = abs(nnbtop) - l 
          call fcz55(rmax, meshr, rmesh, expcut, regcut, 0.0, 0, 
      >      chi, iwff, nb, l, nznuc, phase, corep, r0)
+      else if (nznuc.eq.74.and.nint(zasym).eq.5) then  ! W VI target
+c$$$      r0 = 2.0
+c$$$      corep = 15.0
+         nb = abs(nnbtop) - 5
+         if (l.eq.2) nb = abs(nnbtop) - 4
+         if (l.ge.3) nb = abs(nnbtop) - 4
+         if (l.ge.4) nb = abs(nnbtop) - l
+         call fcz74_5(rmax, meshr, rmesh, expcut, regcut, 0.0, 0,
+     >      chi, iwff, nb, l, nznuc, phase, corep, r0)
       else if (nznuc-nint(zasym).eq.69) then  ! Tm-like targets
 c$$$      r0 = 2.0
 c$$$      corep = 15.0
@@ -3554,6 +3731,26 @@ c$$$            if (nznuc-nint(zasym).ne.69)
 c$$$     >         stop 'PROBLEM WITH WAVEFUNCTION'
 c$$$         endif 
       end do
+C General set of oscillator strengths, see Dmitry's notes
+      if (l.gt.0) then
+         print*,"nl->n'l' Oscillator strengths"
+         do nm = nabot(l-1), 5
+            do np = nabot(l), 5
+               if (enpsinb(np,l)-enpsinb(nm,l-1).gt.0) then
+                  print'(2i1,"->",2i1,1p,20e10.2)',nm,l-1,np,l,
+     >               oscil(enpsinb(np,l),psinb(1,np,l),istoppsinb(np,l),
+     >               enpsinb(nm,l-1),psinb(1,nm,l-1),
+     >               istoppsinb(nm,l-1),rmesh,meshr)/(2.0*l-1)*l
+               else
+                  print'(2i1,"->",2i1,1p,20e10.2)',np,l,nm,l-1,
+     >               oscil(
+     >               enpsinb(nm,l-1),psinb(1,nm,l-1),istoppsinb(nm,l-1),
+     >               enpsinb(np,l),psinb(1,np,l),istoppsinb(np,l),rmesh,
+     >               meshr)/(2.0*l+1)*l
+               endif
+            enddo
+         enddo
+      endif
       return
       end
       
@@ -3627,7 +3824,7 @@ c$$$            als(n) = al * 2.0 * 1.2**(nabot(l) - n)
       else 
          npsstates(1,l) = nps
          rlambda(1,l) = al * 2.0
-         if (al.gt.2.0*(zasymi+1)) then
+         if (al.gt.4.0*(zasymi+1)) then
 !            if (al*(zasymi+1)/rmesh(meshr,1).gt.5.0) then
             print*,'Using Box-based states'
             hmax = rmesh(meshr,2)
@@ -4286,7 +4483,10 @@ C  is used in case all channels are open, but input latop < 0.
          call fcz37(rmax, meshr, rmesh, expcut, regcut, q, 1, 
      >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
       elseif (nztest.eq.55) then
-         call fcz55(rmax, meshr, rmesh, expcut, regcut, q, 1, 
+         call fcz55(rmax, meshr, rmesh, expcut, regcut, q, 1,
+     >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
+      elseif (nznuc.eq.74.and.nint(zasym).eq.5) then
+         call fcz74_5(rmax, meshr, rmesh, expcut, regcut, q, 1,
      >      chi, jstart, 0, l, nznuc, phasen, corep, r0)
       elseif (nztest.eq.69) then
          call fcz69(rmax, meshr, rmesh, expcut, regcut, q, 1, 
@@ -4961,11 +5161,11 @@ c      close(57)
 #ifdef NEW_SLEEPY_BARRIER
       integer buf,req,n1,n2,nomp,OMP_GET_MAX_THREADS
 #endif
-
+c$$$      return
       call mpi_comm_size(comm,n,ierr)
       call mpi_comm_rank(comm,me,ierr)
 #ifdef NEW_SLEEPY_BARRIER
-      nomp=max(1,OMP_GET_MAX_THREADS())
+      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
       n=(nomp*(1+me/nomp)-1)-(nomp*(me/nomp))+1
       n1=nomp*(me/nomp)
       n2=nomp*(1+me/nomp)-1

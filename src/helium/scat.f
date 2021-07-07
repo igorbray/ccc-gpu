@@ -1,4 +1,4 @@
-      subroutine scattering(ispeed,ifirst,theta,nold,etotal,KJ,gridk,
+      subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
      >   enionry,npk,chil,minc,vdcore,dwpot,nchm,Nmax,namax,
      >   nze,td,te1,te2,te3,vdon,vmat,nsmax,itail,phasel)
       use CI_MODULE
@@ -6,7 +6,9 @@
       use DM_MODULE
       use vmat_module
       use date_time_module
-
+#ifdef GPU
+      use openacc
+#endif
       
       include 'par.f'
       include 'par.pos'
@@ -61,7 +63,9 @@ crr -added by Rav
       complex phasel(kmax,nchan)
       integer, allocatable :: nchansi(:), nchansf(:) 
       real gridp(nmaxr,3)
-       real*8 ya(10),xa(10),yr,ry,dy
+       real*8 ya(10),xa(10),yr,ry,dy 
+      integer ngpus, gpunum, omp_get_thread_num
+      external omp_get_thread_num
 
         if (npk(2)-npk(1).eq.1) then
          nchii = 1
@@ -69,7 +73,18 @@ crr -added by Rav
       else
          nchii = nchistart(nodeid)
          nchif = nchistop(nodeid) 
-      endif 
+      endif
+
+#ifdef GPU
+      ngpus= max(1,acc_get_num_devices(acc_device_nvidia))
+      gpunum = mod(myid,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
+      print*,'MYID associated with GPU:',myid,
+     >     acc_get_device_num(acc_device_nvidia) 
+!$acc enter data copyin(chil(1:nr,1:npk(nchm+1)-1))
+!$acc& copyin(nchm,npk(1:nchm+1),minc(1:npk(nchm+1)-1))
+#endif 
+ 
 C  One electron continuum of Helium assumes the target He+ is left in
 C  the ground state. The ENIONRY is added in the mainhe routine, where the
 C  energies are defined. Etot is in a.u.
@@ -355,7 +370,11 @@ C$OMP END PARALLEL DO
       PRINT*,'Calculations of Qlp are done!'
       ENDIF
       print '(2i5,":")', nchii, nchif
+#ifdef GPU
+!$omp parallel do num_threads(1)
+#else
 C$OMP PARALLEL DO
+#endif
 C$OMP& SCHEDULE(dynamic)
 C$OMP& default(private)
 C$OMP& shared(nchm,Nmax,la,sa,lpar,nspm,lo,itail,phasel)
@@ -374,6 +393,7 @@ C$OMP& shared(dwpot,i_sw_ng)
 C$OMP& shared(vmat01,vmat0, vmat1)
 C$OMP& shared(ionshi,nqgeni,nqimi,imaxi,xpi,wpi,Qlpi,Q0pi,Alpi,aqi)
       do nch = 1, nchansmax
+c$$$         print*,'OMP thread:',nch,omp_get_thread_num()
          nchi = nchansi(nch)
          nchf = nchansf(nch)
          nchi1=nchat(nchi)
@@ -607,7 +627,7 @@ c$$$            vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
 c$$$         enddo
 c$$$C$OMP END PARALLEL DO
       enddo 
-C$OMP END PARALLEL DO
+C$OMP end parallel do
 c     
       if(.not.scalapack.and.npk(2)-1.gt.1)then ! Do testing with LAPACK == 1 node
         if (nodeid.eq.1) then
@@ -637,6 +657,13 @@ c
           end if
         end if
        end if
+
+#ifdef GPU
+       call acc_set_device_num(gpunum,acc_device_nvidia)
+!$acc exit data delete(chil(1:nr,1:npk(nchm+1)-1))
+!$acc& delete(nchm,npk(1:nchm+1),minc(1:npk(nchm+1)-1))
+!$acc& finalize
+#endif 
 
 
       if (allocated(fd0)) deallocate(fd0)

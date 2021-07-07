@@ -53,7 +53,7 @@ export a
 export FC
 export PRECISION
 export OBJDIR
-
+export aGPU
 
 #info:
 #	echo $(OBJECTDIR)
@@ -110,7 +110,7 @@ $(OBJDIR)/vmat.o : vmat.f $(OBJDIR)/modules.o
 
 
 $(OBJDIR)/logam.o : logam.f 
-	$(FC) $a -O0 -c logam.f  -o $@
+	$(FC) $a -O0 $(FCFLAGS_SAVE) -c logam.f  -o $@
 
 $(OBJDIR)/rest.o : rest.f par.f $(OBJDIR)/modules.o
 	$(FC) $a -Msave -O0 -c rest.f  -o $@

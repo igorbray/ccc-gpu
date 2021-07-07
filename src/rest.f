@@ -276,10 +276,12 @@ c$$$     >      cwork,lwork,rwork,bwork,info)
 c$$$         if (info.ne.0) print*,'INFO from CGEES:',info
 C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
-            esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
-            esum2 = esum2 +
-     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+            if (abs(eigv(nch)).gt.0.0) then
+               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
+               esum2 = esum2 +
+     >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
 c$$$            esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+            endif
          enddo
          esum(ns) = esum2
          nchi = 0
@@ -578,9 +580,9 @@ c$$$      end if
 
       function nmpow(err)
       nmpow = 1
-      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
-         nmpow = nmpow + 1
-      enddo
+c$$$      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
+c$$$         nmpow = nmpow + 1
+c$$$      enddo
       return
       end
 
@@ -1152,6 +1154,14 @@ c            r0(1) = 2.5
             enddo
             r0(0) = 2.05
             r0(1) = 2.25
+!! Rav: parameters from Migdalek and Baylis Phys Rev A 24, 649 (1981)
+            do l = 0, lamax
+               corep(l) = 11.15
+            enddo
+            r0(0)=1.478 
+            r0(1)=1.581
+            r0(2)=1.767
+!!
          elseif (nzasym.eq.1) then ! Sr II
             target = 'Sr II'
             enlevel = 88964.0
@@ -1290,6 +1300,15 @@ c            r0(1) = 2.5
             enion  = 12.176
             do l = 0, lamax
                corep(l) = 28.4 
+               r0(l)  = 3.0
+            enddo
+         else if (nzasym.eq.5) then
+            lactop = 3
+            target = 'W VI'
+            enlevel = 522370
+            enion  = 64.77
+            do l = 0, lamax
+               corep(l) = 0.0
                r0(l)  = 3.0
             enddo
          endif 
@@ -2306,7 +2325,8 @@ C  This is for very large incident energies
       complex ovlpnn
      
       real units(3), BornICS(knm,knm),ovlp(knm),esum(0:1),rcond(0:1),
-     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm)
+     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm),
+     >   oldpjp(knm,knm,0:1)
       common /corepartarray/ corepart(KNM,nicmax),ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
       real*8 t(ncmax,0:lamax),wts(ncmax),wf(2*ncmax),dstart,dstop,
@@ -2325,7 +2345,7 @@ C  This is for very large incident energies
       common /chanen/ enchan(knm)
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
-      save ext
+      save ext,oldpjp
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       
       data pi,ry,chunit/3.1415927,13.6058,
@@ -2344,7 +2364,7 @@ C  This is for very large incident energies
  10   inquire(file = lockfile, exist=exists)
       if (exists) then
          print*,'Surprisingly lockfile exists:',lg,n,lockfile
-         call sleep(lg)
+         call sleep(max(1,lg/10))
          if (n.le.100) then
             n = n + 1
 c$$$            call datetime(3)
@@ -2470,13 +2490,13 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
                extra = BornICS(nchp,nchip) -
      >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
             else
-               extra = 0.0
+               extra = ext(nchp,nchip) ! this is from the "save" statement (was 0.0)
             endif 
             tbextra(nchip) = tbextra(nchip) + extra
-            if (enchan(nchp).lt.0) then
+            if (enchan(nchp).lt.0.and.chan(nchp)(1:1).ne.'p') then
                tnbBextra(nchip) = tnbBextra(nchip) +
      >            ovlp(nchp) * extra
-            else 
+            else if (enchan(nchp).gt.0.0) then
                ticsextra(nchip) = ticsextra(nchip) + extra
                btics(1,nchip) = btics(1,nchip) + BornICS(nchp,nchip)
                if (enchan(nchp).lt.etot/2.0)
@@ -2636,17 +2656,17 @@ c$$$     >               sigbprev(nc,l)*(n-1)**3/n**3, sig, n
 c$$$            print*,'SIGB, SIGBO:',sigb(nchip,ns), sigbo
 c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
-C  Redefine the ionization cross sections by SIGT - SIGB
-            do l = 0, ltop
-               sigionl(nchip,l,ns) = max(0.0,
-     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
-               do nc = 1, 5
-                  if (nlast(nc,l).ne.0) then
-c$$$                     print*,'Last bound excitation cross sections:',
-c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
-                  endif
-               enddo 
-            enddo
+c$$$C  Redefine the ionization cross sections by SIGT - SIGB
+c$$$            do l = 0, ltop
+c$$$               sigionl(nchip,l,ns) = max(0.0,
+c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
+c$$$               do nc = 1, 5
+c$$$                  if (nlast(nc,l).ne.0) then
+c$$$c$$$                     print*,'Last bound excitation cross sections:',
+c$$$c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
+c$$$                  endif
+c$$$               enddo 
+c$$$            enddo
             
             write(42,'(1p,2e13.5,0p,f10.5,a4,
      >         '' TCS (op. th.), last cont., ratio to sum'')')
@@ -2829,6 +2849,13 @@ C  Need to make SIGTOLD from the info above
      >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
      >      asym(sigb(nchip,0),sigb(nchip,1),fac)
 
+         write(43,'(i3,1p,e11.3,''eV on '',a3,
+     >      '' TNBCS,+extra, spin asymmetry:'',
+     >      1p,4e11.3)') lg, ry * ein,
+     >      chan(nchip),sigb(nchip,0)+sigb(nchip,1),
+     >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
+     >      asym(sigb(nchip,0),sigb(nchip,1),fac)
+
          write(42,'(1p,e9.3,''eV on '',a3,
      >      '' TICS: s, t-s, +, a'',
      >      1p,4e11.3)') ry * ein,
@@ -2910,17 +2937,25 @@ c$$$            asymcs = asym(extrapcs0, extrapcs1,fac)
             else if (BornICS(nchp,nchip).ne.0.0) then
                extrapcs = Borne
             else 
-c$$$               summedcs = oldp(nchp,nchip,0) + oldp(nchp,nchip,1) !need to sort this out, Igor
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
-     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+     >            oldpjp(nchp,nchip,ipar), 0.0)
+c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+               if (ipar.eq.0) then 
+                  if (partcs(nchp,nchip,0).ne.0.0) ! to help when rearrangement suddenly stops
+     >                 ext(nchp,nchip) = extrapcs
+               else
+                  extrapcs = extrapcs + ext(nchp,nchip)
+               endif
+c$$$               if (chan(nchp).eq.'p7S'.and.chan(nchip).eq.'p6H') then
+c$$$                  print'("J,IPAR,PCS1,PCS2:",2i3,1p,2e12.3)',lg,ipar,
+c$$$     >                 (partcs(nchp,nchip,0)+partcs(nchp,nchip,1))*unit,
+c$$$     >                 oldpjp(nchp,nchip,ipar)
+c$$$               endif
+C below ensures correct extrapolation for each parity
+               oldpjp(nchp,nchip,modulo(ipar+1,2)) = 
+     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             endif
-! Below doubled up extrapolation when Borne was non zero for H-like targets
-c$$$            if (ipar.eq.0) then 
-c$$$               ext(nchp,nchip) = extrapcs
-c$$$            else
-c$$$               extrapcs = extrapcs + ext(nchp,nchip)
-c$$$            endif
             extrapcs = summedcs + extrapcs
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
@@ -2960,8 +2995,11 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.9) then
-         extrap = x / (1.0 - x / xp + 1e-20)
+c$$$      else if (0.0.lt.x.and.x.lt.xp) then
+      else
+         r = x/(xp+1e-20)
+         if (r.gt.0.995) r = 0.995
+         extrap = x / (1.0 - r)
       endif
       end
       
@@ -3137,7 +3175,7 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       do i = 1, min(maxf,maxi)
          sum = sum + psif(i) * rmesh(i,1) * psii(i) * rmesh(i,3)
       enddo
-      oscil = (ef - ei) * sum**2 / 3.0
+      oscil = (ef - ei) * sum**2 / 3.0 !specific to s-p transitions, see main.f for generality
       return
       end
       
@@ -3316,19 +3354,19 @@ C     End add
 #endif
 c$$$      inquire(FILE="analytic",EXIST=analytic)
       analytic = nanalytic.le.-2 !.and.e.ge.aenergyswitch
-      if (analytic) then
+c$$$      if (analytic) then
 c$$$         open(42,file = "analytic")
 c$$$         read(42,*) nbox
 c$$$         close(42)
-         nkmax = 0
+         kmaxgf = 0
          do nch = 1, nchtop
-            if (npk(nch+1)-npk(nch).gt.nkmax) nkmax=npk(nch+1)-npk(nch)
+            if (npk(nch+1)-npk(nch).gt.kmaxgf)kmaxgf=npk(nch+1)-npk(nch)
          enddo
-         if (allocated(gf)) deallocate(gf)
-         allocate(gf(nkmax,nkmax,nchtop))
          if (allocated(c)) deallocate(c)
-         allocate(c(maxr,nkmax))    ! Form routine expects maxr
-      endif 
+         allocate(c(maxr,kmaxgf))    ! Form routine expects maxr
+c$$$      endif 
+      if (allocated(gf)) deallocate(gf)
+      allocate(gf(kmaxgf,kmaxgf,nchtop))
       inquire(FILE="ndble",EXIST=torf)
       ndble = 0
       if (torf) then
@@ -3480,9 +3518,9 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       enddo
       trat = 1.0
       if (itail.lt.0) then
-         trat = 5.0 !gk(1,1)/qcut*rmesh(meshr,1)
-         print'("tail integral Rmax, Rtail, ratio:",3f6.1)',
-     >      rmesh(meshr,1),rmesh(meshr,1)/trat,trat
+         trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
+         print'("Rtail, max ktail:",2f6.1)',
+     >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
       do nch = 1, nchtop
@@ -3687,10 +3725,10 @@ c$$$               endif
 C  Having defined the bound states we now define the distorted waves
          summax = 0.0
          ebmax = 0.0
-c$$$C$OMP parallel do default(private)
-c$$$C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
-c$$$C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-c$$$C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax)
+C$OMP parallel do default(private)
+C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
+C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
+C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail,trat,qcut)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
             if (gk(k,nch).eq.0.0) then
@@ -3889,8 +3927,8 @@ c$$$                  print*,'CHIL(:,kp,2)=0 for kp>qcut',sqrt(entail),qcut
                endif 
             end if !tails defined
          end do ! End of the loop over K
-c$$$C$OMP end parallel do
-         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
+C$OMP end parallel do
+c$$$         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
 
          if (nqm.gt.1.and.nbnd(lg).ne.0) print 
      >      '("test integral for state:",a4,f10.6," =",f10.6," +",
@@ -3909,8 +3947,14 @@ C Alex for box basis.
             eta = zeff / sqrt(abs(eproj))
          endif
          nbmax=npk(nch+1)-npk(nch)-1
+         GF(:,:,nch)=0.0
+         do kp=2,npk(nch+1)-npk(nch)
+            GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
+         enddo 
          if (analytic .AND. nbmax .GT. 1) then
             if (eproj.ge.aenergyswitch) then !aenergyswitch is in modules.f
+               if (nbox.ne.0) then !below is only for the box basis
+                  print*,'Box basis for nch:',nch
                hmax=rmesh(meshr,2)
 c$$$               zas=-nze*zasym-1.0 ! check this
                zas=-zeff-1.0 ! check this
@@ -3988,7 +4032,7 @@ c$$$                  utemp(i) = - nze * (- zasym * 2.0/rmesh(i,1))
                   endif
                   temp(:)=0d0
 
-                  if (itail.lt.0.or.nze.eq.1.and.lptop.ge.0) then ! for positrons or analytic tail integrals need projections
+                  if (itail.lt.0.or.(nze.eq.1.and.lptop.ge.0)) then ! for positrons or analytic tail integrals need projections
                      call regular(l,erydout(k),eta,vnucl,
      >                  cntfug(1,l),ldw,rmesh,meshr,jdouble,id,
      >                  regcut,expcut,temp,j1,j2,phase,sig)
@@ -4013,7 +4057,7 @@ c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                         end do
                         minchil(kp,2) = meshr
                      endif 
-                     if (entail.lt.qcut**2*2.0.and.itail.lt.0) then
+                     if (entail.lt.qcut**2*1.1.and.itail.lt.0) then
                         call regular(l,entail,eta,utemp,cntfug(1,l),
      >                     ldw,rmesh,meshr,jdouble,id,regcut,expcut,
      >                     temp,minchil(kp,2),j2,phase,sig)
@@ -4056,7 +4100,20 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                      print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
      >                  nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
                   endif
-               enddo
+               enddo !k loop
+               boxnorm = 1.0
+               else !nbox.eq.0
+                  lastpt = meshr
+                  do k=2,npk(nch+1)-npk(nch)
+                     do j=1,lastpt
+                        chil(j,k+npk(nch)-1,1)=chil(j,k+npk(nch)-1,1)
+!     >                  * tmp
+!     >                  /sqrt(real(wk(k+npk(nch)-1)))
+!     >                  *sqrt(pi/2d0)
+                     enddo
+                  enddo        
+                  boxnorm = 2.0/rmesh(meshr,1)
+               endif !nbox.ne.0
                Rpl(:) = 0.0
                Rpg(:) = 0.0
 
@@ -4090,45 +4147,72 @@ c$$$            endif
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP& SCHEDULE(dynamic)
                do kpp=2,npk(nch+1)-npk(nch)
-                  do kp=2,npk(nch+1)-npk(nch)
+                  do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
                      GF(kp,kpp,nch) =
      >                  - dot_product(chil(1:meshr,npk(nch)-1+kp,1),
-     >                  C(1:meshr,kpp)) * pi / const * !*(2.0/pi)
-     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+     >                  C(1:meshr,kpp)) * pi / const 
+     >                  *real(wk(kp+npk(nch)-1))!*real(wk(kpp+npk(nch)-1))
+     >                    *boxnorm
+c$$$                     if (kp.eq.kpp.and.kp.eq.2) print*,
+c$$$     >                  GF(kp,kpp,nch), pi / const * 
+c$$$     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+c$$$     >                    *boxnorm 
                   enddo
                enddo
 C$OMP END PARALLEL DO
-            else !negative energies
+               if (nbox.eq.0) then !analytic with true continuum functions
+                  do kp = 2, npk(nch+1)-npk(nch)
+                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+!     >                    real(wk(kp+npk(nch)-1))
+!     >               real(wk(kp+npk(nch)-1))*
+!     >                    2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+                  enddo
+               else ! for scalapack
+c$$$                  do kp = 2, npk(nch+1)-npk(nch)
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+c$$$                  enddo
+               endif
+            else !eproj.lt.aenergyswitch (closed channels)
+               GF(:,:,nch)=0.0
                do kp=2,npk(nch+1)-npk(nch)
                   GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
 c$$$     >               *2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
 c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
                enddo 
             endif 
+         endif                  !analytic
 
-            write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
-            inquire(file='writegreen',exist=exists)
-            if (exists) then
-               open(42,file=stringtemp)
-               do kp = 2, npk(nch+1)-npk(nch)
-                  do kpp = kp,kp !2, npk(nch+1)-npk(nch)
-                     write(42,'(1p,3e13.2)') 
-     >                  gk(kpp,nch),GF(kp,kpp,nch),
-     >                  pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
-c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)
-                  enddo
-c$$$                  write(42,*)
+         write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
+         inquire(file='writegreen',exist=exists)
+         if (exists) then
+            open(42,file=stringtemp)
+c$$$               GF(:,:,nch) = 0.0
+            do kp = 2, npk(nch+1)-npk(nch)
+               do kpp = kp,kp   !2, npk(nch+1)-npk(nch)
+c$$$                     GF(kp,kpp,nch) = pi/(eproj-gk(kp,nch)*
+c$$$     >                    abs(gk(kp,nch)))*real(wk(kp+npk(nch)-1))
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kpp,nch)/
+c$$$     >                    real(wk(kp+npk(nch)-1))/pi/pi
+c$$$     >                    pi/(eproj-gk(kp,nch)*
+c$$$     >                    abs(gk(kp,nch)))
+                  write(42,'(1p,4e13.2)') 
+     >                 gk(kpp,nch),GF(kp,kpp,nch),
+     >                 pi/(eproj-gk(kp,nch)*abs(gk(kp,nch))),
+     >                 real(wk(kp+npk(nch)-1))
+c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)/
+c$$$     >                  real(wk(kp+npk(nch)-1))/real(wk(kpp+npk(nch)-1))
                enddo
+c$$$                  write(42,*)
+            enddo
 c$$$               write(42,'("#   r    ",1p,500e24.3)') (gk(kp,nch),
 c$$$     >            kp=2,npk(nch+1)-npk(nch),10)
 c$$$               do i = 1, istop
 c$$$                  write(42,'(1p,500e12.3)') rmesh(i,1),(c(i,kp),
 c$$$     >               chil(i,kp,1)/rmesh(i,3),kp=2,npk(nch+1)-npk(nch),10)
 c$$$               enddo 
-               close(42)
-               print*,'Written:',stringtemp
-            endif 
-         endif                  !analytic
+            close(42)
+            print*,'Written:',stringtemp
+         endif 
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)

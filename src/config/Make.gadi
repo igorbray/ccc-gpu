@@ -2,5 +2,6 @@ FC := mpif90
 FCFLAGS_OPT2 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
 FCFLAGS_OPT1 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
 FCFLAGS_GPU :=  -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
+FCFLAGS_SAVE := -save
 LDFLAGS := -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64
 #LDFLAGS := -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 -Wl,--start-group  $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a $(MKLROOT)/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm

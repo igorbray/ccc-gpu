@@ -8,7 +8,7 @@ C
 C
 C ****  COMPUTE AND STORE,  FAK(N) = (N-1)!/(YNN**(N-1))
 C
-      YNN = 500.0D0
+      YNN = 1e4 !500.0D0
       FAK(1) = 1.0D0
       DO 10 I = 1,lll-1
       FAK(I+1) = FAK(I)/YNN*DBLE(I)

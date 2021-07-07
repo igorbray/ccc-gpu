@@ -22,9 +22,12 @@
 c DPI of Lithium       
       common /LITHIUM/ lithium
 
+      Ry = 13.6058
 C  The following are experimental energies
       if(nznuc.eq.2)GS  =  5.807 !He  atom GS energy in Ry
-      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
+!      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
+      if(nznuc.eq.3 .and. zasym.eq.0)GS  = 6.03/Ry !Li-  ion GS energy in Ry
+      if(nznuc.eq.11 .and. zasym.eq.0)GS  = 5.492/Ry !Na-  ion GS energy in Ry
       if(nznuc.eq.4) GS = 2.0236 !BeIII-BeI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
       if(nznuc.eq.1)GS  =1.05544 !H-   ion GS energy in Ry

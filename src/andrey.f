@@ -1984,7 +1984,7 @@ C===========================================================================
       implicit real*8 (a-h,o-z)
 C      implicit none      
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       
 C     INPUT --------------------------------------------------------------
       integer, intent(in)  :: L
@@ -3144,7 +3144,7 @@ c-------------------------------------------------------
       use apar                  ! maxx, nmax, lmax1, maxq 
 !     implicit real*8 (a-h,o-z)     
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       real*8, intent(in) :: z      
       real *8 Q, zn
       parameter (jmaxC = 5, lmaxC = 20)
@@ -3430,7 +3430,7 @@ C        QL3 = QL3 + veint(r) * r * bes1 * bes2 * dr
       implicit real*8 (a-h,o-z)
 C     implicit none      
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       
 C     INPUT --------------------------------------------------------------
       integer, intent(in)  :: L

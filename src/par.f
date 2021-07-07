@@ -1,6 +1,6 @@
-      parameter (lamax=20,nchan=3000,nchane2e=10,nchanop=1)
-      parameter (nnmax=700,lnabmax=lamax,ltmax=30,ncmax=nnmax)
-      parameter (lmax=100+ltmax,kmax=601)
+      parameter (lamax=30,nchan=3500,nchane2e=10,nchanop=1)
+      parameter (nnmax=401,lnabmax=lamax,ltmax=30,ncmax=nnmax)
+      parameter (lmax=400+ltmax,kmax=401,lcoul=lmax)
 C  Note that the MAXR parameter must be set the same as NSIZEK7 in paratom.f
       PARAMETER (maxr=20000,larged=kmax*nchanop*2*500,largee=larged)
       parameter (maxrc = maxr)
