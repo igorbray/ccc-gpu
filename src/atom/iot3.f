@@ -23,7 +23,7 @@ C are integers, = 2 * actual L and M numbers.
 C FL(I) = log(I!)
       common/fl0/fl(0:1000)
 C FAC is used for precision loss checks
-      dimension fac(0:100)
+      dimension fac(0:1000)
 
       sym3=0d0
 C Check that the L, M pairs are sensible

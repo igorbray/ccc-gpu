@@ -1294,7 +1294,7 @@ c$$$                  endif
       enddo 
 
 * Alisher's addendum
-      if (nze.eq.1.and.LPTOP.ge.LPBOT) then
+      if (nze.eq.1.and.LPTOP.ge.LPBOT.and.lstart.le.lstoppos) then
 * forms Qlarray with Leg.functions of the 2nd kind
          call Qltable(min(lstop+2*latop+1,lstoppos+2*latop+1),igz,igp)         
 c$$$         call Qltable(lstop+latop,igz,igp)         

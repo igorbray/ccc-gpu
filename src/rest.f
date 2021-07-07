@@ -2364,7 +2364,7 @@ C  This is for very large incident energies
  10   inquire(file = lockfile, exist=exists)
       if (exists) then
          print*,'Surprisingly lockfile exists:',lg,n,lockfile
-         call sleep(lg)
+         call sleep(max(1,lg/10))
          if (n.le.100) then
             n = n + 1
 c$$$            call datetime(3)
