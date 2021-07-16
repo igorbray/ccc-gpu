@@ -337,7 +337,7 @@ C  FUN(R) from R=RMESH(irpstop,1) to 'infinity' is assumed to be zero.
 C  The following routine returns the hydrogenic radial functions.
       subroutine rnl(nznuc,n,l,chi,en,jstop)
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       COMMON/MESHRR/ MESHR,RMESH(MAXR,3)
       common/smallr/ formcut,regcut,expcut,fast
       common /cnsts2/ factl(0:2*lcoul),api,x2(63,5),w2(63,5),res(63)

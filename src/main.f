@@ -334,7 +334,7 @@ C
      >   itail,corep,r0,ninc,linc,npar,nent,zasym,nunit,ndbl,nps,iborn,
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
-     >   erange,inoenergy,pint,igz,igp,analyticd,packed)
+     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid)
       cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
       write(ench,'(1p,"_",e10.4)') energy
       if (nodes.eq.1) cnode = ''

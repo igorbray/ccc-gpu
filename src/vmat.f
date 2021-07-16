@@ -566,412 +566,412 @@ c$$$  endif
       end
                
 !not used any more
-      subroutine makev31d(dwpot,nqmi,psii,maxpsii,lia,li,nia,chii,
-     >   minchii,gki,phasei,ni,nqmf,psif,maxpsif,lfa,lf,nfa,chif,
-     >   minchif,gkf,phasef,nf,lg,rnorm,u,itail,nznuci,vdon,nchf,nchi,
-     >   pos,second,npk,ne2e,vmatt)
-      use ubb_module
-      use apar
-      use chil_module
-      include 'par.f'
-      common/meshrr/ meshr,rmesh(maxr,3)
-      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax),
-     >   phasei(kmax)
-      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax),
-     >   phasef(kmax),npk(nchan+1)
-      complex phasei, phasef
-      dimension fun(maxr), temp(maxr), psii(maxr), psif(maxr),
-     >   ovlpi(kmax), ovlpf(kmax), temp2(maxr), temp3(maxr),
-     >   tail(kmax,kmax),u(maxr), dwpot(maxr,nchan)
-      real vmatt(kmax,kmax,0:1),vdon(nchan,nchan,0:1)
-      common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
-     >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
-      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
-     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
-      common /psinbc/ enpsinb(nnmax,0:lnabmax),
-     >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
-      common/numericalpotential/ numericalv, lstoppos
-      logical numericalv
-      common/matchph/rphase(kmax,nchan)
-*      real chitemp(maxr,kmax) !, rpowpos1(maxr), rpowpos2(maxr)
-      allocatable :: chitemp(:,:)
-      logical pos, second
-      common/smallr/ formcut,regcut,expcut,fast,match,analyticd
-      logical fast, match, analyticd
-      real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
-      character chan(knm)*3
-      common /charchan/ chan
-
-      real prod(kmax,kmax)
-c
-      common /di_el_core_polarization/ gamma, r0, pol(maxr)   
-      real*8, dimension (meshr) :: ubbb ! ANDREY
-      character ch*1
-      ch(n) = char(mod(n,75) + ichar('0'))
-      
-      hat(l)= sqrt(2.0 * l + 1.0)
-
-      minfun = 1
-      maxfun = min(maxpsii,maxpsif)
-      do i = minfun, maxfun
-         fun(i) = psii(i) * psif(i) * rmesh(i,3)
-      end do 
-
-      do i = 1, maxr
-         temp3(i) = 0.0
-      enddo
-      mini = maxr
-      maxi = 1
-      ctemp = 0.0
-
-
-      ltmin = 1000000
-      ctemp = 0.0
-      do 10 ilt = -lia, lia, 2
-         lt = lfa + ilt
-         if (lt.lt.0.or.lt.gt.ltmax) go to 10
-         call cleb(2*lia,2*lt,2*lfa,0,0,0,c1)
-         c1tmp = cgc0(float(lia),float(lt),float(lfa))
-         if (abs((c1-c1tmp)/(c1tmp+1e-20)).gt.1e-3) then
-            print*,'CGCs 1 do not agree:',c1, c1tmp,lia,lt,lfa
-            stop 'CGCs 1 do not agree'
-         endif 
-         call cleb(2*li,2*lf,2*lt,0,0,0,c2)
-         c2tmp = cgc0(float(li),float(lf),float(lt))         
-         if (abs((c2-c2tmp)/(c2tmp+1e-20)).gt.1e-3) then
-            c2tmp2 = cgcigor(2*li,2*lf,2*lt,0,0,0)
-C$OMP critical(print)
-            print*,'CGCs 2 do not agree:',c2, c2tmp,c2tmp2,li,lf,lt
-C$OMP end critical(print)
-            c2 = c2tmp2
-         endif 
-         call rac7(2*li,2*lf,2*lia,2*lfa,2*lt,2*lg,c3)
-         c3tmp = cof6j(float(li),float(lf),float(lt),float(lfa),
-     >      float(lia),float(lg))*(-1)**(li+lf+lia+lfa)
-         if (abs((c3-c3tmp)/(c3tmp+1e-6)).gt.1e-2) then
-C  below does happen for NPAR = 1, but not significant
-C$OMP critical(print)
-            print*,'WARNING: CJ6 and W do not agree in D:',c3, c3tmp,
-     >         li,lf,lia,lfa,lt,lg
-C$OMP end critical(print)
-            c3 = c3tmp
-c$$$            stop 'CJ6 and W do not agree in D'
-         endif 
-         
-         c = c1 * c2 * c3
-         if (abs(c).lt.1e-10) go to 10
-         const = (-1)**(lg + lfa) * hat(li) *
-     >      hat(lf) * hat(lia) / hat(lt) * c
-         call form(fun,minfun,maxfun,rpow1(1,lt),rpow2(1,lt),
-     >      minrp(lt),maxrp(lt),meshr,temp,i1,i2)
-c$$$         if (lt.eq.0) print*,'lia,li,lg,lfa,lf,c:',lia,li,lg,lfa,lf,c
-c
-       if(lt.eq.1.and.gamma.ne.0.0) then
-          sum1 = 0.0
-          do i=minfun,maxfun
-             sum1 = sum1 + fun(i)*pol(i)
-          end do                       
-          tmp = gamma * sum1 
-          do i=i1,i2             
-             temp(i) = temp(i) - tmp*pol(i)
-          end do
-       end if
-       
-c         
-C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
-         if (lt.eq.0.and..not.pos.and.nchi.eq.nchf) then
-cCCC  if (lt.eq.0) then
-
-c$$$            if (alkali) then
-c$$$C ANDREY: subtract (ve(r)+1)/r for pos-alkali case             
-c$$$               do i=1,i2
-c$$$                  ! factor 2 is since u(i)/2 appears in nuclear(..)
-c$$$                  u(i)=2.0d0*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$      subroutine makev31d(dwpot,nqmi,psii,maxpsii,lia,li,nia,chii,
+c$$$     >   minchii,gki,phasei,ni,nqmf,psif,maxpsif,lfa,lf,nfa,chif,
+c$$$     >   minchif,gkf,phasef,nf,lg,rnorm,u,itail,nznuci,vdon,nchf,nchi,
+c$$$     >   pos,second,npk,ne2e,vmatt)
+c$$$      use ubb_module
+c$$$      use apar
+c$$$      use chil_module
+c$$$      include 'par.f'
+c$$$      common/meshrr/ meshr,rmesh(maxr,3)
+c$$$      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax),
+c$$$     >   phasei(kmax)
+c$$$      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax),
+c$$$     >   phasef(kmax),npk(nchan+1)
+c$$$      complex phasei, phasef
+c$$$      dimension fun(maxr), temp(maxr), psii(maxr), psif(maxr),
+c$$$     >   ovlpi(kmax), ovlpf(kmax), temp2(maxr), temp3(maxr),
+c$$$     >   tail(kmax,kmax),u(maxr), dwpot(maxr,nchan)
+c$$$      real vmatt(kmax,kmax,0:1),vdon(nchan,nchan,0:1)
+c$$$      common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
+c$$$     >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
+c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
+c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
+c$$$      common /psinbc/ enpsinb(nnmax,0:lnabmax),
+c$$$     >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
+c$$$      common/numericalpotential/ numericalv, lstoppos
+c$$$      logical numericalv
+c$$$      common/matchph/rphase(kmax,nchan)
+c$$$*      real chitemp(maxr,kmax) !, rpowpos1(maxr), rpowpos2(maxr)
+c$$$      allocatable :: chitemp(:,:)
+c$$$      logical pos, second
+c$$$      common/smallr/ formcut,regcut,expcut,fast,match,analyticd
+c$$$      logical fast, match, analyticd
+c$$$      real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
+c$$$      character chan(knm)*3
+c$$$      common /charchan/ chan
+c$$$
+c$$$      real prod(kmax,kmax)
+c$$$c
+c$$$      common /di_el_core_polarization/ gamma, r0, pol(maxr)   
+c$$$      real*8, dimension (meshr) :: ubbb ! ANDREY
+c$$$      character ch*1
+c$$$      ch(n) = char(mod(n,75) + ichar('0'))
+c$$$      
+c$$$      hat(l)= sqrt(2.0 * l + 1.0)
+c$$$
+c$$$      minfun = 1
+c$$$      maxfun = min(maxpsii,maxpsif)
+c$$$      do i = minfun, maxfun
+c$$$         fun(i) = psii(i) * psif(i) * rmesh(i,3)
+c$$$      end do 
+c$$$
+c$$$      do i = 1, maxr
+c$$$         temp3(i) = 0.0
+c$$$      enddo
+c$$$      mini = maxr
+c$$$      maxi = 1
+c$$$      ctemp = 0.0
+c$$$
+c$$$
+c$$$      ltmin = 1000000
+c$$$      ctemp = 0.0
+c$$$      do 10 ilt = -lia, lia, 2
+c$$$         lt = lfa + ilt
+c$$$         if (lt.lt.0.or.lt.gt.ltmax) go to 10
+c$$$         call cleb(2*lia,2*lt,2*lfa,0,0,0,c1)
+c$$$         c1tmp = cgc0(float(lia),float(lt),float(lfa))
+c$$$         if (abs((c1-c1tmp)/(c1tmp+1e-20)).gt.1e-3) then
+c$$$            print*,'CGCs 1 do not agree:',c1, c1tmp,lia,lt,lfa
+c$$$            stop 'CGCs 1 do not agree'
+c$$$         endif 
+c$$$         call cleb(2*li,2*lf,2*lt,0,0,0,c2)
+c$$$         c2tmp = cgc0(float(li),float(lf),float(lt))         
+c$$$         if (abs((c2-c2tmp)/(c2tmp+1e-20)).gt.1e-3) then
+c$$$            c2tmp2 = cgcigor(2*li,2*lf,2*lt,0,0,0)
+c$$$C$OMP critical(print)
+c$$$            print*,'CGCs 2 do not agree:',c2, c2tmp,c2tmp2,li,lf,lt
+c$$$C$OMP end critical(print)
+c$$$            c2 = c2tmp2
+c$$$         endif 
+c$$$         call rac7(2*li,2*lf,2*lia,2*lfa,2*lt,2*lg,c3)
+c$$$         c3tmp = cof6j(float(li),float(lf),float(lt),float(lfa),
+c$$$     >      float(lia),float(lg))*(-1)**(li+lf+lia+lfa)
+c$$$         if (abs((c3-c3tmp)/(c3tmp+1e-6)).gt.1e-2) then
+c$$$C  below does happen for NPAR = 1, but not significant
+c$$$C$OMP critical(print)
+c$$$            print*,'WARNING: CJ6 and W do not agree in D:',c3, c3tmp,
+c$$$     >         li,lf,lia,lfa,lt,lg
+c$$$C$OMP end critical(print)
+c$$$            c3 = c3tmp
+c$$$c$$$            stop 'CJ6 and W do not agree in D'
+c$$$         endif 
+c$$$         
+c$$$         c = c1 * c2 * c3
+c$$$         if (abs(c).lt.1e-10) go to 10
+c$$$         const = (-1)**(lg + lfa) * hat(li) *
+c$$$     >      hat(lf) * hat(lia) / hat(lt) * c
+c$$$         call form(fun,minfun,maxfun,rpow1(1,lt),rpow2(1,lt),
+c$$$     >      minrp(lt),maxrp(lt),meshr,temp,i1,i2)
+c$$$c$$$         if (lt.eq.0) print*,'lia,li,lg,lfa,lf,c:',lia,li,lg,lfa,lf,c
+c$$$c
+c$$$       if(lt.eq.1.and.gamma.ne.0.0) then
+c$$$          sum1 = 0.0
+c$$$          do i=minfun,maxfun
+c$$$             sum1 = sum1 + fun(i)*pol(i)
+c$$$          end do                       
+c$$$          tmp = gamma * sum1 
+c$$$          do i=i1,i2             
+c$$$             temp(i) = temp(i) - tmp*pol(i)
+c$$$          end do
+c$$$       end if
+c$$$       
+c$$$c         
+c$$$C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
+c$$$         if (lt.eq.0.and..not.pos.and.nchi.eq.nchf) then
+c$$$cCCC  if (lt.eq.0) then
+c$$$
+c$$$c$$$            if (alkali) then
+c$$$c$$$C ANDREY: subtract (ve(r)+1)/r for pos-alkali case             
+c$$$c$$$               do i=1,i2
+c$$$c$$$                  ! factor 2 is since u(i)/2 appears in nuclear(..)
+c$$$c$$$                  u(i)=2.0d0*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$c$$$               end do
+c$$$c$$$            end if                                 
+c$$$            call nuclear(fun,.not.pos,minfun,maxfun,i2,u,nznuc,temp)
+c$$$c$$$C     ANDREY: subtract (ve(r)+1)/r for pos-alkali atom scattering
+c$$$c$$$            if (alkali) then           
+c$$$c$$$               tmp=0.0
+c$$$c$$$               do i=minfun,maxfun
+c$$$c$$$                  tmp=tmp+fun(i)
+c$$$c$$$               end do
+c$$$c$$$               irstop = i2 
+c$$$c$$$               do i=1,irstop
+c$$$c$$$                  temp(i)=temp(i)-tmp*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$c$$$               end do
+c$$$c$$$               do while (abs(temp(irstop)).lt.formcut.and.irstop.gt.1)
+c$$$c$$$                  temp(irstop) = 0.0
+c$$$c$$$                  irstop = irstop - 1
+c$$$c$$$               end do
+c$$$c$$$               i2=irstop
+c$$$c$$$            end if             
+c$$$         endif
+c$$$
+c$$$         if (pos) then !.and.lg.le.lstoppos) then  !.and.nqmi.gt.1
+c$$$C     ANDREY: Hydrogen: ssalling + interpolation:          
+c$$$            if (.not.alkali) then               
+c$$$C  The factor of two below is the reduced mass. We are working with matrix
+c$$$C  elements whose channels are multiplied by sqrt of the reduced mass. Here
+c$$$C  we have positronium-positronium matrix element, hence a factor of 2 overall.
+c$$$c$$$            const = const * (1-(-1)**lt)
+c$$$               const = 2.0 * const * (1-(-1)**lt)
+c$$$c$$$               const = - const !Rav's derivation, but not Alisher's
+c$$$               do i = i1, i2
+c$$$                  xin(i-i1+1) = rmesh(i,1)
+c$$$                  yin(i-i1+1) = temp(i) * xin(i-i1+1) ** (lt+1)
+c$$$                  xout(i-i1+1) = rmesh(i,1) * 2d0
+c$$$               enddo 
+c$$$               if (i2-i1+1.gt.maxr) then
+c$$$                  print*,'I2,I1,LT:',i2,i1,lt
+c$$$                  stop 'problem in call to intrpl'
+c$$$               endif 
+c$$$               call intrpl(i2-i1+1,xin,yin,i2-i1+1,xout,yout)
+c$$$c$$$            nnn = nnn + 1
+c$$$               do i = i1, i2
+c$$$                  if (xout(i-i1+1).gt.xin(i2-i1+1))
+c$$$     >                 yout(i-i1+1) = yin(i2-i1+1)
+c$$$                  temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
+c$$$c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
+c$$$c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1), 
+c$$$c$$$     >            xin(i-i1+1), yin(i-i1+1) / xin(i-i1+1)**(lt+1), i
+c$$$               enddo
+c$$$            else ! alkali              
+c$$$C     ANDREY: pos-alkali case: radial integrals with Ubb               
+c$$$               if (lt.gt.ubb_max3) stop
+c$$$     $              'stopped: vmat: Ubb with larger lt are needed'
+c$$$               const=2d0*const               
+c$$$C              some constants from get_ubb: 
+c$$$               rlgmin = log10(rmesh(1,1))
+c$$$               rlgmax = log10(rmesh(meshr,1))
+c$$$               drlg = (rlgmax-rlgmin)/real(ubb_max1-1)
+c$$$
+c$$$c---- find irmin and irmax needed for interpolation                  
+c$$$               irmin = 1;
+c$$$               rmin = rmesh(minfun, 1);  
+c$$$               ir = 2;               
+c$$$               do while (arho(ir).lt.rmin)                  
+c$$$                  ir = ir+1
 c$$$               end do
-c$$$            end if                                 
-            call nuclear(fun,.not.pos,minfun,maxfun,i2,u,nznuc,temp)
-c$$$C     ANDREY: subtract (ve(r)+1)/r for pos-alkali atom scattering
-c$$$            if (alkali) then           
-c$$$               tmp=0.0
-c$$$               do i=minfun,maxfun
-c$$$                  tmp=tmp+fun(i)
+c$$$               irmin = ir-1               
+c$$$C     ---------------------------------------------- 
+c$$$               rmax = rmesh(maxfun, 1)  
+c$$$               irmax = ubb_max1; ir = irmax;
+c$$$               do while (arho(ir).gt.rmax)                  
+c$$$                  ir = ir-1
 c$$$               end do
-c$$$               irstop = i2 
-c$$$               do i=1,irstop
-c$$$                  temp(i)=temp(i)-tmp*veint(rmesh(i,1))*rpow2(i ,0)
-c$$$               end do
-c$$$               do while (abs(temp(irstop)).lt.formcut.and.irstop.gt.1)
-c$$$                  temp(irstop) = 0.0
-c$$$                  irstop = irstop - 1
-c$$$               end do
-c$$$               i2=irstop
-c$$$            end if             
-         endif
-
-         if (pos) then !.and.lg.le.lstoppos) then  !.and.nqmi.gt.1
-C     ANDREY: Hydrogen: ssalling + interpolation:          
-            if (.not.alkali) then               
-C  The factor of two below is the reduced mass. We are working with matrix
-C  elements whose channels are multiplied by sqrt of the reduced mass. Here
-C  we have positronium-positronium matrix element, hence a factor of 2 overall.
-c$$$            const = const * (1-(-1)**lt)
-               const = 2.0 * const * (1-(-1)**lt)
-c$$$               const = - const !Rav's derivation, but not Alisher's
-               do i = i1, i2
-                  xin(i-i1+1) = rmesh(i,1)
-                  yin(i-i1+1) = temp(i) * xin(i-i1+1) ** (lt+1)
-                  xout(i-i1+1) = rmesh(i,1) * 2d0
-               enddo 
-               if (i2-i1+1.gt.maxr) then
-                  print*,'I2,I1,LT:',i2,i1,lt
-                  stop 'problem in call to intrpl'
-               endif 
-               call intrpl(i2-i1+1,xin,yin,i2-i1+1,xout,yout)
-c$$$            nnn = nnn + 1
-               do i = i1, i2
-                  if (xout(i-i1+1).gt.xin(i2-i1+1))
-     >                 yout(i-i1+1) = yin(i2-i1+1)
-                  temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
-c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
-c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1), 
-c$$$     >            xin(i-i1+1), yin(i-i1+1) / xin(i-i1+1)**(lt+1), i
-               enddo
-            else ! alkali              
-C     ANDREY: pos-alkali case: radial integrals with Ubb               
-               if (lt.gt.ubb_max3) stop
-     $              'stopped: vmat: Ubb with larger lt are needed'
-               const=2d0*const               
-C              some constants from get_ubb: 
-               rlgmin = log10(rmesh(1,1))
-               rlgmax = log10(rmesh(meshr,1))
-               drlg = (rlgmax-rlgmin)/real(ubb_max1-1)
-
-c---- find irmin and irmax needed for interpolation                  
-               irmin = 1;
-               rmin = rmesh(minfun, 1);  
-               ir = 2;               
-               do while (arho(ir).lt.rmin)                  
-                  ir = ir+1
-               end do
-               irmin = ir-1               
-C     ---------------------------------------------- 
-               rmax = rmesh(maxfun, 1)  
-               irmax = ubb_max1; ir = irmax;
-               do while (arho(ir).gt.rmax)                  
-                  ir = ir-1
-               end do
-               irmax = ir+1               
-               maxir = irmax-irmin+1
-C---------------------------------------------------
-               
-               do i = 1, i2
-                  rho = rmesh(i,1);                                    
-                  call get_ubb(minfun,maxfun,irmin,irmax,maxir,drlg,lt,
-     $                 rho,ubbb)      
-                  temp(i) = 0.0                 
-                  do j = minfun, maxfun
-                     r = rmesh(j,1)
-c     explicit integration of Ubb (Eq. 23): 
-C                    call Ubb0(lt, r, rho, res0, res)
-C     Ubb integrals computed outside:
-C                    res = ubb_res(j,i,lt)
-C     interpolation: minus: alisher uses (1-(-1)**lt):
-                     res = -ubbb(j)/max(rho,r/2.)
-                     temp(i) = temp(i)+res*fun(j)
-                  end do        ! j
-               end do           ! i               
-            end if              ! alkali or hydrogen                          
-         else                   ! pos
-C  Multiply by -1 for positron scattering as then NZE = 1, for non pos-pos
-C  channels 
-            const = - nze * const
-         endif ! pos
-         
-         do i = i1, i2
-            temp3(i) = const * temp(i) + temp3(i)
-         enddo
-         mini = min(mini,i1)
-         maxi = max(maxi,i2)
-C  The variable CTEMP is the asymptotic value of const * temp * r ** (lt+1)
-c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
-            if (i2.eq.meshr.and.lt.ne.0.and.lt.lt.ltmin) then
-               ctemp = rnorm * const * temp(i2)/rpow2(i2,lt)
-               ltmin = lt
-c$$$               print*,'ctemp,lt:',ctemp,lt
-c$$$            ctemp = - float(nze) * rnorm * const * temp(i2)/rpow2(i2,lt)
-         endif 
- 10   continue
-c$$$      if (pos.and.maxi.eq.meshr) then
-c$$$         print*,'Writing temp3 to disk'
-c$$$         open(42,file='temp'//ch(lfa)//ch(lia)//ch(lt))
-c$$$         write(42,*) '# lt,ltmin,ctemp:',lt,ltmin,ctemp
-c$$$         do i = 1, meshr
-c$$$            write(42,*) rmesh(i,1), temp3(i)
+c$$$               irmax = ir+1               
+c$$$               maxir = irmax-irmin+1
+c$$$C---------------------------------------------------
+c$$$               
+c$$$               do i = 1, i2
+c$$$                  rho = rmesh(i,1);                                    
+c$$$                  call get_ubb(minfun,maxfun,irmin,irmax,maxir,drlg,lt,
+c$$$     $                 rho,ubbb)      
+c$$$                  temp(i) = 0.0                 
+c$$$                  do j = minfun, maxfun
+c$$$                     r = rmesh(j,1)
+c$$$c     explicit integration of Ubb (Eq. 23): 
+c$$$C                    call Ubb0(lt, r, rho, res0, res)
+c$$$C     Ubb integrals computed outside:
+c$$$C                    res = ubb_res(j,i,lt)
+c$$$C     interpolation: minus: alisher uses (1-(-1)**lt):
+c$$$                     res = -ubbb(j)/max(rho,r/2.)
+c$$$                     temp(i) = temp(i)+res*fun(j)
+c$$$                  end do        ! j
+c$$$               end do           ! i               
+c$$$            end if              ! alkali or hydrogen                          
+c$$$         else                   ! pos
+c$$$C  Multiply by -1 for positron scattering as then NZE = 1, for non pos-pos
+c$$$C  channels 
+c$$$            const = - nze * const
+c$$$         endif ! pos
+c$$$         
+c$$$         do i = i1, i2
+c$$$            temp3(i) = const * temp(i) + temp3(i)
 c$$$         enddo
-c$$$         close(42)
+c$$$         mini = min(mini,i1)
+c$$$         maxi = max(maxi,i2)
+c$$$C  The variable CTEMP is the asymptotic value of const * temp * r ** (lt+1)
+c$$$c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
+c$$$            if (i2.eq.meshr.and.lt.ne.0.and.lt.lt.ltmin) then
+c$$$               ctemp = rnorm * const * temp(i2)/rpow2(i2,lt)
+c$$$               ltmin = lt
+c$$$c$$$               print*,'ctemp,lt:',ctemp,lt
+c$$$c$$$            ctemp = - float(nze) * rnorm * const * temp(i2)/rpow2(i2,lt)
+c$$$         endif 
+c$$$ 10   continue
+c$$$c$$$      if (pos.and.maxi.eq.meshr) then
+c$$$c$$$         print*,'Writing temp3 to disk'
+c$$$c$$$         open(42,file='temp'//ch(lfa)//ch(lia)//ch(lt))
+c$$$c$$$         write(42,*) '# lt,ltmin,ctemp:',lt,ltmin,ctemp
+c$$$c$$$         do i = 1, meshr
+c$$$c$$$            write(42,*) rmesh(i,1), temp3(i)
+c$$$c$$$         enddo
+c$$$c$$$         close(42)
+c$$$c$$$      endif 
+c$$$            
+c$$$c$$$      if (ltmin.lt.10.and.maxi.eq.meshr)
+c$$$c$$$     >   print*,'pos,lfa,lia,ltmin,maxi,ctemp,v(i):',pos,lfa,lia,ltmin,
+c$$$c$$$     >   maxi,ctemp,(rnorm*temp3(i)/rpow2(i,ltmin),i=maxi-20,maxi,10)
+c$$$      if (ltmin.lt.10.and.maxi.eq.meshr) then
+c$$$         ctemp = rnorm * temp3(maxi) / rpow2(maxi,ltmin)
+c$$$c$$$      else
+c$$$c$$$         ctemp = 0.0
 c$$$      endif 
-            
-c$$$      if (ltmin.lt.10.and.maxi.eq.meshr)
-c$$$     >   print*,'pos,lfa,lia,ltmin,maxi,ctemp,v(i):',pos,lfa,lia,ltmin,
-c$$$     >   maxi,ctemp,(rnorm*temp3(i)/rpow2(i,ltmin),i=maxi-20,maxi,10)
-      if (ltmin.lt.10.and.maxi.eq.meshr) then
-         ctemp = rnorm * temp3(maxi) / rpow2(maxi,ltmin)
+c$$$      if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
+c$$$C  Define the channel dependent distorting potential when running the
+c$$$C  Born case. The units are Rydbergs.
+c$$$         do i = 1, meshr
+c$$$            dwpot(i,nchi) = 0.0
+c$$$         enddo
+c$$$         do i = mini, maxi
+c$$$            dwpot(i,nchi) = temp3(i) * 2.0
+c$$$         enddo
+c$$$      endif
+c$$$      
+c$$$C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
+c$$$C  them.
+c$$$c$$$      open(42,file=chan(nchf)(2:3)//'.'//chan(nchi)(2:3))
+c$$$c$$$      write(42,'("# ", i2, a4, "<-", a4, i3)')
+c$$$c$$$     >   lf,chan(nchf),chan(nchi),li
+c$$$      do i = mini, maxi
+c$$$c$$$         write(42,*) i, rmesh(i,1), temp3(i)
+c$$$         temp3(i) = rnorm * temp3(i) / rmesh(i,3)
+c$$$      end do
+c$$$c$$$      close(42)
+c$$$      mini1 = mini
+c$$$C put IF statement as chil(,,2) may not be allocated, but see below
+c$$$      tail(:,:) = 0.0
+c$$$      if (itail.eq.-1) then
+c$$$      call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
+c$$$     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),2),minchil(npk(nchf),2)
+c$$$     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+c$$$      elseif (itail.eq.1) then
+c$$$      call maketail(itail,ctemp,chil(1,npk(nchi),1),minchil(npk(nchi),1)
+c$$$     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),1),minchil(npk(nchf),1)
+c$$$     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+c$$$      endif
+c$$$c$$$      call maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
+c$$$c$$$     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+c$$$
+c$$$      allocate(chitemp(maxr,kmax))
+c$$$      do ki = 1, nqmi
+c$$$         minki = max(mini1, minchii(ki))
+c$$$         do i = minki, maxi
+c$$$            chitemp(i,ki) = temp3(i) * chii(i,ki)
+c$$$         enddo
+c$$$      enddo 
+c$$$
+c$$$C  The following gets correct prod(kmax,kmax) but the transfer takes all
+c$$$C  the time! Need to transfer all of CHIL at the one time, but....
+c$$$c$$$  if (nqmi.gt.1.and.nqmf.gt.1) 
+c$$$c$$$     >     call cmmult(temp3,chif,chitemp,meshr,nqmf,nqmi,mini,maxi,
+c$$$c$$$     >     prod)
+c$$$
+c$$$c$$$c$par doall      
+c$$$      if (nchi.eq.nchf) then
+c$$$      do ki = 1, nqmi
+c$$$         qi = gki(ki)
+c$$$         kii = npk(nchi) + ki - 1
+c$$$         minki = max(mini1, minchii(ki))
+c$$$         kfstop = nqmf
+c$$$         if (second) then
+c$$$            if (ki.eq.1) then
+c$$$               kfstop = nqmf
+c$$$            else
+c$$$               kfstop = 1
+c$$$            endif
+c$$$         endif 
+c$$$         do 20 kf = 1, kfstop
+c$$$            qf = gkf(kf)
+c$$$
+c$$$            if (ne2e.eq.0) then
+c$$$               kff = npk(nchf) + kf - 1
+c$$$               if (kff.lt.kii) go to 20
+c$$$            else
+c$$$               kff = nchf
+c$$$            endif 
+c$$$            mini = max(minki, minchif(kf))
+c$$$            n = maxi - mini + 1
+c$$$            tmp = tail(kf,ki)
+c$$$            tmp = tmp +
+c$$$c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
+c$$$     >         dot_product(chif(mini:maxi,kf),chitemp(mini:maxi,ki))
+c$$$            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp 
+c$$$            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp 
+c$$$ 20      continue 
+c$$$      end do 
 c$$$      else
-c$$$         ctemp = 0.0
-      endif 
-      if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
-C  Define the channel dependent distorting potential when running the
-C  Born case. The units are Rydbergs.
-         do i = 1, meshr
-            dwpot(i,nchi) = 0.0
-         enddo
-         do i = mini, maxi
-            dwpot(i,nchi) = temp3(i) * 2.0
-         enddo
-      endif
-      
-C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
-C  them.
-c$$$      open(42,file=chan(nchf)(2:3)//'.'//chan(nchi)(2:3))
-c$$$      write(42,'("# ", i2, a4, "<-", a4, i3)')
-c$$$     >   lf,chan(nchf),chan(nchi),li
-      do i = mini, maxi
-c$$$         write(42,*) i, rmesh(i,1), temp3(i)
-         temp3(i) = rnorm * temp3(i) / rmesh(i,3)
-      end do
-c$$$      close(42)
-      mini1 = mini
-C put IF statement as chil(,,2) may not be allocated, but see below
-      tail(:,:) = 0.0
-      if (itail.eq.-1) then
-      call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
-     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),2),minchil(npk(nchf),2)
-     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
-      elseif (itail.eq.1) then
-      call maketail(itail,ctemp,chil(1,npk(nchi),1),minchil(npk(nchi),1)
-     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),1),minchil(npk(nchf),1)
-     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
-      endif
-c$$$      call maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
-c$$$     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
-
-      allocate(chitemp(maxr,kmax))
-      do ki = 1, nqmi
-         minki = max(mini1, minchii(ki))
-         do i = minki, maxi
-            chitemp(i,ki) = temp3(i) * chii(i,ki)
-         enddo
-      enddo 
-
-C  The following gets correct prod(kmax,kmax) but the transfer takes all
-C  the time! Need to transfer all of CHIL at the one time, but....
-c$$$  if (nqmi.gt.1.and.nqmf.gt.1) 
-c$$$     >     call cmmult(temp3,chif,chitemp,meshr,nqmf,nqmi,mini,maxi,
-c$$$     >     prod)
-
-c$$$c$par doall      
-      if (nchi.eq.nchf) then
-      do ki = 1, nqmi
-         qi = gki(ki)
-         kii = npk(nchi) + ki - 1
-         minki = max(mini1, minchii(ki))
-         kfstop = nqmf
-         if (second) then
-            if (ki.eq.1) then
-               kfstop = nqmf
-            else
-               kfstop = 1
-            endif
-         endif 
-         do 20 kf = 1, kfstop
-            qf = gkf(kf)
-
-            if (ne2e.eq.0) then
-               kff = npk(nchf) + kf - 1
-               if (kff.lt.kii) go to 20
-            else
-               kff = nchf
-            endif 
-            mini = max(minki, minchif(kf))
-            n = maxi - mini + 1
-            tmp = tail(kf,ki)
-            tmp = tmp +
-c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
-     >         dot_product(chif(mini:maxi,kf),chitemp(mini:maxi,ki))
-            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp 
-            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp 
- 20      continue 
-      end do 
-      else
-
-      do ki = 1, nqmi
-c         qi = gki(ki)
-c         kii = npk(nchi) + ki - 1
-         minki = max(mini1, minchii(ki))
-c         kfstop = nqmf
-         do kf = 1, nqmf
-c            qf = gkf(kf)
-c            kff = npk(nchf) + kf - 1
-            mini = max(minki, minchif(kf))
-            tmp = 
-c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
-     >         dot_product(chif(1:maxi,kf),chitemp(1:maxi,ki))
-c            tmp = 0.0
-c            do i = 1, maxi
-c               tmp = tmp + chif(i,kf)*chii(i,ki)*temp3(i)
-c            enddo
-            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp
-            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp
-      end do
-      end do
-c      call cuDDOT(chif,chii,temp3,nqmf,nqmi,meshr,kmax,maxi,vmatt)
-      end if
-      deallocate(chitemp)
-
-      if (itail.gt.0.and..not.pos.and.abs(lf-li).eq.1) then
-         do ki = 1, nqmi
-            qi = gki(ki)
-            kf = nqmf-1
-            do while (kf.gt.1)
-               qf = gkf(kf)
-               if (qf*rmesh(meshr,1).lt.itail.and.qf.lt.qi) then
-                  estimate = vmatt(kf+1,ki,0)*qf**2/gkf(kf+1)**2
-c$$$                  print*,kf,qf,estimate,gkf(kf+1),vmatt(kf+1,ki,0)
-                  vmatt(kf,ki,0) = estimate
-                  vmatt(kf,ki,1) = estimate
-               endif
-               kf = kf - 1
-            enddo
-         enddo
-      endif 
-                  
-C  Define the direct on shell V matrix used for analytic Born subtraction
-C  in the cross program
-      ki = 1
-      kf = 1
-      tmp = tail(kf,ki)
-      mini = max(mini1, minchii(ki), minchif(kf))
-      minki = max(mini1, minchii(ki))
-      do i = minki, maxi
-         temp2(i) = temp3(i) * chii(i,ki)
-      enddo 
-c$$$      n = maxi - mini + 1
-c$$$      if(n.gt.0)tmp = tmp + sdot(n,chif(mini,kf),1,temp2(mini),1)
-C The following If statement avoids a bug on the IBMs
-      if (mini.lt.maxi) then
-         tmp = tmp +
-     >      dot_product(chif(mini:maxi,kf),temp2(mini:maxi))
-      endif 
-      
-      
-cCCC      do i = mini, maxi
-cCCC         tmp = tmp + chii(i,ki) * chif(i,kf) * temp3(i)
-cCCC      end do
-      do ns = 0, 1
-         vdon(nchf,nchi,ns) = vdon(nchf,nchi,ns) + tmp
-         vdon(nchi,nchf,ns) = vdon(nchf,nchi,ns)
-      enddo 
-      end
+c$$$
+c$$$      do ki = 1, nqmi
+c$$$c         qi = gki(ki)
+c$$$c         kii = npk(nchi) + ki - 1
+c$$$         minki = max(mini1, minchii(ki))
+c$$$c         kfstop = nqmf
+c$$$         do kf = 1, nqmf
+c$$$c            qf = gkf(kf)
+c$$$c            kff = npk(nchf) + kf - 1
+c$$$            mini = max(minki, minchif(kf))
+c$$$            tmp = 
+c$$$c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
+c$$$     >         dot_product(chif(1:maxi,kf),chitemp(1:maxi,ki))
+c$$$c            tmp = 0.0
+c$$$c            do i = 1, maxi
+c$$$c               tmp = tmp + chif(i,kf)*chii(i,ki)*temp3(i)
+c$$$c            enddo
+c$$$            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp
+c$$$            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp
+c$$$      end do
+c$$$      end do
+c$$$c      call cuDDOT(chif,chii,temp3,nqmf,nqmi,meshr,kmax,maxi,vmatt)
+c$$$      end if
+c$$$      deallocate(chitemp)
+c$$$
+c$$$      if (itail.gt.0.and..not.pos.and.abs(lf-li).eq.1) then
+c$$$         do ki = 1, nqmi
+c$$$            qi = gki(ki)
+c$$$            kf = nqmf-1
+c$$$            do while (kf.gt.1)
+c$$$               qf = gkf(kf)
+c$$$               if (qf*rmesh(meshr,1).lt.itail.and.qf.lt.qi) then
+c$$$                  estimate = vmatt(kf+1,ki,0)*qf**2/gkf(kf+1)**2
+c$$$c$$$                  print*,kf,qf,estimate,gkf(kf+1),vmatt(kf+1,ki,0)
+c$$$                  vmatt(kf,ki,0) = estimate
+c$$$                  vmatt(kf,ki,1) = estimate
+c$$$               endif
+c$$$               kf = kf - 1
+c$$$            enddo
+c$$$         enddo
+c$$$      endif 
+c$$$                  
+c$$$C  Define the direct on shell V matrix used for analytic Born subtraction
+c$$$C  in the cross program
+c$$$      ki = 1
+c$$$      kf = 1
+c$$$      tmp = tail(kf,ki)
+c$$$      mini = max(mini1, minchii(ki), minchif(kf))
+c$$$      minki = max(mini1, minchii(ki))
+c$$$      do i = minki, maxi
+c$$$         temp2(i) = temp3(i) * chii(i,ki)
+c$$$      enddo 
+c$$$c$$$      n = maxi - mini + 1
+c$$$c$$$      if(n.gt.0)tmp = tmp + sdot(n,chif(mini,kf),1,temp2(mini),1)
+c$$$C The following If statement avoids a bug on the IBMs
+c$$$      if (mini.lt.maxi) then
+c$$$         tmp = tmp +
+c$$$     >      dot_product(chif(mini:maxi,kf),temp2(mini:maxi))
+c$$$      endif 
+c$$$      
+c$$$      
+c$$$cCCC      do i = mini, maxi
+c$$$cCCC         tmp = tmp + chii(i,ki) * chif(i,kf) * temp3(i)
+c$$$cCCC      end do
+c$$$      do ns = 0, 1
+c$$$         vdon(nchf,nchi,ns) = vdon(nchf,nchi,ns) + tmp
+c$$$         vdon(nchi,nchf,ns) = vdon(nchf,nchi,ns)
+c$$$      enddo 
+c$$$      end
       
       subroutine core(ifirst,nznuci,lg,etot,chil,minchil,nchtop,
      >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon,vmat,vmatp)

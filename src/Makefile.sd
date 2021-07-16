@@ -139,6 +139,6 @@ $(OBJDIR):
 $(OBJDIR)/eremenko.o : eremenko.f90
 	$(FC) $a -c eremenko.f90 -o $@
 
-$(OBJDIR)/%.o : %.f par.f par.for 
+$(OBJDIR)/%.o : %.f par.f
 	$(FC) $a -c $< -o $@
 
