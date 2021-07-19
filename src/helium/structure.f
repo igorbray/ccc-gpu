@@ -1222,7 +1222,7 @@ c-------------------------------------------------------------------
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       character chan(knm)*3
       common /charchan/ chan
-      character lorb(0:lamax)*1
+      character lorb(0:23)*1 !(0:lamax)*1
       data lorb /"s","p","d","f","g","h","i",
      >     "j","k","l","m","n","o","P","q","r",
      >     "s","t","u","v","w","x","y","z"/      
