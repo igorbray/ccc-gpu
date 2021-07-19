@@ -1465,6 +1465,10 @@ C  EXPCUT determines the smallest value of functions containing EXP fall off
       endif 
 
       read(nin,*) ifirst,isecond,nold,itail,theta
+      if (itail.eq.1.and.(ldw.ge.lstart.or.nzasysm.ne.0)) then
+         print*,'itail can only be -ve for DW or charged targets'
+         stop 'itail can only be -ve for DW or charged targets'
+      endif
       if (nze.ge.1) then
          if (ifirst.gt.0) ifirst = 0
          if (isecond.gt.0) isecond = 0

@@ -1222,7 +1222,7 @@ c-------------------------------------------------------------------
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       character chan(knm)*3
       common /charchan/ chan
-      character lorb(0:23)*1
+      character lorb(0:lamax)*1
       data lorb /"s","p","d","f","g","h","i",
      >     "j","k","l","m","n","o","P","q","r",
      >     "s","t","u","v","w","x","y","z"/      
@@ -1234,11 +1234,11 @@ c-------------------------------------------------------------------
       common /increarrange/ inc
 c     
       write(10,'("Nmax =",I3)') Nmax
-      if (lamax.gt.23) then 
-         print*, 'lorb(23) needs increasing'
-         print*, 'at least to lamax=',lamax
-         stop 
-      endif
+c$$$      if (lamax.gt.23) then 
+c$$$         print*, 'lorb(23) needs increasing'
+c$$$         print*, 'at least to lamax=',lamax
+c$$$         stop 
+c$$$      endif
       do N=1,Nmax
          write(10,'(A3,", N=",I3,"  l=",I3,"  s=",I3," parity=",I3,
      >      ", energy=",F12.5,", major config.:(",2(I2,A1),")",

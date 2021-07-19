@@ -208,11 +208,13 @@ c     momentum loops
 c$$$            print*,'lf,llf,li,lli,lt1,lt2,ctemp:',
 c$$$     >         lf,llf,li,lli,lt1,lt2,ctemp
             tail(:,:) = 0.0
-            if (itail.ne.0)
-     >         call maketail(itail,ctemp,chil(1,npki(nchi),2),
-     >         minchil(npki(nchi),2),gki,phasei,li,nqmi,
-     >         chil(1,npkf(nchf),2),minchil(npkf(nchf),2),
-     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+            it = 1
+            if (itail.lt.0) it = 2
+            if (itail.ne.0.and.ltmin.le.2)
+     >         call maketail(itail,ctemp,chil(1,npki(nchi),it),
+     >         minchil(npki(nchi),it),gki,phasei,li,nqmi,
+     >         chil(1,npkf(nchf),it),minchil(npkf(nchf),it),
+     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
 c$$$            call maketail(itail,ctemp,chili(1,npki(nchi)),
 c$$$     >         minci(npki(nchi)),gki,phasei,li,nqmi,
 c$$$     >         chilf(1,npkf(nchf)),mincf(npkf(nchf)),

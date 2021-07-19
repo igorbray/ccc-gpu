@@ -22,6 +22,6 @@ pause -1
 set yr [*:*] reverse
 set nokey
 set format y "-%g"
-p 'dfile' u 1:(-$2):3:4 t 'energy level ', 'dfile' u 1:(-$5) t '$E$' w l 0
+p 'dfile' u 1:(-$2):3:4 t 'energy level '#, 'dfile' u 1:(-$5) t '$E$' w l 0
 pause -1
 
