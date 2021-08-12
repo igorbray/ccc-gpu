@@ -1465,9 +1465,9 @@ C  EXPCUT determines the smallest value of functions containing EXP fall off
       endif 
 
       read(nin,*) ifirst,isecond,nold,itail,theta
-      if (itail.eq.1.and.(ldw.ge.lstart.or.nzasysm.ne.0)) then
-         print*,'itail can only be -ve for DW or charged targets'
-         stop 'itail can only be -ve for DW or charged targets'
+      if (itail.eq.1.and.(ldw.ge.lstart.or.nzasym.ne.0)) then
+         print*,'itail needs to be -ve for DW or charged targets'
+         stop 'itail needs to be -ve for DW or charged targets'
       endif
       if (nze.ge.1) then
          if (ifirst.gt.0) ifirst = 0
@@ -2398,7 +2398,7 @@ C  This is for very large incident energies
  10   inquire(file = lockfile, exist=exists)
       if (exists) then
          print*,'Surprisingly lockfile exists:',lg,n,lockfile
-         call sleep(max(1,lg/10))
+         call sleep(max(1,lg))
          if (n.le.100) then
             n = n + 1
 c$$$            call datetime(3)
@@ -3029,10 +3029,10 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-c$$$      else if (0.0.lt.x.and.x.lt.xp) then
-      else
+      else if (0.0.lt.x.and.x.lt.xp*0.99) then
+c$$$      else
          r = x/(xp+1e-20)
-         if (r.gt.0.995) r = 0.995
+c$$$         if (r.gt.0.995) r = 0.995
          extrap = x / (1.0 - r)
       endif
       end
