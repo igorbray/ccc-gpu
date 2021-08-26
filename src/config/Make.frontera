@@ -3,6 +3,8 @@ FCFLAGS_OPT1 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -fp
 FCFLAGS_OPT2 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -fpe0 -mcmodel=medium -shared-intel -align dcommons #-axMIC-AVX512
 FCFLAGS_GPU  := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -fpe0 -mcmodel=medium -shared-intel -align dcommons #-axMIC-AVX512
 FCFLAGS_SAVE := -save
+FCFLAGS_REAL8 := -r8
+FCFLAGS_MODFLAG := -module
 LDFLAGS := -mkl -lmkl_scalapack_lp64 -lmkl_blacs_intelmpi_lp64 #-axMIC-AVX512
 
 

@@ -41,7 +41,9 @@ c$$$      end
       end
 
       subroutine gettime(utime,stime)
-      real tarray(2)
+c     changing to allow gcc build
+c      real tarray(2)
+      real*4 tarray(2)
       tt = dtime(tarray)
       utime = tarray(1)
       stime = tarray(2)

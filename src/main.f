@@ -205,6 +205,9 @@ c     test for funleg2
       !real (kind = qp), external :: tint
       real (kind = qp) :: QLvd, QLpp, part1, part2, part3 
 
+c     defining to allow gcc build
+      character chin*1
+
 c      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
 c      integer, allocatable :: nchistart(:), nchistop(:)
 c      integer  nodeid

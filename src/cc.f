@@ -137,7 +137,8 @@ C     (they are not essential to working of the code)
      X                HCL,HPL,FCM,HCL1,ALPHA,BETA,PL
 c$omp threadprivate(/RCFCM1/)
 C The following line may need to be commented to run with gfortran and OMP
-      EQUIVALENCE            (PK,XRCF(1,1))
+c     commenting to allow gcc build
+c      EQUIVALENCE            (PK,XRCF(1,1))
 C
       DATA ZERO,ONE,TWO,LIMIT /0.0D+0, 1.0D+0, 2.0D+0, 20000 /,
      X     HALF, CI / 0.5D+0, (0D+0, 1D+0) /,

@@ -27,16 +27,16 @@ ATOM_OBJDIR=obj/atom/$(PRECISION)
 #aGPU := -Mllvm -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
 #l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
 
-a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
-aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
-aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
+a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
+aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
+aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
 l := $(LDFLAGS)
 
 ifeq ($(PRECISION),double)
-  a := $(a) -r8  
+  a := $(a) $(FCFLAGS_REAL8)
 #  pga := -r8  
-  aO1 := $(aO1) -r8
-  aGPU := $(aGPU) -r8
+  aO1 := $(aO1) $(FCFLAGS_REAL8)
+  aGPU := $(aGPU) $(FCFLAGS_REAL8)
 else
 #  pga := -r4  
   a := $(a)  #-align array32byte #no need for this if rest.f is compiled with -O0
@@ -106,14 +106,14 @@ $(OBJDIR)/cc.o : cc.f
 
 
 $(OBJDIR)/vmat.o : vmat.f $(OBJDIR)/modules.o
-	$(FC) $a -c vmat.f  -o $@
+	$(FC) $a $(FCFLAGS_FAST) -c vmat.f  -o $@
 
 
 $(OBJDIR)/logam.o : logam.f 
 	$(FC) $a -O0 $(FCFLAGS_SAVE) -c logam.f  -o $@
 
 $(OBJDIR)/rest.o : rest.f par.f $(OBJDIR)/modules.o
-	$(FC) $a -Msave -O0 -c rest.f  -o $@
+	$(FC) $a $(FCFLAGS_SAVE) -O0 -c rest.f  -o $@
 
 $(OBJDIR)/corratom.o : corratom.f par.f paratom.f 
 	$(FC) $a -c corratom.f  -o $@
@@ -128,7 +128,7 @@ $(OBJDIR)/first.o : first.f $(OBJDIR)/modules.o
 
 $(OBJDIR)/form.o : form.f
 #	pgf90 -Mllvm $(pga) -mp -O2 -Mnoinline -Minfo=accel -mcmodel=medium -c  form.f -o $@
-	$(FC) $a -c form.f -o $@
+	$(FC) $a $(FCFLAGS_FAST) -c form.f -o $@
 
 $(OBJDIR)/jnt.o : jnt.f par.f paratom.f 
 	$(FC) $a -c jnt.f  -o $@

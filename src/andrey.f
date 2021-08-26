@@ -3456,6 +3456,8 @@ C     INPUT --------------------------------------------------------------
 !      real (kind = qp) :: part1, part2, part3, qq,qaa
       real*8 QL1,QL2,DQL1,DQL2, bes, bes1, bes2, x, r2, r4
       real*8 part1, part2, part3, qq,qaa
+c     defining to allow gcc build
+      real SinIntegral
 
       !real, dimension (0:10000) :: weight
       
