@@ -2402,7 +2402,8 @@ c$$$               enddo
             ntime(:,:) = 0
             ip = 0
  10         read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
-     >         ntime(n,ip),nchistartold(n,ip),nchistopold(n,ip)
+     >         ntime(min(nodes,n),ip),nchistartold(min(nodes,n),ip),
+     >         nchistopold(min(nodes,n),ip) !avoid arrays out of bounds
             lgold(ip) = lgp
             inc(:,:) = 0
             nodesold(ip) = n    ! nodesold + 1
@@ -2480,7 +2481,7 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                   neff = 1
                   fac = 1.0
                   it = 0
-                  do while (neff.gt.neffprev.and.it.lt.10)
+                  do while (neff.ge.neffprev.and.it.lt.10)
                      it = it + 1
                      fac = fac * 1.01
                      neffprev = neff
