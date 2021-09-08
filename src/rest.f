@@ -4146,7 +4146,7 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
 !     >                  *sqrt(pi/2d0)
                      enddo
                   enddo        
-                  boxnorm = 2.0/rmesh(meshr,1)
+                  boxnorm = 2.0/rmesh(meshr,1) * 2.0/pi
                endif !nbox.ne.0
                Rpl(:) = 0.0
                Rpg(:) = 0.0
@@ -4184,9 +4184,9 @@ C$OMP& SCHEDULE(dynamic)
                   do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
                      GF(kp,kpp,nch) =
      >                  - dot_product(chil(1:meshr,npk(nch)-1+kp,1),
-     >                  C(1:meshr,kpp)) * pi / const 
-     >                  *real(wk(kp+npk(nch)-1))!*real(wk(kpp+npk(nch)-1))
-     >                    *boxnorm
+     >                  C(1:meshr,kpp)) * pi / const * 
+     >                  real(wk(kp+npk(nch)-1))!*real(wk(kpp+npk(nch)-1))
+     >                  * boxnorm 
 c$$$                     if (kp.eq.kpp.and.kp.eq.2) print*,
 c$$$     >                  GF(kp,kpp,nch), pi / const * 
 c$$$     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
@@ -4195,11 +4195,13 @@ c$$$     >                    *boxnorm
                enddo
 C$OMP END PARALLEL DO
                if (nbox.eq.0) then !analytic with true continuum functions
+c$$$                  GF(:,:,nch) = 0.0
                   do kp = 2, npk(nch+1)-npk(nch)
-                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
 !     >                    real(wk(kp+npk(nch)-1))
-!     >               real(wk(kp+npk(nch)-1))*
-!     >                    2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+c$$$                     GF(kp,kp,nch)=
+c$$$     >                  real(wk(kp+npk(nch)-1))*
+c$$$     >                  2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
                   enddo
                else ! for scalapack
 c$$$                  do kp = 2, npk(nch+1)-npk(nch)
@@ -4222,7 +4224,7 @@ c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
             open(42,file=stringtemp)
 c$$$               GF(:,:,nch) = 0.0
             do kp = 2, npk(nch+1)-npk(nch)
-               do kpp = kp,kp   !2, npk(nch+1)-npk(nch)
+               do kpp = kp,kp !2, npk(nch+1)-npk(nch)
 c$$$                     GF(kp,kpp,nch) = pi/(eproj-gk(kp,nch)*
 c$$$     >                    abs(gk(kp,nch)))*real(wk(kp+npk(nch)-1))
 c$$$                     wk(kp+npk(nch)-1) = GF(kp,kpp,nch)/
@@ -4231,7 +4233,7 @@ c$$$     >                    pi/(eproj-gk(kp,nch)*
 c$$$     >                    abs(gk(kp,nch)))
                   write(42,'(1p,4e13.2)') 
      >                 gk(kpp,nch),GF(kp,kpp,nch),
-     >                 pi/(eproj-gk(kp,nch)*abs(gk(kp,nch))),
+     >                 2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch))),
      >                 real(wk(kp+npk(nch)-1))
 c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)/
 c$$$     >                  real(wk(kp+npk(nch)-1))/real(wk(kpp+npk(nch)-1))

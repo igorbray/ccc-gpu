@@ -48,7 +48,7 @@ c$$$      complex cv(nchan,ichi), cv2(ichi,nchtop)
       complex, dimension(:,:), allocatable :: cv, cv2
 
       complex*16 coulphase
-      real*8 deta
+      real*8 deta,vgf
       complex ton(nchan,nchan),von(nchan,nchan), c,
      >   kon(nchan,nchan), ckern(nchan,nchan), cwork(nchan)
       complex phasel(kmax,nchan), tdist(nchan), sigma(nchan),
@@ -838,20 +838,25 @@ C  The order is k, K(k), V(k), V(k) * K(k) / (E - En - k**2/2)
             do n = npk(nchf) + 1, npk(nchf+1) - 1
                kn = n - npk(nchf) + 1
                divk = gk(1,nchi) * gk(kn,nchf)
+               vgf = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+     >            gf(3-npk(nchf):npk(nchf+1)-2*npk(nchf)+1,
+     >            kn-npk(nchf)+1,nchf))
                if (divk.eq.0.0) divk = 1.0
                if (gk(kn,nchf).ne.0.0) then
 c$$$                  write(nchi*100+nchf*10+ns,*) gk(kn,nchf),
                   if (scalapack) then
                      write(52,*) gk(kn,nchf),
-     >                  v(n,nchi,1) / divk /
-     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
+c$$$     >                  v(n,nchi,1) / divk /
+c$$$     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
+     >                  vgf / divk,
      >                  v(n,nchi,2) / divk
                   else 
                      boxnorm = 1.0
                      if (nbox.eq.1) boxnorm = sqrt(2.0/rmesh(meshr,1))
                      write(52,"(1p,4e14.5)") gk(kn,nchf),
-     >                  v(n,nchi,1) / divk / boxnorm
-     >                  / gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf) 
+c$$$     >                  v(n,nchi,1) / divk / boxnorm
+c$$$     >                  * gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf) 
+     >                  vgf / divk / boxnorm
 !     >                  /  real(wk(n)) !* sqrt(abs(wk(n)))
      >                  ,v(n,nchi,2) /divk /boxnorm!/ sqrt(abs(wk(n)))
      >                  ,gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf)!

@@ -2840,26 +2840,35 @@ c$$$         else
             call update(6)
             vmat(:,:) = 0.0
 C The following code can be commented out to yield previously working results
-C Note that it does not touch on-shell wk (needed in ScaLAPACK).
-            if (scalapack) then
-               do nch = nchistart(nodeid), nchistop(nodeid)
-                  do k = npk(nch)+1,npk(nch+1)-1
-                     vmat01(k,k) = !-1.0/real(wk(k))
-     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
-                     vmat01(k,k+1) = vmat01(k,k)
-                  enddo
-               enddo
-            else
-               do nch = 1, nchtop
-                  do k = npk(nch)+1,npk(nch+1)-1
-                     vmat(k,k) = !-1.0/real(wk(k))
-     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
-c$$$                     print*,'nch,k,vmat(k,k):',nch,k,vmat(k,k),
+C Note that it does not touch on-shell wk (needed in ScaLAPACK). Initialise V
+C with the Green's Function.
+           if (scalapack) then
+               call vmatfromgf(gf,kmaxgf,npk,vmat01,
+     >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
+     >            nchtop)
+           else
+              call vmatfromgf(gf,kmaxgf,npk,vmat,
+     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop)
+           endif
+c$$$            if (scalapack) then
+c$$$               do nch = nchistart(nodeid), nchistop(nodeid)
+c$$$                  do k = npk(nch)+1,npk(nch+1)-1
+c$$$                     vmat01(k,k) = !-1.0/real(wk(k))
 c$$$     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
-                     vmat(k,k+1) = vmat(k,k) !-1.0/real(wk(k))
-                  enddo
-               enddo
-            endif
+c$$$                     vmat01(k,k+1) = vmat01(k,k)
+c$$$                  enddo
+c$$$               enddo
+c$$$            else
+c$$$               do nch = 1, nchtop
+c$$$                  do k = npk(nch)+1,npk(nch+1)-1
+c$$$                     vmat(k,k) = !-1.0/real(wk(k))
+c$$$     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+c$$$c$$$                     print*,'nch,k,vmat(k,k):',nch,k,vmat(k,k),
+c$$$c$$$     >                    -1.0/gf(k-npk(nch)+1,k-npk(nch)+1,nch)
+c$$$                     vmat(k,k+1) = vmat(k,k) !-1.0/real(wk(k))
+c$$$                  enddo
+c$$$               enddo
+c$$$            endif
             do nch = 1, nchtop 
                do k = npk(nch)+1,npk(nch+1)-1
                   wk(k)=cmplx(1e30,0.0) !offshell only, on every node
@@ -5258,3 +5267,99 @@ c$$$      return
       end
 
 
+C Added by Ivan
+      subroutine invertgf(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      include 'par.f'
+      dimension gf(kmaxgf,kmaxgf,nchtop),
+     >   npk(nchan+1)
+      integer infodgetrf, infodgetri, lworkopt, maxksize
+      integer, allocatable :: ipivgf(:)
+      real*8, allocatable :: work(:)
+ 
+      do nch = nchstart, nchstop
+         maxksize = npk(nch+1)-npk(nch)-1 
+         allocate(ipivgf(maxksize))
+         allocate(work(1))
+         call DGETRF(maxksize, maxksize, 
+     >      gf(2:npk(nch+1)-npk(nch),
+     >      2:npk(nch+1)-npk(nch),nch),
+     >      maxksize,ipivgf,infodgetrf)
+c$$$         print*,'DGETRF completed:',infodgetrf
+         call DGETRI(maxksize,gf(2:(npk(nch+1)-npk(nch)),
+     >     2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >     ipivgf,work,-1,infodgetri)
+c$$$         print*,'DGETRI completed:',infodgetri
+         lworkopt = work(1)
+c$$$         print*,'optimal lwork:',lworkopt
+         deallocate(work)
+         allocate(work(lworkopt))
+         call DGETRI(maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >      2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >      ipivgf,work,lworkopt,infodgetri)
+c$$$         print*,'DGETRI completed:',infodgetri
+         deallocate(work)
+         deallocate(ipivgf)
+      enddo
+      end
+
+      subroutine invertsymgf(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      include 'par.f'
+      dimension gf(kmaxgf,kmaxgf,nchtop),
+     >   npk(nchan+1)
+      integer infodsytrf, infodsytri, lworkopt, maxksize
+      integer, allocatable :: ipivgf(:)
+      real*8, allocatable :: work(:)
+ 
+      do nch = nchstart, nchstop
+         maxksize = npk(nch+1)-npk(nch)-1 
+         allocate(ipivgf(maxksize))
+         allocate(work(1))
+         call DSYTRF('L', maxksize, 
+     >      gf(2:npk(nch+1)-npk(nch),
+     >      2:npk(nch+1)-npk(nch),nch),
+     >      maxksize,ipivgf,work,-1,infodsytrf)
+c$$$         print*,'DSYTRF completed:',infodgetrf
+         lworkopt = work(1)
+c$$$         print*,'optimal lwork:',lworkopt
+         deallocate(work)
+         allocate(work(lworkopt))
+         call DSYTRF('L', maxksize, 
+     >      gf(2:npk(nch+1)-npk(nch),
+     >      2:npk(nch+1)-npk(nch),nch),
+     >      maxksize,ipivgf,work,lworkopt,infodsytrf)
+c$$$         print*,'DSYTRF completed:',infodgetrf
+         call DSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >      2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >      ipivgf,work,infodsytri)
+c$$$         print*,'DSYTRI completed:',infodgetri
+c
+c   Reconstructing the upper triangular part of the matrix
+c
+         do kii = 2,npk(nch+1)-npk(nch)
+            do kjj = 2,kii
+               gf(kjj,kii,nch) = gf(kii,kjj,nch)
+            enddo
+         enddo
+         deallocate(work)
+         deallocate(ipivgf)
+      enddo
+      end
+
+      subroutine vmatfromgf(gf,kmaxgf,npk,vmatgf,nii,nfi,nij,nfj,
+     >   nchstart,nchstop,nchtop)
+      include 'par.f'
+      dimension vmatgf(nii:nfi,nij:nfj)
+      dimension gf(kmaxgf,kmaxgf,nchtop), 
+     >   npk(nchan+1)
+      call invertsymgf(gf, kmaxgf, nchstart, nchstop, nchtop, npk) 
+      do nch = nchstart, nchstop
+         do kii = npk(nch)+1,npk(nch+1)-1
+            do kjj = npk(nch)+1,kii
+               vmatgf(kii,kjj) = -1.0*gf(kii-npk(nch)+1,kjj-npk(nch)+1,
+     >            nch)
+               vmatgf(kjj,kii+1) = vmatgf(kii,kjj)
+            enddo
+         enddo
+      enddo
+      end
+C End Added by Ivan

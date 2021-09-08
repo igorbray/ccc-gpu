@@ -36,7 +36,7 @@
       module gf_module
       allocatable gf(:,:,:)
       logical analytic
-      integer nanalytic
+      integer nanalytic,nbox,kmaxgf
       real aenergyswitch, gf
       data aenergyswitch/0.0/
       end module gf_module
