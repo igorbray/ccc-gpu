@@ -3979,7 +3979,7 @@ c$$$     >               (rmesh(meshr-1,1)-rmesh(meshr))
      >               print'("Tail integral rescaled; en,fac:",2f5.2)',
      >               entail,fac
                   do i = minchil(kp,2), meshr
-                     chil(i,kp,2) = test*(real(phasel(k,nch))*temp(i) +
+                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
      >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
                   enddo
                   if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
