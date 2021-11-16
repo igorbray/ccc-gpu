@@ -1156,7 +1156,8 @@ c     >    ,'Current Idea'
      $                                -Fqa * Q0p(iqa,i)
                                  res3 = res3 + wp(i)*fp
                               end do
-                              
+!below gives zero if on-shell point is part of the k-grid.                            
+!                              print*,'aq(ising)-qa,qa:',aq(ising)-qa,qa
                               res1c= qa*Log(aq(ising) - qa) + qa
      $                             *Log(aq(ising) + qa) + aq(ising)
      $                             *Log((aq(ising) + qa)/ (aq(ising) -

@@ -1162,7 +1162,7 @@ C  Define positronium states
                   iter = 1
                   do while (abs(test).gt.1e-4.and.iter.lt.100)
                      iter = iter + 1
-                     alphanew = alphanew - test/etot/10.0
+                     alphanew = alphanew - test/etot/100.0
                      print*,'New alpha:',alphanew
                      ps2(:,:) = 0.0
                      psen2(:) = 0.0
@@ -2846,10 +2846,10 @@ C with the Green's Function.
            if (scalapack) then
                call vmatfromgf(gf,kmaxgf,npk,vmat01,
      >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
-     >            nchtop)
+     >            nchtop,wk)
            else
               call vmatfromgf(gf,kmaxgf,npk,vmat,
-     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop)
+     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
            endif
 c$$$            if (scalapack) then
 c$$$               do nch = nchistart(nodeid), nchistop(nodeid)
@@ -3356,7 +3356,6 @@ c$$$     >                     (psi12(i,j)+(-1)**ns*psi12(j,i))
             call clock(s2)
          call date_and_time(date,time,zone,valuesin)
          print '("SOLVET entered at:",a10)',time
- 
          call solvet(ifirst,bb,vmat,gk,wk,weightk,nchtop,nqm,noprint,
      >      nopen,etot,lg,vdon,phasel,nent,instate,
      >      isecond,nunit,sigma,vmatop,
@@ -3417,7 +3416,7 @@ c$$$ 775  continue
       else
 c$$$         call sleepy_barrier(MPI_COMM_WORLD)! On Magnus this fails
       endif
-      if (nodes.gt.1) call sleepy_barrier(MPI_COMM_WORLD)
+c$$$      if (nodes.gt.1) call sleepy_barrier(MPI_COMM_WORLD)
 
 c$$$      call sleepy_barrier(MPI_COMM_WORLD) ! This works perfectly on Magnus
 
@@ -5347,17 +5346,22 @@ c
       end
 
       subroutine vmatfromgf(gf,kmaxgf,npk,vmatgf,nii,nfi,nij,nfj,
-     >   nchstart,nchstop,nchtop)
+     >   nchstart,nchstop,nchtop,wk)
       include 'par.f'
+      integer npk(nchtop+1)
+      complex wk(npk(nchtop+1))
       dimension vmatgf(nii:nfi,nij:nfj)
-      dimension gf(kmaxgf,kmaxgf,nchtop), 
-     >   npk(nchan+1)
+      dimension gf(kmaxgf,kmaxgf,nchtop)
       call invertsymgf(gf, kmaxgf, nchstart, nchstop, nchtop, npk) 
       do nch = nchstart, nchstop
          do kii = npk(nch)+1,npk(nch+1)-1
             do kjj = npk(nch)+1,kii
                vmatgf(kii,kjj) = -1.0*gf(kii-npk(nch)+1,kjj-npk(nch)+1,
      >            nch)
+c$$$               if (kii.eq.kjj) vmatgf(kii,kjj) = vmatgf(kii,kjj) /
+c$$$     >            real(wk(npk(nch)-1+kii))
+c$$$               if (kii.eq.kjj) print*,'k,wk:',
+c$$$     >            kii,real(wk(kii+npk(nch)-1))
                vmatgf(kjj,kii+1) = vmatgf(kii,kjj)
             enddo
          enddo

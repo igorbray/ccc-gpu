@@ -1,7 +1,7 @@
-FC := mpif90
-FCFLAGS_OPT2 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
-FCFLAGS_OPT1 := -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
-FCFLAGS_GPU :=  -O3 -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -mkl
+FC := mpif90 -O3 #-fpe -C -g
+FCFLAGS_OPT2 := -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -qmkl
+FCFLAGS_OPT1 := -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -qmkl
+FCFLAGS_GPU :=  -traceback -xHost -ip -fpp -qopenmp -reentrancy threaded -mcmodel=medium -shared-intel -qmkl
 FCFLAGS_SAVE := -save
 FCFLAGS_REAL8 := -r8
 FCFLAGS_MODFLAG := -module
