@@ -3958,30 +3958,75 @@ c$$$                  call regular(l,entail,etatail,utemp,cntfug(1,l),ldw,
 c$$$     >               rmesh,meshr,jdouble,id,regcut,expcut,
 c$$$     >               temp,minchil(kp,2),jstop,phase,sigc)
 c$$$                  if (abs(imag(phasel(k,nch))).gt.1e-3) then
-                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
-     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
-     >               temp,tempi,minchil(kp,2),jstop,phase)
-c$$$                  endif
+
+c$$$                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
+c$$$     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
+c$$$     >               temp,tempi,minchil(kp,2),jstop,phase)
+
+c$$$              endif
+                  minchil(kp,2) = 1
                   do while(rmesh(minchil(kp,2),1).lt.trat.and.
      >               minchil(kp,2).lt.meshr) !tail integrates from TRAT
                      minchil(kp,2) = minchil(kp,2) + 1
                   enddo
-c$$$                  test = chil(meshr-1,kp,1)/
-c$$$     >               (rmesh(meshr-1,1)-rmesh(meshr))
-                  r1 = rmesh(meshr-1,1)
-                  f1 = chil(meshr-1,kp,1)/ rmesh(meshr-1,3)
-                  r2 = rmesh(meshr,1)
-                  f2 = chil(meshr,kp,1)/rmesh(meshr,3)
-                  r3 = rmesh(meshr,1)*rmesh(minchil(kp,2),1)/trat
-                  fac = (f1*(r3-r2)/(r1-r2)+f2*(r3-r1)/(r2-r1))/
-     >               (temp(minchil(kp,2))+1e-10)
-                  if (abs(1.0-test).gt.0.1)
-     >               print'("Tail integral rescaled; en,fac:",2f5.2)',
-     >               entail,fac
-                  do i = minchil(kp,2), meshr
-                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
-     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
+                  rat = rmesh(meshr,1)/trat
+                  drt = rmesh(meshr,2)*rat
+                  r1 = rmesh(meshr,1)-3.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
                   enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-3,1)*rat,s1,dchi)
+c$$$                  print*,'rmatch,s1:',rmesh(minchil(kp,2)-3,1)*
+c$$$     >               rat,s1
+                  r2 = rmesh(meshr,1)-2.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
+                  enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-2,1)*rat,s2,dchi)
+c$$$                  print*,'rmatch,s2:',rmesh(minchil(kp,2)-2,1)*
+c$$$     >               rat,s2
+                  call numerovf(l,entail,utemp,cntfug(1,l),rmesh(1,1),
+     >               meshr,jdouble,id,s1,s2,temp,minchil(kp,2)-2,meshr)
+                  do i = minchil(kp,2), meshr
+                     chil(i,kp,2) = temp(i) * rmesh(i,3)
+                  enddo
+                  
+c$$$                  r1 = rmesh(meshr-1,1)
+c$$$                  f1 = chil(meshr-1,kp,1)/ rmesh(meshr-1,3)
+c$$$                  r2 = rmesh(meshr,1)
+c$$$                  f2 = chil(meshr,kp,1)/rmesh(meshr,3)
+c$$$                  r3 = rmesh(meshr,1)*rmesh(minchil(kp,2),1)/trat
+c$$$                  fac = 1.0
+c$$$                  if (f1+f2.ne.0.0.and.temp(minchil(kp,2)).ne.0.0)
+c$$$     >               fac = (f1*(r3-r2)/(r1-r2)+f2*(r3-r1)/(r2-r1))/
+c$$$     >               temp(minchil(kp,2))
+c$$$                  if (abs(1.0-fac).gt.0.1)
+c$$$     >               print'("Tail integral rescaled; en,fac:",2f7.3)',
+c$$$     >               entail,fac
+c$$$                  do i = minchil(kp,2), meshr
+c$$$                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
+c$$$     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
+c$$$                  enddo
                   if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
      >               chil(minchil(kp,2):meshr,kp,2)*rmesh(meshr,1)/trat
 c$$$                  if (k.eq.1)
