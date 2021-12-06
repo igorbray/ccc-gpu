@@ -97,6 +97,9 @@ C     ANDREY: end my variables ---------------------------------
       dimension coulm(nqmi,2*nqmi*igpm),subc(nqmi,2*nqmi*igpm),!Cfactor(nqmi),
      >   fpqbC(2*nqmi*igpm+nqmi,0:lmax)!ltmax+lamax)
       dimension res2aC(1:2,1:nqmi),res2bC(1:2,1:nqmi)
+      real, dimension (0:lfa,0:lia,0:(lfa+lia),0:(lfa+lia),
+     >   max0(lf,li,iabs(lf-lfa-lia),iabs(li-lfa-li)):min0(
+     >   lf+lfa+lia,li+lfa+lia)) :: w12jtest
 
       if (lg.gt.lstoppos) return
 !      print*,'nchi,nqmi,nchf,nqmf:',nchi,nqmi,nchf,nqmf
@@ -692,6 +695,42 @@ c$$$!$omp end critical
 !        WRITE(17,'(5e20.10)') pa2, resH0,resH1,resP0,resP1 
 !        ENDDO
 
+C-----------------Added by Ivan - w12j coefficient calculation--------
+C All coefficient are: fla1, fla, fJ, flb, fla2, fLla, fLlb, flb1, flb2, fl2, flam, fl1
+
+C The varying coefficients are:
+C flb1(0,lb), flb2(lb, 0), fla1(0,la), fla2(la,0), fl1(iabs(lb1-la1),lb1+la1), fl2(iabs(lb2-la2),lb2+la2), flam(max0(iabs(Llb-l1),iabs(Lla-l2)),min0(Llb+l1,Lla+l2))
+
+C The constant coefficienct are:
+C fJ, fLlb, FLla, flb, fla
+
+      do lb1=0,lb
+         lb2=lb-lb1
+         flb1=float(lb1)
+         flb2=float(lb2)
+         do la1=0,la
+            la2=la-la1
+            fla1=float(la1)
+            fla2=float(la2)
+            do l1=iabs(lb1-la1),lb1+la1
+               fl1=float(l1)
+               do l2=iabs(lb2-la2),lb2+la2
+                  fl2=float(l2)
+                  do lam=max0(iabs(Llb-l1),iabs(Lla-l2)),
+     >               min0(Llb+l1,Lla+l2)
+                     if (lam.gt.lmax) stop 'lam > lmax'
+                     flam=float(lam)
+                     w12jtest(lb1,la1,l1,l2,lam)=
+     >                  cof12j(fla1,fla, fJ, flb,
+     >                  fla2,fLla,fLlb,flb1,
+     >                  flb2,fl2, flam,fl1)*
+     >                  cof3j(fl2,flam,fLla,0.,0.,0.)*
+     >                  cof3j(flam,fl1,fLlb,0.,0.,0.)
+                  end do
+               end do
+            end do
+         end do
+      end do
 
 
       do iqb=1, nqmf 
@@ -907,16 +946,19 @@ c$$$                  enddo
                         reslam=0.d0
                         do lam=max0(iabs(Llb-l1),iabs(Lla-l2)),
      >                     min0(Llb+l1,Lla+l2)!,2
-                           if (lam.gt.lmax) stop 'lam > lmax'
-                           flam=float(lam)
-                           w3j3=cof3j(flam,fl1,fLlb,0.,0.,0.)
-                           w3j4=cof3j(fl2,flam,fLla,0.,0.,0.)
-                           w3j34=dble(w3j3)*dble(w3j4)
-                           if(w3j34.eq.0.d0) cycle                          
-                           w12j=cof12j(fla1,fla, fJ,  flb,
-     >                                 fla2,fLla,fLlb,flb1,
-     >                                 flb2,fl2, flam,fl1)
-                           wigner=w3j34*dble(w12j)
+c$$$                           if (lam.gt.lmax) stop 'lam > lmax'
+c$$$                           flam=float(lam)
+c$$$                           w3j3=cof3j(flam,fl1,fLlb,0.,0.,0.)
+c$$$                           w3j4=cof3j(fl2,flam,fLla,0.,0.,0.)
+c$$$                           w3j34=dble(w3j3)*dble(w3j4)
+c$$$                           if(w3j34.eq.0.d0) cycle                          
+c$$$                           w12j=cof12j(fla1,fla, fJ,  flb,
+c$$$     >                                 fla2,fLla,fLlb,flb1,
+c$$$     >                                 flb2,fl2, flam,fl1)
+c$$$                           wigner=w3j34*dble(w12j)
+c$$$                           wigner=w3j34*dble(w12jtest(lb1,la1,
+c$$$     >                        l1,l2,lam))
+                           wigner = w12jtest(lb1,la1,l1,l2,lam)
                            if(wigner.eq.0.d0) cycle                         
                            if(icalam(lam).ne.1) then
                               

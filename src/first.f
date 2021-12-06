@@ -165,6 +165,8 @@ c$$$       end do
      >                 e_t(nchf), la_t(nchf), na_t(nchf),l_t(nchf))
          npos_t(nchf)=0
          pos(nchf)=positron(na_t(nchf),la_t(nchf),npos_t(nchf)) 
+c$$$         print*,'nch,nt,e,chan:',nchf,nt_t(nchf),
+c$$$     >      e_t(nchf),chan(nt_t(nchf))
       end do
 !$omp end parallel do
 
@@ -467,7 +469,7 @@ C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
 C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
-C$OMP& SHARED(nchinew)
+C$OMP& SHARED(nchinew,nt_t,ei,chan)
       do nchftmp = nchi, nchtop
          nchf = nchftmp !nchinew(nchftmp,2)
          if(pos(nchi).eqv.pos(nchf)) then
@@ -485,6 +487,13 @@ C$OMP& SHARED(nchinew)
               enddo
            enddo
            ef=e_t(nchf)
+c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
+c$$$     >        nt_t(nchi)
+           if (abs(ef-ei)*lg.gt.50.0) then
+c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
+c$$$     >           ' ',chan(nt_t(nchi))
+              cycle
+           endif
            lfa=la_t(nchf)
            nfa=na_t(nchf)
            lf=l_t(nchf)

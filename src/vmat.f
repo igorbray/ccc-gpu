@@ -2208,9 +2208,9 @@ C     The T(kf,ki) matrix has been divided by KF and KI
                wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! * posfac
             else
                wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
-               print*,'Dropped GF for rk, k:',rk,gridk(i-1)
-               print*,'test:',1.0/(e-gridk(i-2)**2)+
-     >            1.0/(e-gridk(i)**2),0.5/e
+               print*,'Dropped GF for rk/k:',rk/gridk(i-1)
+               print*,'test:',(1.0/(e-gridk(i-2)**2)+
+     >            1.0/(e-gridk(i)**2))/(0.5/e)
             endif
 C  Have multiplied the positronium-atom V-matrix elements by sqrt(2)
 

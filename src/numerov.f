@@ -786,8 +786,8 @@ c$$$            print '(2f9.3,i4,4e24.14)', w,x,k,sump,-s*summ, sum
 c$$$               k = kmax
                acc = 0.0
                appf1 = 0.0
-               print'("Precision loss in APPF1 for ln, k, ecmn:",
-     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
+c$$$               print'("Precision loss in APPF1 for ln, k, ecmn:",
+c$$$     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
                return
             endif 
          enddo
