@@ -2267,7 +2267,7 @@ C  plane waves were always generated for Born subtraction
 c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
-               const = 1.0 + nchi*nchi/(nchtop-nchi+1)/nchtop
+               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
                if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
