@@ -593,7 +593,10 @@ c$$$      ricbessel = cfc(1)
       h2=h1/12d0
       s1 = rs1
       s2 = rs2
-
+      s3 = 0.0
+      f3 = 0.0
+      s0 = 0.0
+      f0 = 0.0
       if (jstart.eq.1) then
 C  We get here if the integration is going to start from the first X point.
 C  This means that S1 is the solution of the differential equation at X=0
