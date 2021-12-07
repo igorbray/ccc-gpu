@@ -782,15 +782,15 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
                summ = summ + zo2k * ff
             endif 
             sum = sump - s*summ
-c$$$            print '(i4,3e20.14)', k, sum, sump, summ
+c$$$            print '(2f9.3,i4,4e24.14)', w,x,k,sump,-s*summ, sum
             k = k + 1
             if (abs(s*summ/sump-1d0).lt.1d-12.and.(k.ge.kmax
      >           .or.abs(sum).lt.1d-300)) then
 c$$$               k = kmax
                acc = 0.0
                appf1 = 0.0
-               print'("Precision loss in APPF1 for ln, k, ecmn:",
-     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
+c$$$               print'("Precision loss in APPF1 for ln, k, ecmn:",
+c$$$     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
                return
             endif 
          enddo

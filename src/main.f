@@ -1162,7 +1162,7 @@ C  Define positronium states
                   iter = 1
                   do while (abs(test).gt.1e-4.and.iter.lt.100)
                      iter = iter + 1
-                     alphanew = alphanew - test/etot/10.0
+                     alphanew = alphanew - test/etot/100.0
                      print*,'New alpha:',alphanew
                      ps2(:,:) = 0.0
                      psen2(:) = 0.0
@@ -2267,15 +2267,15 @@ C  plane waves were always generated for Born subtraction
 c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
-               const = 1.0 
+               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
                if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
-     >              1.6**lnch(nchf,1)*1.6**lnch(nchi,1)*
+     >              1.3**lnch(nchf,1)*1.3**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
      >              (npk(2)-npk(1))**2
-c$$$     >           /1.15**abs(lnch(nchi,2)-lg)/1.15**abs(lnch(nchf,2)-lg)
+     >            /1.05**abs(lnch(nchi,2)-lg)/1.05**abs(lnch(nchf,2)-lg)
 c$$$               endif
             enddo
          enddo
@@ -2481,7 +2481,7 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                   neff = 1
                   fac = 1.0
                   it = 0
-                  do while (neff.ge.neffprev.and.it.lt.10)
+                  do while(neff.ge.neffprev.and.neff.le.95.and.it.lt.10)
                      it = it + 1
                      fac = fac * 1.01
                      neffprev = neff
@@ -2501,11 +2501,11 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                      nch = nistart
                      nodet = nchtime(nistart) !current node time
 c$$$                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
-c$$$                  do while (nodet+nodettot.lt.n*tave(ipar).and.
-c$$$     >                 nodet.lt.tave(ipar)*1.4)
+                  do while (nodet+nodettot.lt.n*tave(ipar).and.
+     >                 nchtop-nch.gt.nodes-n)
 c$$$                    dowhile(nodet.lt.nodetmax.and.nchtop-nch.gt.nodes-n)
-                     do while(nodet.lt.tave(ipar).and.
-     >                  nchtop-nch.gt.nodes-n)
+c$$$                     do while(nodet.lt.tave(ipar).and.
+c$$$     >                  nchtop-nch.gt.nodes-n)
                         nodetprev = nodet
                         nch = nch + 1
                         nodet = nodet + nchtime(nch)
@@ -2550,8 +2550,8 @@ c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
                   nchistop(n) = nistop
                   if (myid.le.0)
      >            print'("LGold,LG,ipar,nodeid,it,nistop,nodet,neff: ",
-     >            5i4,3i7,"%")',LGold(ipar),LG,ipar,n,it,nistop,
-     >            nodet,neff                  
+     >            5i4,3i7,"%",f5.2)',LGold(ipar),LG,ipar,n,it,nistop,
+     >            nodet,neff,fac                  
                      if (neff.lt.neffprev.and.it.lt.10) then
                         it = 9 ! will exit the while loop with prev fac
                         fac = fac / 1.02 !1.01**2
@@ -2846,10 +2846,10 @@ C with the Green's Function.
            if (scalapack) then
                call vmatfromgf(gf,kmaxgf,npk,vmat01,
      >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
-     >            nchtop)
+     >            nchtop,wk)
            else
               call vmatfromgf(gf,kmaxgf,npk,vmat,
-     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop)
+     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
            endif
 c$$$            if (scalapack) then
 c$$$               do nch = nchistart(nodeid), nchistop(nodeid)
@@ -2984,10 +2984,11 @@ C The following allows scalapack to run efficiently with threaded libraries
 c$$$            call mkl_set_num_threads(1) ! revert for many tasks per node
             call mkl_set_num_threads(nomporig) 
 #endif
-            call sleepy_barrier(MPI_COMM_WORLD)
+c$$$            call sleepy_barrier(MPI_COMM_WORLD)
+            call MPI_Barrier(  MPI_COMM_WORLD, ierr)
             if (mod(myid,nomp).eq.0) then
                call date_and_time(date,time,zone,valuesout)
-               print '(/,i4,": nodeid exiting Sleepy_Barrier at: ",a10,
+               print '(/,i4,": nodeid exiting MPI_Barrier at: ",a10,
      >            ", diff (secs):",i5)',nodeid,
      >            time,idiff(valuesin,valuesout)
                valuesin = valuesout
@@ -3356,7 +3357,6 @@ c$$$     >                     (psi12(i,j)+(-1)**ns*psi12(j,i))
             call clock(s2)
          call date_and_time(date,time,zone,valuesin)
          print '("SOLVET entered at:",a10)',time
- 
          call solvet(ifirst,bb,vmat,gk,wk,weightk,nchtop,nqm,noprint,
      >      nopen,etot,lg,vdon,phasel,nent,instate,
      >      isecond,nunit,sigma,vmatop,
@@ -3417,7 +3417,7 @@ c$$$ 775  continue
       else
 c$$$         call sleepy_barrier(MPI_COMM_WORLD)! On Magnus this fails
       endif
-      if (nodes.gt.1) call sleepy_barrier(MPI_COMM_WORLD)
+c$$$      if (nodes.gt.1) call sleepy_barrier(MPI_COMM_WORLD)
 
 c$$$      call sleepy_barrier(MPI_COMM_WORLD) ! This works perfectly on Magnus
 
@@ -3430,7 +3430,7 @@ c$$$     >      ntasks.eq.-1) go to 780
      >   ", diff (secs):",i5)',lg,time,
      >        idiff(valuesinLG,valuesout)
       endif
- 
+      call MPI_Barrier(  MPI_COMM_WORLD, ierr)
  770  continue ! LG loop      
           
       if (alkali) then
@@ -5347,17 +5347,22 @@ c
       end
 
       subroutine vmatfromgf(gf,kmaxgf,npk,vmatgf,nii,nfi,nij,nfj,
-     >   nchstart,nchstop,nchtop)
+     >   nchstart,nchstop,nchtop,wk)
       include 'par.f'
+      integer npk(nchtop+1)
+      complex wk(npk(nchtop+1))
       dimension vmatgf(nii:nfi,nij:nfj)
-      dimension gf(kmaxgf,kmaxgf,nchtop), 
-     >   npk(nchan+1)
+      dimension gf(kmaxgf,kmaxgf,nchtop)
       call invertsymgf(gf, kmaxgf, nchstart, nchstop, nchtop, npk) 
       do nch = nchstart, nchstop
          do kii = npk(nch)+1,npk(nch+1)-1
             do kjj = npk(nch)+1,kii
                vmatgf(kii,kjj) = -1.0*gf(kii-npk(nch)+1,kjj-npk(nch)+1,
      >            nch)
+c$$$               if (kii.eq.kjj) vmatgf(kii,kjj) = vmatgf(kii,kjj) /
+c$$$     >            real(wk(npk(nch)-1+kii))
+c$$$               if (kii.eq.kjj) print*,'k,wk:',
+c$$$     >            kii,real(wk(kii+npk(nch)-1))
                vmatgf(kjj,kii+1) = vmatgf(kii,kjj)
             enddo
          enddo

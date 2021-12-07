@@ -388,6 +388,8 @@ c$$$     >                                *real(wk(gidx(2)+j-lidx(2)))))
 c$$$     >                              +real(wk(gidx(1)+i-lidx(1))+1e-30)
 c$$$     >                         /abs(real(wk(gidx(1)+i-lidx(1))+1e-30))
      >                + 1.0/real(wk(gidx(1)+i-lidx(1))+1e-30)
+c$$$                  print*,'gidx(1),i,lidx(1),wk:',gidx(1),i,lidx(1),
+c$$$     >               real(wk(gidx(1)+i-lidx(1)))
                end if
               end do
             end do

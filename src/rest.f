@@ -358,7 +358,7 @@ c$$$                     if (ef.gt.0.0) then
 c$$$                        wton(nymax,nchi) = wton(nymax,nchi) *
 c$$$     >                     ovlpn(nchp) / sqrt(ef)
 c$$$                     endif 
-                     wt2nd(nymax,nchi) = t2nd(nchf,nchi)
+                     wt2nd(nymax,nchi) = t2nd(nchf,nchi)/sqrt(gkfac) !yields same kon as in lplot files
                      wvon(nymax,nchi) = von(nchf,nchi)
                   end if
                   if (gk(1,nchf).ge.0.0) then
@@ -1564,7 +1564,11 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
      >           print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
      >         2i3,4(i3,f5.2))',
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
-            if (mod(nk(4,l,is),2).ne.0) stop 'NK(4,L,IS) must be even'
+            if (mod(nk(4,l,is),2).ne.0) then
+               print*,'on-shell points will be part of the k-grid'
+               if (lptop.ge.0)
+     >            stop'NK(4,L,IS) must be even for two-centres calcs'
+            endif            
             nktot = nk(1,l,is)+nk(2,l,is)+nk(3,l,is)+max(0,nk(4,l,is))
      >         + nbnd(l)
             if (nktot.gt.kmax) stop 'KMAX too small in par.f'
@@ -2292,6 +2296,7 @@ c$$$            sk(2) = sqrt(rk**2 + 2.0 * rk * width)
          if (rk .lt. endk - 1.0 * width ) then
             nk(1) = max(nmin(np),int(np * rk / (endk - 1.0 * width)))
             nk(1) = min(nk(1), np - nmin(np))
+            if (mod(nk(1),2).eq.1) nk(1)=nk(1)+1
             npleft = np - nk(1)
             sk(3) = endk
             nk(3) = npleft
@@ -2316,6 +2321,7 @@ C  The two factors of 4.0 below put extra points in the first interval
      >      (4.0 * (sk(2) - sk(1)) + (endk2-endk))))
 c$$$         nk(2) = max(nmin(np2),int(np2 * (rk - endk) / (endk2-endk)))
          nk(2) = min(nk(2), np2 - nmin(np2))
+         if (mod(nk(2),2).eq.1) nk(2)=nk(2)+1
          npleft = np2 - nk(2)
          if (rk .lt. endk2 - width) then
             sk(4) = endk2
@@ -3052,6 +3058,7 @@ c$$$      print*,'exiting extrapn3 with n:',n
       implicit real*8 (a-h,o-z)
       dimension x(nt),w(nt)
 
+      if (.false.) then
       k = 0
       if (dstart.lt.1e-10) k = 1
 
@@ -3069,6 +3076,18 @@ c$$$      print*,'exiting extrapn3 with n:',n
          sum = sum + x(n)**2 * w(n)
       enddo
       exact = (dstop**3 - dstart**3) / 3d0
+      else
+         do n = 2, nt-1
+            w(n) = (x(n+1)-x(n-1))/2.0
+         enddo
+         w(1) = (x(2)+x(1))/2.0-dstart
+         w(nt) = dstop-(x(nt-1)+x(nt))/2.0
+         sum = 0d0
+         do n = 1, nt
+            sum = sum + x(n) * w(n)
+         enddo
+         exact = (dstop**2 - dstart**2) / 2d0
+      endif
       if (abs(exact/sum - 1d0).gt.1d-10) print*,'problems in SIMPS',
      >   exact/sum
       return
@@ -3930,7 +3949,7 @@ c$$$     >            * exp(alpha * rmesh(i,1))
                   chil(i,kp,2) = 0.0
                end do
                minchil(kp,2) = meshr
-               if (entail.lt.1.1*qcut**2) then !qcut**2 too limited
+               if (entail.lt.qcut**2) then
                   do i = 1, meshr
 !                     utemp(i) = - nze * (- zasym * 2.0 / rmesh(i,1))
                      utemp(i) = zeff*2.0*rmesh(meshr,1)/trat/rmesh(i,1)
@@ -3939,18 +3958,75 @@ c$$$                  call regular(l,entail,etatail,utemp,cntfug(1,l),ldw,
 c$$$     >               rmesh,meshr,jdouble,id,regcut,expcut,
 c$$$     >               temp,minchil(kp,2),jstop,phase,sigc)
 c$$$                  if (abs(imag(phasel(k,nch))).gt.1e-3) then
-                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
-     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
-     >               temp,tempi,minchil(kp,2),jstop,phase)
-c$$$                  endif
+
+c$$$                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
+c$$$     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
+c$$$     >               temp,tempi,minchil(kp,2),jstop,phase)
+
+c$$$              endif
+                  minchil(kp,2) = 1
                   do while(rmesh(minchil(kp,2),1).lt.trat.and.
      >               minchil(kp,2).lt.meshr) !tail integrates from TRAT
                      minchil(kp,2) = minchil(kp,2) + 1
-                  enddo 
-                  do i = minchil(kp,2), meshr
-                     chil(i,kp,2) = (real(phasel(k,nch))*temp(i) +
-     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
                   enddo
+                  rat = rmesh(meshr,1)/trat
+                  drt = rmesh(meshr,2)*rat
+                  r1 = rmesh(meshr,1)-3.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
+                  enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-3,1)*rat,s1,dchi)
+c$$$                  print*,'rmatch,s1:',rmesh(minchil(kp,2)-3,1)*
+c$$$     >               rat,s1
+                  r2 = rmesh(meshr,1)-2.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
+                  enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-2,1)*rat,s2,dchi)
+c$$$                  print*,'rmatch,s2:',rmesh(minchil(kp,2)-2,1)*
+c$$$     >               rat,s2
+                  call numerovf(l,entail,utemp,cntfug(1,l),rmesh(1,1),
+     >               meshr,jdouble,id,s1,s2,temp,minchil(kp,2)-2,meshr)
+                  do i = minchil(kp,2), meshr
+                     chil(i,kp,2) = temp(i) * rmesh(i,3)
+                  enddo
+                  
+c$$$                  r1 = rmesh(meshr-1,1)
+c$$$                  f1 = chil(meshr-1,kp,1)/ rmesh(meshr-1,3)
+c$$$                  r2 = rmesh(meshr,1)
+c$$$                  f2 = chil(meshr,kp,1)/rmesh(meshr,3)
+c$$$                  r3 = rmesh(meshr,1)*rmesh(minchil(kp,2),1)/trat
+c$$$                  fac = 1.0
+c$$$                  if (f1+f2.ne.0.0.and.temp(minchil(kp,2)).ne.0.0)
+c$$$     >               fac = (f1*(r3-r2)/(r1-r2)+f2*(r3-r1)/(r2-r1))/
+c$$$     >               temp(minchil(kp,2))
+c$$$                  if (abs(1.0-fac).gt.0.1)
+c$$$     >               print'("Tail integral rescaled; en,fac:",2f7.3)',
+c$$$     >               entail,fac
+c$$$                  do i = minchil(kp,2), meshr
+c$$$                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
+c$$$     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
+c$$$                  enddo
                   if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
      >               chil(minchil(kp,2):meshr,kp,2)*rmesh(meshr,1)/trat
 c$$$                  if (k.eq.1)
@@ -4180,13 +4256,16 @@ c$$$            endif
 
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP& SCHEDULE(dynamic)
+C$OMP& PRIVATE(w)
                do kpp=2,npk(nch+1)-npk(nch)
                   do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
+c$$$                     w = 1.0
+c$$$                     if (kp.eq.kpp) w = real(wk(kp+npk(nch)-1))
                      GF(kp,kpp,nch) =
      >                  - dot_product(chil(1:meshr,npk(nch)-1+kp,1),
-     >                  C(1:meshr,kpp)) * pi / const * 
-     >                  real(wk(kp+npk(nch)-1))!*real(wk(kpp+npk(nch)-1))
-     >                  * boxnorm 
+     >                  C(1:meshr,kpp)) * pi / const * boxnorm *
+     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1)) 
+c$$$                     print*,'k,wk:',kp,real(wk(kp+npk(nch)-1))
 c$$$                     if (kp.eq.kpp.and.kp.eq.2) print*,
 c$$$     >                  GF(kp,kpp,nch), pi / const * 
 c$$$     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
@@ -4224,21 +4303,26 @@ c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
             open(42,file=stringtemp)
 c$$$               GF(:,:,nch) = 0.0
             do kp = 2, npk(nch+1)-npk(nch)
-               do kpp = kp,kp !2, npk(nch+1)-npk(nch)
+               do kpp = 2, npk(nch+1)-npk(nch)
 c$$$                     GF(kp,kpp,nch) = pi/(eproj-gk(kp,nch)*
 c$$$     >                    abs(gk(kp,nch)))*real(wk(kp+npk(nch)-1))
 c$$$                     wk(kp+npk(nch)-1) = GF(kp,kpp,nch)/
 c$$$     >                    real(wk(kp+npk(nch)-1))/pi/pi
 c$$$     >                    pi/(eproj-gk(kp,nch)*
-c$$$     >                    abs(gk(kp,nch)))
-                  write(42,'(1p,4e13.2)') 
-     >                 gk(kpp,nch),GF(kp,kpp,nch),
-     >                 2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch))),
-     >                 real(wk(kp+npk(nch)-1))
+c$$$  >                    abs(gk(kp,nch)))
+                  gforig = 0.0
+                  wkorig = 0.0
+                  if (kp.eq.kpp) then
+                     gforig = 2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+                     wkorig = real(wk(kp+npk(nch)-1))
+                  endif
+                  write(42,'(1p,5e13.3)') 
+     >                 gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch),
+     >                 gforig,wkorig
 c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)/
 c$$$     >                  real(wk(kp+npk(nch)-1))/real(wk(kpp+npk(nch)-1))
                enddo
-c$$$                  write(42,*)
+               write(42,*)
             enddo
 c$$$               write(42,'("#   r    ",1p,500e24.3)') (gk(kp,nch),
 c$$$     >            kp=2,npk(nch+1)-npk(nch),10)
@@ -4253,21 +4337,23 @@ c$$$               enddo
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)
       if (exists) then
-         open(42,FILE='chil'//ch(lg)//'_'//ch(nch))
+         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
+         open(42,FILE=stringtemp) !'chil'//ch(lg)//'_'//ch(nch))
          write(42,'("#",11x,1000F6.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
-         write(42,'("#",1p,11x,1000E12.4)')(gk(k,nch)*abs(gk(k,nch)),
-     >      k=1,npk(nch+1)-npk(nch))
+         write(42,'("# en(Ry) -> ",1p,1000E12.4)')
+     >      (gk(k,nch)*abs(gk(k,nch)),k=1,npk(nch+1)-npk(nch))
          do i=1,meshr,1
             write(42,'(1p,1000E12.4)') rmesh(i,1),
      >         (chil(i,k,1)/rmesh(i,3),k=npk(nch),npk(nch+1)-1)
          enddo
          close(42)
-         if (itail.ne.0) then
-            open(42,FILE='chiltail'//ch(lg)//'_'//ch(nch))
+         if (itail.lt.0) then
+            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)
+            open(42,FILE=stringtemp) !'chiltail'//ch(lg)//'_'//ch(nch))
             write(42,'("#",11x,1000F6.3)')
      >         (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
-            write(42,'("#",1p,11x,1000E12.4)')
+            write(42,'("# en(Ry) -> ",1p,1000E12.4)')
      >      ((rmesh(meshr,1)/trat*gk(k,nch))**2,k=1,npk(nch+1)-npk(nch))
             do i=1,meshr,1
                write(42,'(1p,1000E12.4)')rmesh(i,1)*rmesh(meshr,1)/trat,

@@ -1711,7 +1711,8 @@ C  The following is a loop of the form REPEAT ... UNTIL(condition)
          rk = - sqrt(-e)
       end if
       analytic = nanalytic.le.-2.and.e.ge.aenergyswitch !aenergyswitch is in modules.f
-      print'(a3, " channel energy (eV):",1p,2e15.6)', chan(ntmp), EeV,rk
+      print'(a3, " channel energy (eV) and k:",1p,2e15.6)', chan(ntmp),
+     >   EeV,rk
 c$$$      if (analytic.and.EeV.ge.0.0.and.EeV.lt.1e-3) then !+ve energies for extract_J
 C analytic tail integrals have not been implemented for zero energy
 c$$$      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0).and.itail.ge.0)then
@@ -1756,7 +1757,7 @@ c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
 c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
-      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
+c$$$      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
       usetrapz = nkor(4,lset,ispeed).lt.0
 c$$$      if (width.lt.0.0) then
 c$$$         dstart = 0d0
@@ -1799,6 +1800,7 @@ c$$$      if (.not.analytic) then
          dstop = 0d0
          do j=1,mint-1
             nt=nk(j)
+c$$$            if (mod(nt,2).ne.0) stop 'expect nt to be even'
             nwf=2*nt
             niwf=2*nt
             dstart = dstop
@@ -1814,21 +1816,38 @@ c$$$      if (.not.analytic) then
                   dstart = dstart*0.9
                   sk(j-1) = dstart
                endif 
-               call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
-     >            0,nwf,wf,niwf,iwf,ier)
+c$$$               call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
+c$$$     >            0,nwf,wf,niwf,iwf,ier)
+               npts = nt
+               if (nkor(j,lset,ispeed).lt.0) npts = 2
+               d = (dstop-dstart)/nt*npts
+               do n = 1, nt/npts
+                  call cgqf(npts,xx((n-1)*npts+1),ww((n-1)*npts+1),1,
+     >               0d0,0d0,(n-1)*d+dstart,d*n+dstart,
+     >               0,nwf,wf,niwf,iwf,ier)
+               enddo
+
                test = 1.0
+c$$$               if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
+c$$$c$$$               call trapez(dstart,dstop,nt,xx,ww)
+c$$$                  print*,'Using Simpson rule'
+c$$$                  call simpson(dstart,dstop,nt,xx,ww)
+c$$$               endif
                startk = dstart
                stopk = dstop
-               if (startk.eq.0.0.or.(stopk-rk)/(rk-startk).lt.4.0) then
+              
+               if (startk.eq.0.0.or.(stopk-rk)/(rk-startk).lt.40.0) then
                   dk = (stopk-startk)/nt/10
                   call getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstop = stopk
                   sk(j) = stopk
+                  print*,'stopk:',stopk,(stopk-rk)/(rk-startk)
                else 
                   dk = startk/nt/10
                   call getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstart = startk
                   sk(j-1) = startk
+                  print*,'startk:',startk,(stopk-rk)/(rk-startk)
                endif
             endif
          enddo 
@@ -1836,14 +1855,16 @@ c$$$      if (.not.analytic) then
       if (width .le. 0.0.and.rk.lt.2.0*abs(width)) then
          print*,'WIDTH:', width
 c$$$         if (.not.analytic)
-           call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
+         print*, 'Entering improvek'
+         call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
          sk(1) = endf
       endif 
       dstop = 0d0
 C  Obtain Gaussian knots and weights within each interval
       do j=1,mint-1
-         nqk=nqk+nk(j)
-         nt=nk(j)
+         nt = nk(j)
+c$$$         if (mod(nt,2).ne.0) stop 'expect nt to be even'
+         nqk=nqk+nt
          nwf=2*nt
          niwf=2*nt
          if (nt.ge.0) then
@@ -1854,8 +1875,20 @@ c$$$            dstart = dstop**2
 c$$$            dstop  = dble(sk(j))**2
             dstart = dstop
             dstop  = dble(sk(j))
-            call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
-     >         0,nwf,wf,niwf,iwf,ier)
+c$$$            print*,'j,dstart,dstop:',j,dstart,dstop
+c$$$            call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
+c$$$     >         0,nwf,wf,niwf,iwf,ier)
+            npts = nt
+            if (nkor(j,lset,ispeed).lt.0) npts = 2
+            d = (dstop-dstart)/nt*npts
+            do n = 1, nt/npts
+               call cgqf(npts,xx((n-1)*npts+1),ww((n-1)*npts+1),1,
+     >            0d0,0d0,(n-1)*d+dstart,d*n+dstart,
+     >            0,nwf,wf,niwf,iwf,ier)
+            enddo
+c$$$            do i = 1, nt
+c$$$               print*, i, xx(i), ww(i)
+c$$$            enddo
 c$$$            dstart = sqrt(dstart)
 c$$$            dstop  = sqrt(dstop)
 
@@ -1865,15 +1898,16 @@ c$$$     >         then
 c$$$               call trapez(dstart,dstop,nt,xx,ww)
 c$$$            print*,'Will use trapezoidal rule around the on-shell point'
 c$$$            endif
-            if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
-c$$$               call trapez(dstart,dstop,nt,xx,ww)
-c$$$               print*,'Using trapezoidal rule'
-               call simpson(dstart,dstop,nt,xx,ww)
-               print*,'Using Simpson rule, dstart,dstop:',dstart,dstop
-               do i = 1, nt
-                  print*,i,xx(i),ww(i)
-               enddo 
-            endif
+c$$$            if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
+c$$$c$$$               call trapez(dstart,dstop,nt,xx,ww)
+c$$$c$$$               print*,'Using trapezoidal rule'
+c$$$               call simpson(dstart,dstop,nt,xx,ww)
+c$$$               print*,'Using Simpson rule, dstart,dstop:',dstart,dstop
+c$$$               do i = 1, nt
+c$$$                  if (xx(i).lt.rk.and.rk.lt.xx(i+1)) 
+c$$$     >               print*,i,xx(i),rk,xx(i+1)
+c$$$               enddo 
+c$$$            endif
             
 c$$$            if (midnp.lt.0.and.dstart.lt.rk.and.rk.lt.dstop) then
 c$$$               test = 1.0
@@ -1913,7 +1947,30 @@ c$$$                  enddo
 c$$$                  dstart = startk
 c$$$                  sk(j-1) = startk
 c$$$               endif 
-c$$$            endif 
+c$$$  endif
+
+c$$$           if (abs(dstart+dstop-2.0*rk).lt.1e-10) then
+c$$$               h = (rk-dstart)/(nt/2-1)
+c$$$               do i = 1, nt/2
+c$$$                  xx(i) = dstart + (i-1)*h
+c$$$                  ww(i) = h*(2.0*mod(i+1,2)+2.0)/3.0
+c$$$                  print*,i,xx(i),ww(i)
+c$$$               enddo
+c$$$               ww(1) = ww(1)/2.0
+c$$$               ww(nt/2) = ww(nt/2)/2.0
+c$$$               do i = nt/2+1, nt
+c$$$                  xx(i) = rk + (i-nt/2-1)*h
+c$$$                  ww(i) = h*(2.0*mod(i,2)+2.0)/3.0
+c$$$                  print*,i,xx(i),ww(i)
+c$$$               enddo
+c$$$               ww(nt/2+1) = ww(nt/2+1)/2.0
+c$$$               ww(nt) = ww(nt)/2.0
+c$$$               tmp = 0.0
+c$$$               do i = 1, nt
+c$$$                  tmp = tmp + xx(i)**3*ww(i)
+c$$$               enddo
+c$$$               print*,'Simpson rule test:',tmp,(dstop**4-dstart**4)/4.0
+c$$$            endif
             do i=nqk-nk(j)+1,nqk
                gridk(i)=xx(i-nqk+nk(j))
                weightk(i)=ww(i-nqk+nk(j))
@@ -2026,7 +2083,9 @@ C  Check that the integration rule will handle the principle value singularity
             sum=sum+tsum
             im=nt+1
             do while (gridk(im).le.(sk(j+1)).and.im.lt.kmax)
-               sum=sum + 2.0*weightk(im)/(e-gridk(im)*gridk(im))
+               gftmp = 1.0/(e-gridk(im)*gridk(im))
+               if (abs(e-gridk(im)*gridk(im)).lt.1e-4) gftmp=0.25/e
+               sum=sum + 2.0*weightk(im)*gftmp
                im=im+1
             end do
          else
@@ -2118,7 +2177,10 @@ C$OMP END PARALLEL DO
 c$$$      if (analytic) then
 c$$$        nqk = -nqm - nbnd(lset) !nbnd get's added below
 c$$$         sum = 0.0
-c$$$      endif 
+c$$$  endif
+
+c$$$      sum = 0.0 ! temporary fix for rk in the k-grid
+      
       do i = 1, nqk + 1
          kp = npk(nch) + i - 1
          if (i.eq.1) then
@@ -2141,8 +2203,15 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
          else
             gk(i,nch) = gridk(i-1)
             ek = gridk(i-1) * gridk(i-1)
-C  The T(kf,ki) matrix has been divided by KF and KI
-            wk(kp) = posfac * 2.0 * weightk(i-1)/(e - ek)
+C     The T(kf,ki) matrix has been divided by KF and KI
+            if (abs(rk-gridk(i-1)).gt.1e-4) then
+               wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! * posfac
+            else
+               wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
+               print*,'Dropped GF for rk/k:',rk/gridk(i-1)
+               print*,'test:',(1.0/(e-gridk(i-2)**2)+
+     >            1.0/(e-gridk(i)**2))/(0.5/e)
+            endif
 C  Have multiplied the positronium-atom V-matrix elements by sqrt(2)
 
 C  Added by Alex
@@ -2153,7 +2222,7 @@ C  Added by Alex
                   wk(kp) = 1.0
                endif
             else
-               wk(kp) = 2.0 * weightk(i-1)/(e - ek)
+c$$$               wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! was overwriting the posfac above
 c$$$               print*,kp,wk(kp)
             endif
 C  End added by Alex

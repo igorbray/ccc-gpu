@@ -121,7 +121,6 @@ c$$$         endif
      >      time, idiff(valuesin,valuesout)
          call update(6)
       endif 
-
       
       if (ns.eq.0) then
 c$$$         do ki = 1, npk(nchtop+1) - 1
@@ -186,6 +185,7 @@ C Set TON to VON before adding the 2nd term later
             do nchf = 1, nchtop
                ton(nchf,nchi)=onshellk(vmat,nchtop,nchf,nchi,ns,npk,
      >            ichi,vmatp,packed)
+c$$$               print*,nchf,nchi,ton(nchf,nchi)
 c$$$               if (exists) print*,'nchf,nchi,ns,ton,kon:',
 c$$$     >            ton(nchf,nchi),k2nd(nchf,nchi)
             enddo
@@ -546,7 +546,7 @@ c$$$     >                     (kernel(kf,ki),kf=npk(nchf),npk(nchf+1)-1)
                   do ki = 1, nd
                      do kf = ki, nd
                         vmat(kf,ki) = - vmat(kf,ki)
-!     >                 * (1.0+delta*unv(kf)*unv(ki))
+     >                 * (1.0+delta*unv(kf)*unv(ki))
 !     >                 *  sqrt(abs(real(wk(kf))*real(wk(ki))))
 C  Can comment out the above line and make a few more changes below
 C  where sqrt(wk) occurs to get another way of solving the equations,
@@ -557,7 +557,7 @@ C  but this gives more ill-conditioned matrices
                   do ki = 1, nd
                      do kf = ki, nd         
                         vmat(ki,kf+1) = - vmat(ki,kf+1)
-!     >                  * (1.0+delta*unv(kf+1)*unv(ki))
+     >                  * (1.0+delta*unv(kf+1)*unv(ki))
 !     >                  * sqrt(abs(real(wk(kf))*real(wk(ki))))
                      enddo
                   enddo 
@@ -571,7 +571,10 @@ C  Add the I matrix to -K
 c$$$                  print*,'kf,v,vmat,wk:',kf,v(kf,1,1),vmat(kf,kf+ns),
 c$$$     >                 real(wk(kf))
                end do 
-            endif!alexan
+c$$$               vmat(1,1+ns) = 1e30
+c$$$               v(1,1,1) = 0.0
+c$$$               print*,'vmat(1,1),v(1):',vmat(1,1+ns),v(1,1,1)
+            endif               ! was for analytic, now set to .false. as immediate above works for all
 
             call date_and_time(date,time,zone,valuesout)
             print '("Kernel defined at:",a10," diff (secs):",i5)',
@@ -739,7 +742,7 @@ c$$$     >            (v(kn,nchn,1)-bb(kn,nchn))/
 c$$$     >            (v(kn,nchn,1)+bb(kn,nchn))
 c$$$            enddo
 c$$$         enddo
-      endif ! if true then using BB
+      endif ! scalapack: if true then using BB
 
 c$$$  call memfree(ptrw)
 
@@ -820,47 +823,49 @@ c$$$     >         cubint(x1,y1,x2,y2,x3,y3,x4,y4,gk(1,nchf)),y3,y4
          enddo !nchi
 C$OMP END PARALLEL DO
 
-         if (lprint.and.nchf.le.9) then
-            do nchi = 1, min(nchtop,9) !nchf
+         if (lprint.and.nchf.le.74) then !74 corresponds to z
+            do nchi = 1, min(nchtop,74) !nchf
 C               write(lfile,'"lplot.",2i2) nchf,nchi
                open(52,file="lplot."//ch(nchf)//ch(nchi)//ch(ns))
             divk = gk(1,nchi) * gk(1,nchf)
             if (divk.eq.0.0) divk = 1.0
 c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),
-            write(52,'("# ",a3," <- ",a3,";  k, K(k,ki), V(k,ki), wk")') 
-     >           chan(nchf), chan(nchi)
-            write(52,"(1p,4e14.5)") gk(1,nchf),             
+            write(52,'("# ",a3," <- ",a3,i4," <-",i3)') 
+     >           chan(nchf), chan(nchi), nchf, nchi
+            write(52,'("#    k               K(k,ki)         V(k,ki)")') 
+            write(52,"(1p,5e16.5)") gk(1,nchf),             
      >         real(ton(nchf,nchi))/divk,
-     >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi)),
-     >           real(wk(npk(nchf)))
+     >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi))
+!     >        ,  real(wk(npk(nchf)))
 c$$$     >         ,ovlpn(nchf), ovlpn(nchi)
 C  The order is k, K(k), V(k), V(k) * K(k) / (E - En - k**2/2)
             do n = npk(nchf) + 1, npk(nchf+1) - 1
                kn = n - npk(nchf) + 1
                divk = gk(1,nchi) * gk(kn,nchf)
                vgf = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
-     >            gf(3-npk(nchf):npk(nchf+1)-2*npk(nchf)+1,
-     >            kn-npk(nchf)+1,nchf))
+     >            gf(2:npk(nchf+1)-npk(nchf),kn,nchf))
                if (divk.eq.0.0) divk = 1.0
                if (gk(kn,nchf).ne.0.0) then
 c$$$                  write(nchi*100+nchf*10+ns,*) gk(kn,nchf),
                   if (scalapack) then
-                     write(52,*) gk(kn,nchf),
+                     write(52,"(1p,5e16.5)") gk(kn,nchf),
 c$$$     >                  v(n,nchi,1) / divk /
 c$$$     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
+!     >                  vgf / divk,
+!     >                  v(n,nchi,1) / divk * gf(kn,kn,nchf),
      >                  vgf / divk,
      >                  v(n,nchi,2) / divk
+     >                  ,gf(kn,kn,nchf)
                   else 
                      boxnorm = 1.0
                      if (nbox.eq.1) boxnorm = sqrt(2.0/rmesh(meshr,1))
-                     write(52,"(1p,4e14.5)") gk(kn,nchf),
+                     write(52,"(1p,5e16.5)") gk(kn,nchf),
 c$$$     >                  v(n,nchi,1) / divk / boxnorm
 c$$$     >                  * gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf) 
      >                  vgf / divk / boxnorm
 !     >                  /  real(wk(n)) !* sqrt(abs(wk(n)))
      >                  ,v(n,nchi,2) /divk /boxnorm!/ sqrt(abs(wk(n)))
-     >                  ,gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf)!
-!     >                    ,real(wk(n))
+     >                  ,gf(kn,kn,nchf)
 c$$$                  write(52,*) gk(kn,nchf),
 c$$$     >               v(n-nchf,nchi,1) / divk /
 c$$$     >               real(wk(n)) * sqrt(abs(wk(n))),
@@ -889,7 +894,9 @@ c$$$      call update(6)
 
       nbad = 0
       do nchi = 1, nchtop
-         do nchf = nchi + 1, nchtop
+         if (gk(1,nchi).lt.0.0) cycle
+         do nchf = nchi, nchtop
+            if (gk(1,nchf).lt.0.0) cycle
             tmp =abs((ton(nchf,nchi) - ton(nchi,nchf))/
      >         (ton(nchf,nchi)+1e-30))
             if (tmp.gt.1e-2) then
@@ -899,7 +906,51 @@ c$$$     >            ' K matrix: K, F, I', real(ton(nchf,nchi)),
 c$$$     >            real(ton(nchi,nchf)), nchf, nchi
             endif 
 c$$$            ton(nchf,nchi) = (ton(nchf,nchi) + ton(nchi,nchf)) / 2.0
-            ton(nchi,nchf) = ton(nchf,nchi) 
+            ton(nchi,nchf) = ton(nchf,nchi)
+c$$$            k1 = 0
+c$$$            do n = npk(nchf) + 1, npk(nchf+1) - 1
+c$$$               kn = n - npk(nchf) + 1
+c$$$               divk = gk(1,nchi) * gk(kn,nchf)
+c$$$               vgf = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+c$$$     >            gf(2:npk(nchf+1)-npk(nchf)-1,kn,nchf))
+c$$$               if (gk(kn,nchf).lt.gk(1,nchf)) then
+c$$$                  k1 = kn
+c$$$                  offshellk1 = vgf / divk
+c$$$               else
+c$$$                  offshellk2 = vgf / divk
+c$$$                  exit
+c$$$               endif
+c$$$            enddo
+c$$$            f1 = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+c$$$     >         gf(2:npk(nchf+1)-npk(nchf)-1,kn-1,nchf))/
+c$$$     >         gk(1,nchi)/ gk(kn-1,nchf)
+c$$$            f2 = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+c$$$     >         gf(2:npk(nchf+1)-npk(nchf)-1,kn,nchf))/
+c$$$     >         gk(1,nchi)/ gk(kn,nchf)
+c$$$            f3 = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+c$$$     >         gf(2:npk(nchf+1)-npk(nchf)-1,kn+1,nchf))/
+c$$$     >         gk(1,nchi)/ gk(kn+1,nchf)
+c$$$            f4 = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
+c$$$     >         gf(2:npk(nchf+1)-npk(nchf)-1,kn+2,nchf))/
+c$$$     >         gk(1,nchi)/ gk(kn+2,nchf)
+c$$$            call fourpointrule(
+c$$$     >         gk(kn-1,nchf),f1,
+c$$$     >         gk(kn  ,nchf),f2,
+c$$$     >         gk(kn+1,nchf),f3,
+c$$$     >         gk(kn+2,nchf),f4,       
+c$$$     >         gk(1,nchf),f,df)
+c$$$            slope = (offshellk2-offshellk1)/(gk(k1+1,nchf)-gk(k1,nchf))
+c$$$            b = offshellk1-slope*gk(k1,nchf)
+c$$$            est = slope*gk(1,nchf)+b
+c$$$            print"('nchi,nchf,k1, offshellk1:',1p,2i4,2e11.3)",
+c$$$     >         nchi,nchf,gk(k1,nchf),offshellk1
+c$$$            print"('nchi,nchf,kon,  onshellk:',1p,2i4,6e11.3,e9.1,'%')",
+c$$$     >         nchi,nchf,gk(1,nchf),
+c$$$     >         real(ton(nchf,nchi))/(gk(1,nchi) * gk(1,nchf)),est,f,
+c$$$     >         slope,df,abs((real(ton(nchf,nchi))/gk(1,nchi)/gk(1,nchf)-
+c$$$     >         est)/est)*100.0
+c$$$            print"('nchi,nchf,k2, offshellk2:',1p,2i4,2e11.3)",
+c$$$     >         nchi,nchf,gk(k1+1,nchf),offshellk2
          enddo
       enddo 
       print'(
@@ -908,17 +959,17 @@ c$$$            ton(nchf,nchi) = (ton(nchf,nchi) + ton(nchi,nchf)) / 2.0
       
       if (sprint) then
       open (42,file='pwkmat'//ch(ns))
-      write(42,'(''K-matrix elements for J ='',i3)') lg
+      write(42,'(''# K-matrix elements for J ='',i3)') lg
       do nchi = 1, nchtop
          call getchinfo (nchi,nchip,lg,temp,maxpsi, ei, lai, ni, li)
          if (etot.gt.enchan(nchip)) then
-         write(42,'('' Lf lf nf <- Li li ni   Re(K-mat)   Im(K-mat)'',
+         write(42,'(''#nchf Lf  lf  nf <-nchi  Li  li  ni Re(K-mat)'',
      >      ''        ef       ovlp'')')
             do nchf = nchi, nchtop
                call getchinfo (nchf,nchfp,lg,temp,maxpsf,ef,laf,nf,lf)
                if (etot.gt.enchan(nchfp)) write
-     >            (42,'(3i3,'' <-'',3i3,1p,2e12.4,0p,f12.5,f10.5)') 
-     >            lf,laf,nf,li,lai,ni, ton(nchf,nchi)
+     >            (42,'(4i4,'' <-'',4i4,1p,e12.4,0p,f12.5,f10.5)') 
+     >            nchf,lf,laf,nf,nchi,li,lai,ni, real(ton(nchf,nchi))
      >            /gk(1,nchi)/gk(1,nchf),ef,ovlpn(nchfp)
 c$$$               if (ei.gt.etot/2.0.or.ef.gt.etot/2.0) then
 c$$$                  ton(nchf,nchi) = 0.0
@@ -1202,9 +1253,25 @@ c$$$         endif
 c$$$      enddo
 c$$$      if (sprint) close(42)
 c$$$      print'('' JS f i  abs(T)    arg(T)       K        K2nd   '
-c$$$     >   //'   real(V)   imag(V)     Ef(Ry)'')'
+c$$$  >   //'   real(V)   imag(V)     Ef(Ry)'')'
       print'('' JS f i  real(T)    imag(T)     K        K2nd   '
      >   //'   real(V)   imag(V)     Ef(Ry)'')'
+      return
+      end
+      
+      subroutine fourpointrule(rk1,f1,rk2,f2,rk3,f3,rk4,f4,rk,f,df)
+      c1 = f1/((rk1-rk2)*(rk1-rk3)*(rk1-rk4))
+      c2 = f2/((rk2-rk1)*(rk2-rk3)*(rk2-rk4))
+      c3 = f3/((rk3-rk1)*(rk3-rk2)*(rk3-rk4))
+      c4 = f4/((rk4-rk1)*(rk4-rk3)*(rk4-rk2))
+      f =  c1*(rk-rk2)*(rk-rk3)*(rk-rk4)
+     >   + c2*(rk-rk1)*(rk-rk3)*(rk-rk4)
+     >   + c3*(rk-rk1)*(rk-rk2)*(rk-rk4)
+     >   + c4*(rk-rk1)*(rk-rk3)*(rk-rk2)      
+      df = c1*(((rk-rk3)*(rk-rk4))+(rk-rk2)*(rk-rk4)+(rk-rk3)*(rk-rk2))+
+     >   c2*(((rk-rk3)*(rk-rk4))+(rk-rk1)*(rk-rk4)+(rk-rk3)*(rk-rk1))+
+     >   c3*(((rk-rk1)*(rk-rk4))+(rk-rk2)*(rk-rk4)+(rk-rk2)*(rk-rk1))+
+     >   c4*(((rk-rk3)*(rk-rk2))+(rk-rk1)*(rk-rk2)+(rk-rk3)*(rk-rk1))      
       return
       end
       
