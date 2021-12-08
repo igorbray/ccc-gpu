@@ -97,9 +97,10 @@ C     ANDREY: end my variables ---------------------------------
       dimension coulm(nqmi,2*nqmi*igpm),subc(nqmi,2*nqmi*igpm),!Cfactor(nqmi),
      >   fpqbC(2*nqmi*igpm+nqmi,0:lmax)!ltmax+lamax)
       dimension res2aC(1:2,1:nqmi),res2bC(1:2,1:nqmi)
-      real, dimension (0:lfa,0:lia,0:(lfa+lia),0:(lfa+lia),
-     >   max0(lf,li,iabs(lf-lfa-lia),iabs(li-lfa-li)):min0(
-     >   lf+lfa+lia,li+lfa+lia)) :: w12jtest
+c$$$      real, dimension (0:lfa,0:lia,0:(lfa+lia),0:(lfa+lia),
+c$$$     >   max0(lf,li,iabs(lf-lfa-lia),iabs(li-lfa-li)):min0(
+c$$$     >   lf+lfa+lia,li+lfa+lia)) :: w12jtest
+      real, allocatable :: w12jtest(:,:,:,:,:) 
 
       if (lg.gt.lstoppos) return
 !      print*,'nchi,nqmi,nchf,nqmf:',nchi,nqmi,nchf,nqmf
@@ -704,6 +705,28 @@ C flb1(0,lb), flb2(lb, 0), fla1(0,la), fla2(la,0), fl1(iabs(lb1-la1),lb1+la1), f
 C The constant coefficienct are:
 C fJ, fLlb, FLla, flb, fla
 
+      lambdamin=100000
+      lambdamax=0
+      do lb1=0,lb
+         lb2=lb-lb1
+         do la1=0,la
+            la2=la-la1
+            do l1=iabs(lb1-la1),lb1+la1
+               do l2=iabs(lb2-la2),lb2+la2
+                  do lam=max0(iabs(Llb-l1),iabs(Lla-l2)),
+     >               min0(Llb+l1,Lla+l2)
+                     if (lam.gt.lmax) stop 'lam > lmax'
+                     if (lam.lt.lambdamin) lambdamin=lam
+                     if (lam.gt.lambdamax) lambdamax=lam
+                  end do
+               end do
+            end do
+         end do
+      end do
+c$$$      print*,'lambdamin, lambdamax:',lambdamin,lambdamax
+      allocate(w12jtest(lambdamin:lambdamax,0:(lfa+lia),0:(lfa+lia),
+     >   0:lia,0:lfa))
+
       do lb1=0,lb
          lb2=lb-lb1
          flb1=float(lb1)
@@ -720,7 +743,7 @@ C fJ, fLlb, FLla, flb, fla
      >               min0(Llb+l1,Lla+l2)
                      if (lam.gt.lmax) stop 'lam > lmax'
                      flam=float(lam)
-                     w12jtest(lb1,la1,l1,l2,lam)=
+                     w12jtest(lam,l2,l1,la1,lb1)=
      >                  cof12j(fla1,fla, fJ, flb,
      >                  fla2,fLla,fLlb,flb1,
      >                  flb2,fl2, flam,fl1)*
@@ -956,9 +979,9 @@ c$$$                           w12j=cof12j(fla1,fla, fJ,  flb,
 c$$$     >                                 fla2,fLla,fLlb,flb1,
 c$$$     >                                 flb2,fl2, flam,fl1)
 c$$$                           wigner=w3j34*dble(w12j)
-c$$$                           wigner=w3j34*dble(w12jtest(lb1,la1,
-c$$$     >                        l1,l2,lam))
-                           wigner = w12jtest(lb1,la1,l1,l2,lam)
+c$$$                           wigner=w3j34*dble(w12jtest(lam
+c$$$     >                        l2,l1,la1,lb1))
+                           wigner = w12jtest(lam,l2,l1,la1,lb1)
                            if(wigner.eq.0.d0) cycle                         
                            if(icalam(lam).ne.1) then
                               
@@ -1710,6 +1733,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          end do
         !  print*, 'posvmat', iqa         
       end do
+      deallocate(w12jtest)
       return
       end subroutine posvmat
 
