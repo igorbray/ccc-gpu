@@ -2084,7 +2084,7 @@ C  Check that the integration rule will handle the principle value singularity
             im=nt+1
             do while (gridk(im).le.(sk(j+1)).and.im.lt.kmax)
                gftmp = 1.0/(e-gridk(im)*gridk(im))
-               if (abs(e-gridk(im)*gridk(im)).lt.1e-4) gftmp=0.25/e
+               if (abs(e-gridk(im)*gridk(im))/e.lt.1e-4) gftmp=0.25/e
                sum=sum + 2.0*weightk(im)*gftmp
                im=im+1
             end do

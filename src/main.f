@@ -2445,7 +2445,7 @@ c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
                inquire(file=nodetfile,exist=exists)
                nchtimetot = 0
                nchtimemax = 0
-               do while (exists)
+               do while (exists.and.n.le.nodes)
                   open(42,file=nodetfile)
                   nchistartold(n,ipar) = 10000000
                   nchistopold(n,ipar) = 0
@@ -2982,7 +2982,7 @@ c$$$         reconstruct_psi = .false.
 C The following allows scalapack to run efficiently with threaded libraries
 #ifndef LIBSCI
 c$$$            call mkl_set_num_threads(1) ! revert for many tasks per node
-            call mkl_set_num_threads(nomporig) 
+c$$$            call mkl_set_num_threads(nomporig) 
 #endif
 c$$$            call sleepy_barrier(MPI_COMM_WORLD)
             call MPI_Barrier(  MPI_COMM_WORLD, ierr)

@@ -358,7 +358,7 @@ c$$$                     if (ef.gt.0.0) then
 c$$$                        wton(nymax,nchi) = wton(nymax,nchi) *
 c$$$     >                     ovlpn(nchp) / sqrt(ef)
 c$$$                     endif 
-                     wt2nd(nymax,nchi) = t2nd(nchf,nchi)/sqrt(gkfac) !yields same kon as in lplot files
+                     wt2nd(nymax,nchi)=t2nd(nchf,nchi)/sqrt(abs(gkfac)) !yields same kon as in lplot files
                      wvon(nymax,nchi) = von(nchf,nchi)
                   end if
                   if (gk(1,nchf).ge.0.0) then
@@ -492,8 +492,8 @@ c$$$               rdel = atan2(aimag(eigv(nchf)),real(eigv(nchf))) / 2.0
                if (ef.le.etot)
 c$$$     >            print '(i2,a,i3,i2,1p,e10.3,0p,f9.5,2x,
 c$$$     >            1p,2(2(e10.3),1x),0p,f9.4)',
-     >            print '(i2,a,2i2,1p,3(2(e10.3),1x),0p,f9.4)',
-     >            j,spin(ns),nychan(nchf),nchi,
+     >            print '(i3,a,2i4,1p,3(2(e10.3),1x),0p,f9.4)',
+     >            lg,spin(ns),nychan(nchf),nchi,
 c$$$     >         tabs,targ,wt2nd(nchf,nchi), wvon(nchf,nchi),ef
      >         wton(nchf,nchi),wt2nd(nchf,nchi), wvon(nchf,nchi),ef
 c$$$     >         rdel, nmpow(aimag(ctmp))
@@ -1566,8 +1566,8 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
             if (mod(nk(4,l,is),2).ne.0) then
                print*,'on-shell points will be part of the k-grid'
-               if (lptop.ge.0)
-     >            stop'NK(4,L,IS) must be even for two-centres calcs'
+               if (lstart.le.lstoppos)
+     >            stop'NK(4,L,IS) must be even for rearrangement'
             endif            
             nktot = nk(1,l,is)+nk(2,l,is)+nk(3,l,is)+max(0,nk(4,l,is))
      >         + nbnd(l)
@@ -2404,7 +2404,7 @@ C  This is for very large incident energies
  10   inquire(file = lockfile, exist=exists)
       if (exists) then
          print*,'Surprisingly lockfile exists:',lg,n,lockfile
-         call sleep(max(1,lg))
+         call sleep(max(1,mod(lg*2,30)))
          if (n.le.100) then
             n = n + 1
 c$$$            call datetime(3)
@@ -3035,7 +3035,7 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.99) then
+      else if (0.0.lt.x.and.x.lt.xp) then !*0.99) then
 c$$$      else
          r = x/(xp+1e-20)
 c$$$         if (r.gt.0.995) r = 0.995
@@ -4005,8 +4005,10 @@ c$$$     >               rat,s1
      >               rmesh(minchil(kp,2)-2,1)*rat,s2,dchi)
 c$$$                  print*,'rmatch,s2:',rmesh(minchil(kp,2)-2,1)*
 c$$$     >               rat,s2
-                  call numerovf(l,entail,utemp,cntfug(1,l),rmesh(1,1),
-     >               meshr,jdouble,id,s1,s2,temp,minchil(kp,2)-2,meshr)
+                  temp(1:meshr)=0.0
+                  if (s1.ne.0.0.and.s2.ne.0.0)
+     >               call numerovf(l,entail,utemp,cntfug(1,l),rmesh(1,1)
+     >               ,meshr,jdouble,id,s1,s2,temp,minchil(kp,2)-2,meshr)
                   do i = minchil(kp,2), meshr
                      chil(i,kp,2) = temp(i) * rmesh(i,3)
                   enddo
@@ -4297,9 +4299,9 @@ c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
             endif 
          endif                  !analytic
 
-         write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
          inquire(file='writegreen',exist=exists)
          if (exists) then
+            write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
             open(42,file=stringtemp)
 c$$$               GF(:,:,nch) = 0.0
             do kp = 2, npk(nch+1)-npk(nch)
