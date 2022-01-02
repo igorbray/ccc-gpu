@@ -533,8 +533,17 @@ C  For two-electron targets get the one-electron functions for the ion
       if (alkali) call ubbgausleg(lmax1, nmax, xgz, wgz, pleg) ! Andrey         
             
       if (nznuc-nint(zasym).gt.2) then
-C  Make the core states
+C MYID=0 writes the core states to disk, and the rest read.
+         if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+     >      0, MPI_COMM_WORLD, mpi_status, ierr )
          call makecorepsi(nznuc,zasym,ry,corep(0),r0(0))
+         if (myid.eq.0) then
+            do nmpi = 1, nodes-1
+               call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+     >            0, MPI_COMM_WORLD, ierr )
+            enddo
+         endif
+         print*,'myid completed makecorepsi:',myid
 C  Get the direct core potential.
          call makevdcore(temp,minvdc,maxvdc,nznuc,uplane)
          print*,'MAXVDC, MESHR:',maxvdc,meshr
@@ -952,8 +961,18 @@ c$$$         nnbin = max(abs(nnbtop),nold)
          if (i_sw_ng.eq.0) then
             print*,'Defining eigenstates with COREP and R0 to N:',
      >         corep(l),r0(l),nnbin
+C  MYID=0 goes first so that fchf discrete functions are written to disk 
+            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+     >         0, MPI_COMM_WORLD, mpi_status, ierr )
             call makeeigenpsi(nznuc,zasym,nnbin,l,corep(l),r0(l),
      >         ery,ry,enion,enlevel,ntstop,ovlpnl,nold)
+            if (myid.eq.0) then
+               do nmpi = 1, nodes-1
+                  call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+     >               0, MPI_COMM_WORLD, ierr )
+               enddo
+            endif
+            print*,'myid completed makeeigenpsi:',myid
          endif 
          npsstates(1,la) = 0
 
@@ -980,9 +999,18 @@ c$$$         nnbin = max(abs(nnbtop),nold)
             else
                ine2e = 0
             endif
+C  MYID=0 goes first so that fchf continuum functions are written to disk
+            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+     >         0, MPI_COMM_WORLD, mpi_status, ierr )
             call makepspsi(nold,nznuc,zasym,npstat,nnbin,l,corep(l),
      >         r0(l),al,vdcore_st(1,l),ovlp,phasen,ery,ry,enion,enlevel,
      >         slowe,ine2e,ovlpnl,hlike,orzasym)
+            if (myid.eq.0) then
+               do nmpi = 1, nodes-1
+                  call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+     >               0, MPI_COMM_WORLD, ierr )
+               enddo
+            endif
          endif
                   
          print*
