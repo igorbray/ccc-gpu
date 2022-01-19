@@ -472,10 +472,10 @@ c$$$     >         ' or not zero at last R',
 c$$$     >         n,m,ch(n,m)
          end do 
       end do
-c$$$      if (ncount.gt.0) then
+      if (ncount.gt.0) then
          print*,'Number of non orthonormal (to 1e-3) states:', ncount
          print*,'Max orthogonality error:',err
-c$$$      endif 
+      endif 
       return
       end
 

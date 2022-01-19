@@ -341,13 +341,13 @@ C
       cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
       write(ench,'(1p,"_",e10.4)') energy
       if (nodes.eq.1) cnode = ''
-      print*, 'nomporig, nodes, myid and nodeid are:',
-     >   nomporig,nodes,myid,nodeid
+      if (myid.le.0) print*, 'nomp, nodes:',
+     >   nomporig,nodes!,myid,nodeid
 
 c
       call date_and_time(date,time,zone,valuesin)
-      print '(/,i4,": nodeid completed readin at: ",a10)',
-     >      nodeid,time
+c$$$      print '(/,i4,": nodeid completed readin at: ",a10)',
+c$$$     >      nodeid,time
       inofcexch = 0
       nfcmax = 100
 !      print*, 'Enter 1 if NO fcexch() routine to be used'
@@ -508,7 +508,7 @@ c$$$         vasymp(i) = zeff * 2.0 * rpow2(i,0) ! generalized for Debye screeni
       end do
 C  We assume that all targets are H like, except for He
       hlike = mod(nznuc - nint(zasym),2) .eq. 1
-      print *, 'HLIKE:',hlike
+      if (myid.le.0) print*, 'HLIKE:',hlike
 C  For two-electron targets get the one-electron functions for the ion
       i_sw_ng = 0   ! for hlike==false targets make a separate case for noble gases
       inquire(file='noblegas_yes',exist=exists)
@@ -534,12 +534,12 @@ C  For two-electron targets get the one-electron functions for the ion
             
       if (nznuc-nint(zasym).gt.2) then
 C MYID=0 writes the core states to disk, and the rest read.
-         if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+         if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
      >      0, MPI_COMM_WORLD, mpi_status, ierr )
          call makecorepsi(nznuc,zasym,ry,corep(0),r0(0))
          if (myid.eq.0) then
             do nmpi = 1, nodes-1
-               call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+               call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >            0, MPI_COMM_WORLD, ierr )
             enddo
          endif
@@ -959,20 +959,21 @@ C     Define the target states
 c$$$         nnbin = max(abs(nnbtop),nold)
          l = lmatch(la)
          if (i_sw_ng.eq.0) then
-            print*,'Defining eigenstates with COREP and R0 to N:',
+            if (myid.eq.0)
+     >         print*,'Defining eigenstates with COREP and R0 to N:',
      >         corep(l),r0(l),nnbin
 C  MYID=0 goes first so that fchf discrete functions are written to disk 
-            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
      >         0, MPI_COMM_WORLD, mpi_status, ierr )
             call makeeigenpsi(nznuc,zasym,nnbin,l,corep(l),r0(l),
      >         ery,ry,enion,enlevel,ntstop,ovlpnl,nold)
             if (myid.eq.0) then
                do nmpi = 1, nodes-1
-                  call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+                  call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >               0, MPI_COMM_WORLD, ierr )
                enddo
             endif
-            print*,'myid completed makeeigenpsi:',myid
+c$$$            print*,'myid completed makeeigenpsi:',myid
          endif 
          npsstates(1,la) = 0
 
@@ -991,8 +992,8 @@ C  MYID=0 goes first so that fchf discrete functions are written to disk
             else
                npstat = natop(l) - l
             endif 
-            print*,'Defining pseudostates with N and Alpha:',
-     >         npstat, al
+            if (myid.le.0) print'("Defining pseudostates; N, L, Alpha:",
+     >         2i3,f12.6)',npstat,l,al
             if (ne2e.eq.0) slowe(1) = 0.0
             if (hlike) then
                ine2e = abs(ne2e)
@@ -1000,20 +1001,19 @@ C  MYID=0 goes first so that fchf discrete functions are written to disk
                ine2e = 0
             endif
 C  MYID=0 goes first so that fchf continuum functions are written to disk
-            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INT, 0, 
+            if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
      >         0, MPI_COMM_WORLD, mpi_status, ierr )
             call makepspsi(nold,nznuc,zasym,npstat,nnbin,l,corep(l),
      >         r0(l),al,vdcore_st(1,l),ovlp,phasen,ery,ry,enion,enlevel,
      >         slowe,ine2e,ovlpnl,hlike,orzasym)
             if (myid.eq.0) then
                do nmpi = 1, nodes-1
-                  call MPI_SEND(myid, 1, MPI_INT, nmpi, 
+                  call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >               0, MPI_COMM_WORLD, ierr )
                enddo
             endif
          endif
                   
-         print*
 c$$$         if (ipar.eq.0) then
             nchanmax = nchanmax + (natop(l) - nabot(l) + 1) * (l + 1)
             nstmax = nstmax + natop(l) - nabot(l) + 1
@@ -1130,8 +1130,10 @@ C  Define positronium states
       enddo     
       dppoltot = 0.0
       do lp = lpbot, lptop
-         print*,'Defining positronium eigenstates for LP:', lp
-         print*,' l Np N      e(Ry)     e(eV)     ovlp'
+         if (myid.le.0) then
+            print*,'Defining Ps eigenstates for LP:', lp
+            print*,' l Np N      e(Ry)     e(eV)     ovlp'
+         endif
          nstart = natop(lp)
 ! Ps states must start after all He-states. When enpsinb=0.0 will cycle in getchinfo
          if (.not.hlike) nstart = max(natopi,natop(lp))
@@ -1147,20 +1149,21 @@ C  Define positronium states
             enddo
             ovlpnl(n,lp,npos) = tsum
             ovlp(n,lp) = tsum
-            print'(3i3,3f10.5)',lp,npos,n,enpsinb(n,lp),
+            if (myid.le.0)
+     >         print'(3i3,3f10.5)',lp,npos,n,enpsinb(n,lp),
      >         enpsinb(n,lp)*ry,tsum
          enddo
          npsstates(2,lp) = 0
-!         if (nptop(lp).le.0) then
-            print*,'Defining positronium pseudostates for LP, NP:', lp,
-     >         npsp(lp)-lp
-            maxupl = 1
-            npsstates(2,lp) = npsp(lp)-lp
-            rlambda(2,lp) = abs(alphap(lp) * 2.0)
-            ps2(:,:) = 0.0
-            psen2(:) = 0.0
-            if (rlambda(2,lp).gt.10.0) then
-               print*,'Using Box-based states'
+!     if (nptop(lp).le.0) then
+         rlambda(2,lp) = abs(alphap(lp) * 2.0)
+         if (myid.le.0) print'("Defining Ps pseudostates; NP, LP, Al:", 
+     >      2i3,f12.6)', npsp(lp)-lp, lp, rlambda(2,lp)
+         maxupl = 1
+         npsstates(2,lp) = npsp(lp)-lp
+         ps2(:,:) = 0.0
+         psen2(:) = 0.0
+         if (rlambda(2,lp).gt.10.0) then
+            if (myid.le.0) print*,'Using Box-based states'
                boxps = .true.
                hmax = rmesh(meshr,2)
                zas = 1.0/sqrt(2.0)
@@ -1172,7 +1175,7 @@ C  Define positronium states
                minps2(:) = 1
                maxps2(:) = jmax
                psen2(:) = psen2(:) * 2.0
-               print*,'R-check:',jmax,rmesh(jmax,1)
+               if (myid.le.0) print*,'R-check:',jmax,rmesh(jmax,1)
             else 
                call makeps(0.5, .true., abs(alphap(lp)), lp, expcut,
      >            npsp(lp)-lp, ps2, psen2, minps2, maxps2,rmesh,uplane,
@@ -1185,20 +1188,20 @@ C  Define positronium states
                   if (abs((psen2(n)+psen2(n+1))/2.0-etot).gt.
      >               abs((psen2(n-1)+psen2(n))/2.0-etot)) n = n - 1
                   test = (psen2(n)+psen2(n+1))/2.0 - etot
-                  print*,test,psen2(n),etot,psen2(n+1)
+                  if (myid.le.0) print*,test,psen2(n),etot,psen2(n+1)
                   alphanew = - alphap(lp)
                   iter = 1
                   do while (abs(test).gt.1e-4.and.iter.lt.100)
                      iter = iter + 1
                      alphanew = alphanew - test/etot/100.0
-                     print*,'New alpha:',alphanew
+                     if (myid.le.0) print*,'New alpha:',alphanew
                      ps2(:,:) = 0.0
                      psen2(:) = 0.0
                      call makeps(0.5, .true., alphanew, lp, expcut,
      >                  npsp(lp)-lp, ps2, psen2, minps2, maxps2, rmesh, 
      >                  uplane,maxupl, meshr,cknd(1,nstart+1,lp))
                      test = (psen2(n)+psen2(n+1))/2.0 - etot
-                     print*,test,psen2(n),etot,psen2(n+1)
+                     if (myid.le.0) print*,test,psen2(n),etot,psen2(n+1)
                   enddo
                   if (iter.ge.100) stop '100 iterations failed'
                   rlambda(2,lp) = alphanew * 2.0
@@ -1225,7 +1228,8 @@ c$$$            endif
                nptop(lp) = min(npsp(lp),n-nptop(lp)+lp-2) !-nptop(lp)
             endif
             n = nstart
-            print*,' l Np N      e(Ry)     e(eV)     ovlp      proj'
+            if (myid.le.0)
+     >         print*,' l Np N      e(Ry)     e(eV)     ovlp      proj'
             do npos = npbot(lp), npsp(lp)!nptop(lp)
                if (psen2(npos-lp).lt.etot) then
                   opcl = 'open'
@@ -1564,7 +1568,7 @@ c$$$            tfile = '/u/igor/potls/potl'//
 c$$$     >         ch(mylstart)//ench
 c$$$            csfile = '/u/igor/potls/totalcs'//ench
 c$$$         endif 
-         if (myid.eq.0) then
+         if (myid.le.0) then
          ipstart = 0
          call pwrite(nent,instate,nopen,energy,nznuc,zasym,ry,noprint,
      >      ovlp,ovlpn,phasen,phaseq,mylstart,ipstart,lstop,projectile,
@@ -1578,7 +1582,7 @@ c$$$         endif
             close(138)
             stop 'bornstop found'
          endif
-         endif ! myid.eq.0
+         endif ! myid.le.0
 
       enddo
       if (dbyexists) then       !for shielded H-like ions
@@ -2982,8 +2986,8 @@ c
 c     resetting ispeed =1
 c
          ispeed=1
-         call clock(v2)
-         print*,'time for VMAT:',v2-v1
+c$$$         call clock(v2)
+c$$$         print*,'time for VMAT:',v2-v1
          inquire(file='reconstruct_psi',exist=reconstruct_psi)
 c$$$         reconstruct_psi = .false.
          if (.not.reconstruct_psi) then
@@ -3045,7 +3049,7 @@ c$$$            call sleepy_barrier(MPI_COMM_WORLD)
             call mpi_bcast(wk,nd,MY_MPI_COMPLEX,0,
      >         MPI_COMM_WORLD,ierr)
 
-            if (myid.eq.0) then
+            if (myid.le.0) then
                allocate(bb(nd,nchtop,2,0:nsmax))
             else
                if (.not.allocated(bb)) allocate(bb(1,1,2,0:1)) !not used
@@ -3060,7 +3064,7 @@ c$$$            call sleepy_barrier(MPI_COMM_WORLD)
             call blacs_gridexit(nblacs_context)
          else ! .not.scalapack
 C Reconstruct full VMAT on the first node to use with LAPACK
-         if (myid.eq.0) then
+         if (myid.le.0) then
             nd = npk(nchtop+1)-1
             allocate(bb(nd,nchtop,2,0:nsmax))
             bb(:,:,:,:) = 0.0
@@ -3146,7 +3150,7 @@ c$$$            enddo
      >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
 C   Solve Ax=b inside the main routine; below will be replaced with scalapack
-         if (myid.eq.0) then
+         if (myid.le.0) then
             call date_and_time(date,time,zone,valuesout)
             if (scaleexists) then
                open(42,file='time'//ench,position='append')
@@ -3433,7 +3437,7 @@ c
          print*,'Energy completed - energy was ',energy
          call clock(timeenergy2)
          print*,'Time for energy loop was: ',timeenergy2-timeenergy1
-      endif !  myid.eq.0
+      endif !  myid.le.0
 c$$$      print*,'LBOUNDs of VMAT:',lbound(vmat,1),lbound(vmat,2)
 c$$$      print*,'UBOUNDs of VMAT:',ubound(vmat,1),ubound(vmat,2)
       
@@ -3452,7 +3456,7 @@ c$$$      call sleepy_barrier(MPI_COMM_WORLD) ! This works perfectly on Magnus
       enddo                     !end of ipar loop
 c$$$         if (canstop(0).and.canstop(abs(npar)).and.ntype.ge.0.and.
 c$$$     >      ntasks.eq.-1) go to 780
-      if (myid.eq.0) then
+      if (myid.le.0) then
          call date_and_time(date,time,zone,valuesout)
          print '(/,"Partial wave LG: ",i4," completed at: ",a10,
      >   ", diff (secs):",i5)',lg,time,
@@ -3576,6 +3580,7 @@ c$$$     >      ntasks.eq.-1) go to 780
       subroutine makeeigenpsi(nznuci,zasymi,nnbtop,l,corep,r0,
      >   ery,ry,enion,enlevel,ntstop,ovlpnl,nold)
       include 'par.f'
+      common /MPI_info/myid, ntasks, cnode, ench
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
@@ -3593,8 +3598,9 @@ c$$$     >      ntasks.eq.-1) go to 780
 
       rmax = rmesh(meshr,1)
 
-      print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
-      print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         ovlp")'
+c$$$      print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
+      if (myid.le.0)
+     >   print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         ovlp")'
       if (nznuc-nint(zasym).eq.11) then
 C  here for sodium like targets
 c$$$      r0 = 1.439
@@ -3787,17 +3793,20 @@ c$$$         end if
      >      istoppsinb(nabot(0),0),rmesh,meshr)
             dppol = 4.0 * osc / (enpsinb(nabot(0),0)-enpsinb(n,l))**2
             dppoltot = dppoltot + dppol
-            print '("         Oscillator strength:",f6.3," dppol:",
+            if (myid.le.0)
+     >         print '("         Oscillator strength:",f6.3," dppol:",
      >         f7.2," dppoltot:",f7.2)', osc,dppol,dppoltot
             osc = oscil_modif(enpsinb(n,l),psinb(1,n,l),istoppsinb(n,l),
      >      enpsinb(nabot(0),0),psinb(1,nabot(0),0),
      >      istoppsinb(nabot(0),0),rmesh,meshr)
             dppol = 4.0 * osc / (enpsinb(nabot(0),0)-enpsinb(n,l))**2
             dppoltotm = dppoltotm + dppol
-            print '("Modified Oscillator strength:",f6.3," dppol:",
+            if (myid.le.0)
+     >         print '("Modified Oscillator strength:",f6.3," dppol:",
      >         f7.2," dppoltot:",f7.2)', osc,dppol,dppoltotm
          endif 
-         print'(2i3,i6,f12.1,2f16.8,2x,a6)',
+            if (myid.le.0)
+     >      print'(2i3,i6,f12.1,2f16.8,2x,a6)',
      >      l,n,istoppsinb(n,l),elevel,enpsinb(n,l)*ry,
      >      tsum,opcl
 c$$$         if (abs(tsum-1.0).gt.1e-4.and.n.eq.nabot(l)) then
@@ -3806,7 +3815,7 @@ c$$$     >         stop 'PROBLEM WITH WAVEFUNCTION'
 c$$$         endif 
       end do
 C General set of oscillator strengths, see Dmitry's notes
-      if (l.gt.0) then
+      if (l.gt.0.and.myid.le.0) then
          print*,"nl->n'l' Oscillator strengths"
          do nm = nabot(l-1), 5
             do np = nabot(l), 5
@@ -3833,6 +3842,7 @@ C General set of oscillator strengths, see Dmitry's notes
      >   hlike,orzasym)
 c$$$      use psinc_module
       include 'par.f'
+      common /MPI_info/myid, ntasks, cnode, ench
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
@@ -3872,7 +3882,7 @@ c$$$         vnucl(i) = (vdcore(i)+float(nznuc-1)/rmesh(i,1)) * 2.0
          vnucl(i) = (vdcore(i)-rpow2(i,0)*(zasym+1.0))*2.0
       enddo
       maxpot = meshr
-      if (zasym.ne.0.0) print*,'Check that the asym changes are working'
+c$$$      if (zasym.ne.0.0) print*,'Check that the asym changes are working'
 c$$$      z0 = float(nznuc) + zasym
       z0 = 0.0 !  zasym !float(nznuc)
 c$$$      do i = 1, meshr
@@ -3900,7 +3910,8 @@ c$$$            als(n) = al * 2.0 * 1.2**(nabot(l) - n)
          rlambda(1,l) = al * 2.0
          if (al.gt.4.0*(zasymi+1)) then
 !            if (al*(zasymi+1)/rmesh(meshr,1).gt.5.0) then
-            print*,'Using Box-based states'
+            if (myid.le.0)
+     >         print*,'Using Box-based states'
             hmax = rmesh(meshr,2)
             zas = zasymi !+ 1.0
 c$$$            if (dbyexists) then
@@ -3912,14 +3923,15 @@ c$$$               zas = 0.0
 c$$$            endif
 c$$$            print*,'zas=',zas
             vnucl(:)=vdcore(:)*2.0 !Ry
-            print*,'zas,vnucl(1)*rmesh(1,1):',zas,vnucl(1)*rmesh(1,1)
+c$$$            print*,'zas,vnucl(1)*rmesh(1,1):',zas,vnucl(1)*rmesh(1,1)
             ra = al
             nbmax = nps+l
             call pseudo(jdouble,id,hmax,zas,l,ra,nbmax,maxr,vnucl,
      >         psen2,ps2,jmax)
             minps2(:) = 1
             maxps2(:) = jmax
-            print*,'R-check:',jmax,rmesh(jmax,1)
+            if (myid.le.0)
+     >         print*,'R-check:',jmax,rmesh(jmax,1)
 c$$$            if (l.eq.0) ps2(:,1)=0.0 ! For Anatoli
          else
 c$$$            if (dbyexists) then
@@ -3949,7 +3961,7 @@ c$$$            vnucl(:)=-2.0/rmesh(:,1)
             z0= zasym + 1 !0.0
             vnucl(:)=vdcore(:)*2.0 !Ry
 c$$$            vnucl(:)=-2.0/rmesh(:,1)
-            print*,'z0,vnucl(1)*R(1):',z0,vnucl(1)*rmesh(1,1)
+c$$$            print*,'z0,vnucl(1)*R(1):',z0,vnucl(1)*rmesh(1,1)
             call makeps(z0, .true., al, l, expcut, nps, ps2,
      >         psen2, minps2, maxps2, rmesh, vnucl,
      >         maxpot, meshr,cknd(1,nabot(l),l))
@@ -3990,9 +4002,11 @@ c$$$            endif
             etot = ery + psen2(ninc-l)
             if (nznuc.eq.6.and.zasym.eq.5.0) then
                etot = etot + 100.0/ry
-               print*,'adjusting energy for CV to:',etot
+            if (myid.le.0)
+     >            print*,'adjusting energy for CV to:',etot
             else 
-               print*,'Setting total energy to (eV):',etot * ry
+            if (myid.le.0)
+     >            print*,'Setting total energy to (eV):',etot * ry
             endif 
 c$$$            if (slowe.lt.0.0.and.etot.gt.0.0) slowe = etot / 2.0 * ry
          endif 
@@ -4043,7 +4057,8 @@ c$$$     >         .and.it.lt.60)
                   if (abs(slowe(1)/ry-etot*0.5)/etot.lt.1e-3) then
                      position = etot / 2.0
                   else 
-                     print*,'Setting POSITION=ETOT'
+                     if (myid.le.0)
+     >                  print*,'Setting POSITION=ETOT'
                      position = etot
                      if (natop(l).eq.-99) position = etot / 2.0
                   endif 
@@ -4064,11 +4079,13 @@ c$$$     >               (slowery.lt.position/4.0.or.psen2(n).lt.position))
 c$$$     >               slowery = (position / 4.0 + psen2(nf)) / 2.0
                endif                  
                if (it.lt.60) then
-                  print*,it,
+                  if (myid.le.0)
+     >               print*,it,
      >               ' slowery,alpha,almin,almax,small:',
      >               slowery*ry, al, almin,almax,small
                else
-                  print*, 'CAUTION: it = 60'
+                  if (myid.le.0)
+     >               print*, 'CAUTION: it = 60'
                endif 
                small = 1e10               
                do n = 1, nps
@@ -4082,7 +4099,8 @@ c$$$                     print*, n, diff, almin, al, almax, psen2(n) * ry
                
                if (psen2(nps).lt.etot.and.slowe(1).ge.0.0) then
                   al = al + alstep*it
-                  print*,'New Lambda:', al * 2.0
+                  if (myid.le.0)
+     >               print*,'New Lambda:', al * 2.0
                else 
                   diff = (slowery-psen2(nsmall)) / slowery
                   if (diff.lt.0.0) then
@@ -4129,7 +4147,8 @@ c$$$     >         slowery * ry
          do while (psen2(n) .gt. etot .and. n.gt.1)
             n = n - 1
          enddo
-         print*,'Energy test:',etot-psen2(n),psen2(min(n+1,nps))-etot
+         if (myid.le.0)
+     >      print*,'Energy test:',etot-psen2(n),psen2(min(n+1,nps))-etot
       endif
 
 c$$$      do n = 1, nabot(l) - 1
@@ -4137,7 +4156,7 @@ c$$$         print*,'Energy and final I for n =',n,psen2(n) * ry,
 c$$$     >      maxps2(n)
 c$$$      enddo
       sumfile = 'sum'//char(l+ichar('0'))
-      print*,'Checking for: ', sumfile
+c$$$      print*,'Checking for: ', sumfile
       inquire(file=sumfile,exist=exists)
       if (exists) then
          print*,'found'
@@ -4173,10 +4192,11 @@ c$$$      enddo
          enddo
          nps = n2
       else
-         print*,'not found'
+c$$$         print*,'not found'
       endif 
 
-      print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         ovlp",
+      if (myid.le.0)
+     >   print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         ovlp",
      >   "        proj/ovlp")'
 
       if (natop(l).eq.-99) then
@@ -4301,8 +4321,8 @@ c$$$          enddo
       enddo
 C  If we are below the ionization threshold then set all overlaps to 1.0
 C  so that we didn't get ionization cross sections below threshold!
-      if (etot.lt.0.0)
-     >  print*,'Note that the overlaps have been set to 1 for ETOT < 0'
+c$$$      if (etot.lt.0.0)
+c$$$     >  print*,'Note that the overlaps have been set to 1 for ETOT < 0'
 
 C  Redefine the eigenstates with the pseudostates
       do n = l + 1, nabot(l) - 1
@@ -4310,7 +4330,8 @@ C  Redefine the eigenstates with the pseudostates
          opcl = 'core'
          chin = '-'
          sum = 0.0
-         print'(2i3,i6,f15.1,f15.5,2f14.8,2x,a6,1x,a)',
+         if (myid.le.0)
+     >      print'(2i3,i6,f15.1,f15.5,2f14.8,2x,a6,1x,a)',
      >      l,n,maxps2(n-l),elevel,psen2(n-l)*ry,
      >      sum,sum,opcl,chin
       enddo
@@ -4372,7 +4393,7 @@ C statement below to use in tmatcco.f
             else
                call hlikechi(nznuc,zasym,en,l,chi,phasen(n,l),jstart,
      >            jstop,meshr,rmesh,expcut,regcut,corep,r0)
-               print*,'phasen(n,l)',phasen(n,l)
+c$$$               print*,'phasen(n,l)',phasen(n,l)
             endif 
             j = jstart
             do while (j.lt.jstop.and.chi(j+1)/chi(j).gt.1.0)
@@ -4395,8 +4416,9 @@ C  T(Ef) = ovlp * <f|T|i>
             enddo
 C  Note that the coulomb routine contains the CONST factor
             ovlp(n,l) = tmp
-            print*,'ovlp,chi/psi,we,phase',tmp,tmp1,tmp2,phasen(n,l)
-c$$$            print*,'OVLP,en,phase:',tmp,en,
+            if (myid.le.0)
+     >         print*,'ovlp,chi/psi,we,phase',tmp,tmp1,tmp2,phasen(n,l)
+c$$$  print*,'OVLP,en,phase:',tmp,en,
 c$$$     >         real(phasen(n,l)),imag(phasen(n,l))
 
             if (ncontmin .gt. n) ncontmin = n
@@ -4439,7 +4461,8 @@ C  will be included.
          else
             chin = '-'
          endif      
-         print'(2i3,i6,f12.1,f16.8,2f14.8,2x,a6,1x,a)',
+         if (myid.le.0)
+     >      print'(2i3,i6,f12.1,f16.8,2f14.8,2x,a6,1x,a)',
      >      l,n,istoppsinb(n,l),elevel,enpsinb(n,l)*ry,
      >        sum,ovlp(n,l),opcl,chin
          if (l.eq.1) then
@@ -4448,7 +4471,8 @@ C  will be included.
      >      istoppsinb(nabot(0),0),rmesh,meshr)
             dppol = 4.0 * osc / (enpsinb(nabot(0),0)-enpsinb(n,l))**2
             dppoltot = dppoltot + dppol
-            print '("         Oscillator strength:",f6.3," dppol:",
+            if (myid.le.0)
+     >         print '("         Oscillator strength:",f6.3," dppol:",
      >         f7.2," dppoltot:",f7.2)', osc,dppol,dppoltot
          endif
 C     ANDREY======================================================
@@ -4465,7 +4489,7 @@ C     ANDREY======================================================
 C  If natop(l) is 0 then all open and closed channels are included. The <=
 C  is used in case all channels are open, but input latop < 0.
       if (natop(l).le.0) natop(l) = ntop
-      if (ncontmin.le.ncontmax) then
+      if (ncontmin.le.ncontmax.and.myid.le.0) then
          print'(''Overlaps between continuum functions and L2 states'')'
          print '(2x,900i10)', (n,n=ncontmin,ncontmax)      
          do np = nabot(l), ntop

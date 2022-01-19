@@ -790,7 +790,7 @@ c$$$     >   35009.78,49304.8/
       if (exists) then
          nin = 3
          open(nin,file='ccc.in')
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'ccc.in found'
       else
          num_args = command_argument_count()
@@ -798,16 +798,16 @@ c$$$     >   35009.78,49304.8/
             call get_command_argument(1,infile)
             nin=3
             open(nin,file=infile)
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print*,'ccc.in not found;will use: '//infile
          else
             nin = 5
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print*,'ccc.in not found;will use standard input'
          endif 
       endif 
       read(nin,*,end=13,err=13) energy,de,nznuc,zasym,nze,ninc,linc
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''energy,de,nznuc,zasym,nze,ninc,linc:'',
      >   f8.3,f7.4,i7,f7.1,i7,i4,i3)',
      >   energy,de,nznuc,zasym,nze,ninc,linc
@@ -825,20 +825,20 @@ c$$$     >   35009.78,49304.8/
          projectile = 'positron'
 C  Read positronium information
          read(nin,*) lpbot,lptop,(npbot(lp),nptop(lp),lp=lpbot,lptop)
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print '(''lpbot, lptop, npbot(l), nptop(l):    '',2i7,
      >   99(i4,i3))',lpbot, lptop,(npbot(l), nptop(l), l = lpbot, lptop)
          read(nin,*) (npsp(l),alphap(l), l = lpbot, lptop)
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print '(''npsp(l), alphap(l):                  '',
      >   99(i3,f5.2))',(npsp(l), alphap(l), l = lpbot, lptop)
          read(nin,*) igz, igp, analyticd, numericalv,lstoppos,
      1        interpol, maxp, ubb_max1, maxql1
-         if (myid.eq.0)
+         if (myid.le.0)
      >      print'(''igz, igp, analyticd, numericalv:  '',2i7,2l7,i4)',
      >      igz, igp, analyticd, numericalv, lstoppos
 !C     Andrey: interpolation parameters: 
-         if (myid.eq.0)
+         if (myid.le.0)
      >      print'(''interpol, maxp, UBB_MAX, maxql1:    '', 1l7,3i7)',
      1        interpol, maxp, ubb_max1, maxql1
          dqlg =  (qlgmax-qlgmin)/dble(maxql1-1)
@@ -851,20 +851,20 @@ C  Read positronium information
          projectile = 'photon'
          nze = -1
       else 
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'NZE should be -1 for electron scattering'
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'NZE should be +1 for positron scattering'
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'NZE should be  0 for  photon  scattering'
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'Here NZE:',nze
          stop 'Wrong value for NZE'
       end if
 
       nzasym = nint(zasym)
       n = nznuc - nzasym
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print*,"n, nznuc, nzasym:", n, nznuc, nzasym
 c$$$      if (projectile.eq.'photon') n = n + 1
       target = ' ???? '
@@ -986,7 +986,7 @@ c$$$            do l = 0, lamax
 c$$$               corep(l) = 0.48
 c$$$               r0(l) = 1.115
 c$$$            enddo
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print*,'Will be using Mg II parameters'
             do l = 0, lamax
                corep(l) = 0.4814
@@ -1393,13 +1393,13 @@ c            r0(1) = 2.5
       endif
       
       read(nin,*) labot, latop, (nabot(l), natop(l), l = labot, latop)
-      if (myid.eq.0)
+      if (myid.le.0)
      >print '(''labot, latop, nabot(l), natop(l):    '',2i7,99(i4,i3))',
      >   labot, latop, (nabot(l), natop(l), l = labot, latop)
 
       if (latop.lt.lptop) stop 'expect LPTOP <= LATOP'
       if (latop.gt.lamax) then
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'Must have LATOP <= LAMAX', latop, lamax
          stop 'Must have LATOP <= LAMAX'
       endif
@@ -1407,33 +1407,33 @@ c            r0(1) = 2.5
 
       do l = labot, latop
          if (nabot(l).le.l) then
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print*,'Must have NABOT(L) >= L + 1, NABOT(L), L:',
      >         nabot(l),l
             stop 'Must have NABOT(L) >= L + 1'
          endif
          if (natop(l).gt.nnmax) then
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print*,'Must have NATOP(L) <= NNMAX',natop(l),nnmax
             stop 'Must have NATOP(L) <= NNMAX'
          endif
       end do
 
       read(nin,*) ntst,nunit,lnabtop,nnbtop,lttop,ncstates
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''ntst,nunit,lnabtop,nnbtop,lttop,ncstates:'',
      >   i3,5i7)',ntst,nunit,lnabtop,nnbtop,lttop,ncstates
       ntstart = ntst
       ntstop = ntst
 
       read(nin,*) lstart,lstop,ipar,nent,iborn
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''lstart, lstop, ipar, nent, iborn:    '',5i7)',
      >   lstart,lstop,ipar,nent,iborn
       if (lstop+latop.gt.lmax) stop 'Can not have LSTOP+LATOP > LMAX'
 
       read(nin,*) ndumm,luba,(nps(l),alpha(l),l=labot,latop)
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''ndumm,luba,nps(l),alpha(l):         '',
      >   i4,i3,94(i3,f7.2))',
      >   ndumm,luba,(nps(l),alpha(l),l=labot,latop)
@@ -1445,7 +1445,7 @@ c            r0(1) = 2.5
          npot = 0
          lpot = 0
       endif 
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''npot,lpot,ldw,npsbnd,albnd:          '',4i7,f7.2)',
      >   npot,lpot,ldw,npsbnd,albnd
 
@@ -1453,7 +1453,7 @@ C  FORMCUT cuts the form factors in FORM
 C  REGCUT determines the minimum value at which regular solutions start
 C  EXPCUT determines the smallest value of functions containing EXP fall off
       read(nin,*) formcut,regcut,expcut,gamm,rc
-      if (myid.eq.0)
+      if (myid.le.0)
      >   print '(''formcut,regcut,expcut,gamma,rc:       '',1p,3e7.0,0p,
      >   2f7.3)', formcut,regcut,expcut,gamm,rc
       if (gamm.ge.0.0) then
@@ -1473,7 +1473,7 @@ C  EXPCUT determines the smallest value of functions containing EXP fall off
          if (ifirst.gt.0) ifirst = 0
          if (isecond.gt.0) isecond = 0
       end if 
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''ifirst,isecond,nold,itail,theta:     '',4i7,f7.2)',
      >   ifirst,isecond,nold,itail,theta
       if (ndumm.eq.0.and.isecond.ge.0) then
@@ -1487,12 +1487,12 @@ C  There is some bug on the SS10 machines that causes malloc to get a SEGV
 C  if e2e is stopped before the CC calculation is completed
       lslow = max(latop,lslow)
       lfast = max(lstop,lfast)
-      if (myid.eq.0)
+      if (myid.le.0)
      >  print '(''ne2e,lslow,lfast, slowe(n),n=1,|ne2e|'',3i7,100f7.3)',
      >   ne2e, lslow, lfast, (slowe(n), n=1, abs(ne2e))
       
       read(nin,*) nq,qcut,rmax,ndbl,fast,match,packed
-      if (myid.eq.0)
+      if (myid.le.0)
      >     print '(''nq,qcut,rmax,ndbl,fast,match,packed: '',
      >   i7,2f7.1,i7,3l3)',nq,qcut,rmax,ndbl,fast,match,packed
 
@@ -1509,7 +1509,7 @@ C  if e2e is stopped before the CC calculation is completed
             do ne=1,nesp
                isp=isp+1
                erange(isp)=estartsp+(ne-1)*desp
-               if (myid.eq.0)
+               if (myid.le.0)
      >              print*,isp,erange(isp),'eV,',
      >          erange(isp)/13.6058,'Ryd'
             enddo
@@ -1551,7 +1551,7 @@ c$$$               endif
                   nk(j,lp,is) = nk(j,l,is)
                   sk(j,lp,is) = sk(j,l,is)
                enddo
-               if (myid.eq.0)
+               if (myid.le.0)
      >              print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
      >            2i3,4(i3,f5.2))',
      >            lp,nbnd(lp),(nk(j,lp,is),sk(j,lp,is),j=1,mint)
@@ -1560,7 +1560,7 @@ c$$$               endif
             nbnd(l) = max(0,nbnd(l)-l)
 c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
             lp = l + 1
-            if (myid.eq.0)
+            if (myid.le.0)
      >           print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
      >         2i3,4(i3,f5.2))',
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
@@ -1578,7 +1578,7 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
 
 
       if (lttop.gt.ltmax) then
-         if (myid.eq.0)
+         if (myid.le.0)
      >        print*,'LTTOP > LTMAX',lttop,ltmax
          print*,'Recompile with larger LTMAX'
          stop 'ABORTED'
@@ -2057,6 +2057,7 @@ C   njdouble - Number of doublings + 2
 C======================================================================      
       subroutine grids(qmax,ndouble,rmax,gridr,nmaxr,nr,jdouble,
      >   nmaxj,njdouble)
+      common /MPI_info/myid, ntasks, cnode, ench
 C
 C
       dimension gridr(nmaxr,3), jdouble(nmaxj)
@@ -2087,7 +2088,7 @@ C  Make sure NPDBL is even
       rleft = rmax - rdble
       nleft = int(rleft / hmax) / 2 * 2
       ntot = nleft + npdbl * ndouble
-      print*,'Estimated R max:',rdble + nleft * hmax,ntot,
+      if (myid.le.0)print*,'Estimated R max:',rdble + nleft * hmax,ntot,
      >   hmax * (float(npdbl) * (2**ndouble - 1) / float(2**ndouble)
      >   + nleft)
 c$$$      if (ntot.le.nmaxr) then
@@ -2102,12 +2103,12 @@ C  The value of the R point from which dR is constant, = HMAX, is RDBLE
 C  RDBLE = NPDBL * hmin * (2**NDOUBLE-1)
       rdble = float(npdbl) * hmin * (2**ndouble-1)
 
-      print*,'Grid R parameters:'
-      print*,'NDOUBLE:',ndouble
-      print*,'HMIN:',hmin
-      print*,'HMAX:',hmax
-      print*,'NPDBL:',npdbl
-      print*,'RDBLE:',rdble
+      if (myid.le.0)print*,'Grid R parameters:'
+      if (myid.le.0)print*,'NDOUBLE:',ndouble
+      if (myid.le.0)print*,'HMIN:',hmin
+      if (myid.le.0)print*,'HMAX:',hmax
+      if (myid.le.0)print*,'NPDBL:',npdbl
+      if (myid.le.0)print*,'RDBLE:',rdble
       
       dr = hmin
       jdouble(1) = 1
@@ -2139,7 +2140,7 @@ c$$$      nj = nj / 32
 c$$$      nj = nj * 32
       if (nj+j.gt.nmaxr) then
          nj = nmaxr - j
-         print*,'Warning: NR had to be reduced to NMAXR'
+         if (myid.le.0)print*,'Warning: NR had to be reduced to NMAXR'
       end if 
       do jj = 1, nj
          j = j + 1
@@ -2215,9 +2216,9 @@ c$$$      enddo
          enddo
          if (j-2**n.ne.nr)print*,'Warning last J should be NR',j-2**n,nr
          test = test * 2**n
-         print*,2**n,test*3.0/gridr(nr,1)**3
+         if (myid.le.0)print*,2**n,test*3.0/gridr(nr,1)**3
       enddo 
-      print*,'Last R and NR:', gridr(nr,1),nr
+      if (myid.le.0)print*,'Last R and NR:', gridr(nr,1),nr
 
       return
       end

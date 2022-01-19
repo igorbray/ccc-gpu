@@ -100,7 +100,8 @@ C     ANDREY: end my variables ---------------------------------
 c$$$      real, dimension (0:lfa,0:lia,0:(lfa+lia),0:(lfa+lia),
 c$$$     >   max0(lf,li,iabs(lf-lfa-lia),iabs(li-lfa-li)):min0(
 c$$$     >   lf+lfa+lia,li+lfa+lia)) :: w12jtest
-      real, allocatable :: w12jtest(:,:,:,:,:) 
+      real, allocatable :: w12jtest(:,:,:,:,:)
+      real*8, dimension (2*nqmi*igpm+nqmi) :: temp1,temp2
 
       if (lg.gt.lstoppos) return
 !      print*,'nchi,nqmi,nchf,nqmf:',nchi,nqmi,nchf,nqmf
@@ -755,6 +756,10 @@ c$$$      print*,'lambdamin, lambdamax:',lambdamin,lambdamax
          end do
       end do
 
+!!$acc data
+!!$acc& copyin(xp(1:imax),xgz(1:igz),pc1(:,:,:))
+!!$acc& copyout(f1z(1:igz,1:imax))
+!!$acc& copy(f1zc(1:igz,1:imax))
 
       do iqb=1, nqmf 
          qb=dble(gkf(iqb));
@@ -849,6 +854,15 @@ C-----ANDREY: end mitroy simplification ------------------------------
             iq=iq+1
             
             if(iq.eq.1) then
+            f1zC(1:igz,1:imax)=0.d0
+c$$$               print*,'imax,igz,Nl1,Nl2:',imax,igz,Nl1,Nl2
+!!$acc data
+!!$acc& copyin(xp(1:imax),xgz(1:igz),pc1(:,:,:))
+!!$acc& copyout(f1z(1:igz,1:imax))
+!!$acc& copy(f1zc(1:igz,1:imax))
+!!$acc kernels 
+!!$acc loop private(sk1,sk2)
+!!$acc loop independent collapse(2)
                do i=1,imax
                  pp2 = xp(i)*xp(i)
 !                  pp2 = xp2(i)
@@ -856,6 +870,7 @@ C-----ANDREY: end mitroy simplification ------------------------------
                   qbpp2 = 2.d0 * qbpp
                   bb = 0.25d0*qb2 + pp2
                   aa = qb2 + pp2        
+!!$acc loop private(sk1,sk2)
                   do iz=1,igz
                      pb2=bb - qbpp * xgz(iz)
                      pa2 = aa - qbpp2 * xgz(iz)
@@ -864,23 +879,23 @@ C-----ANDREY: end mitroy simplification ------------------------------
                      pa = sqrt(pa2)
 !     calculates w.f.                                         
                      pb = sqrt(pb2)                        
-                     if (numericalv) then                           
-                        call gnlp(bohr1,la,pa2,na,res0sk0,sk1) 
-                        call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
-
-                     else
-                        if(interpol.or.alkali) then ! target
-                           call getftps(pa, na, la, sk1, res0sk0)                           
+!                     if (numericalv) then                           
+!                        call gnlp(bohr1,la,pa2,na,res0sk0,sk1) 
+!                        call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
+!
+!                     else
+!                        if(interpol.or.alkali) then ! target
+!                           call getftps(pa, na, la, sk1, res0sk0)                           
 c                          call getftps(pb,nbi,lb,sk2,res0sk0) 
-                        elseif (abs(zasym).gt.0.d0) then ! Charged target
-                        call f0zpart(Nl1,rlam1,bohr1,na,la,na,
-     $                            pa2,sk11,sk1,pc0,pc1)
-                        else    ! only for hydrogen
+!                        elseif (abs(zasym).gt.0.d0) then ! Charged target
+!                        call f0zpart(Nl1,rlam1,bohr1,na,la,na,
+!     $                            pa2,sk11,sk1,pc0,pc1)
+!                        else    ! only for hydrogen
 !                          call f0zpart(Nl1,rlam1,bohr1,na,la,na,
 !     $                            pa2,res0sk0,sk1,pc0,pc1)                  
-                           if(Nl1.eq.0) then
-                              call geigen(bohr1,na,la,pa2,sk1)               
-                           else
+!                           if(Nl1.eq.0) then
+!                              call geigen(bohr1,na,la,pa2,sk1)               
+!                           else
                               brap1=brp1*pa2+1.d0
                               x1=(brap1-2.d0)/brap1
                               sk1=pc1(Nl1-1,na,la)
@@ -891,16 +906,16 @@ c$$$                              if (abs(brap1).gt.1d10) print*,
 c$$$     >                           sk1,bsp1,brap1,la
                               sk1=sk1*bsp1/brap1**(la+2)
 !                              sk1=sk1*exp(log(bsp1)-log(brap1)*(la+2))
-                           end if ! Nl1                         
-                        end if  ! interpol.or.alkali                          
+!                           end if ! Nl1                         
+!                        end if  ! interpol.or.alkali                          
 c     this is for positronium
-                        if (abs(zasym).gt.0.d0) then !Charged target
-                       call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,sk22,
-     $                    sk2, pc0,pc1)
-                        else
-                        if(Nl2.eq.0) then
-                           call geigen(bohr2,nb,lb, pb2,sk2)
-                        else
+!                        if (abs(zasym).gt.0.d0) then !Charged target
+!                       call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,sk22,
+!     $                    sk2, pc0,pc1)
+!                        else
+!                        if(Nl2.eq.0) then
+!                           call geigen(bohr2,nb,lb, pb2,sk2)
+!                        else
                            brap2=brp2*pb2+1.d0
                            x2=(brap2-2.d0)/brap2
                            sk2=pc1(Nl2-1,nbi,lb)
@@ -908,19 +923,21 @@ c     this is for positronium
                               sk2=sk2*x2+pc1(k,nbi,lb)
                            end do
                            sk2=sk2*bsp2/brap2**(lb+2)
-                        end if  ! Nl2
-                        endif !Charge
-                     end if     !numericalv                                                
-                     if (abs(zasym).gt.0.d0) then !Charged target
-                     f1zC(iz,i)=sk2*sk1*efactorC
-     >          -dble(zasym+1d0)*sk2*sk11-sk22*sk1
-                     else
-                     f1zC(iz,i)=0.d0
-                     endif
+!                        end if  ! Nl2
+!                        endif !Charge
+!                     end if     !numericalv                                                
+!                     if (abs(zasym).gt.0.d0) then !Charged target
+!                     f1zC(iz,i)=sk2*sk1*efactorC
+!     >          -dble(zasym+1d0)*sk2*sk11-sk22*sk1
+!                     else
+!                     f1zC(iz,i)=0.d0
+!                     endif
                      f1z(iz,i)=(zasym+1d0)*sk2*sk1 ! (Eq. 42)                     
                   end do        ! iz
                end do           ! i
-            end if              !if(iq.eq.1) 
+!!$acc end kernels
+!!$acc end data
+           end if              !if(iq.eq.1) 
             
 C-----ANDREY: calculate f1z for dQl -------------------------------            
             xppl(1:imax,0) = 1.0
@@ -944,6 +961,23 @@ C-----ANDREY: calculate f1z for dQl -------------------------------
                   la2=la-la1
                   lab2=lb2+la2
                   lab21 = lab2+1 ! ANDREY
+
+C--------------Added by Ivan - fp/res calculation------------------
+                  ising = iqa
+                  if(iqa.le.ionsh) ising=iqa-1
+                  if(iqa.eq.1) ising=ionsh
+                  if(gki(1).lt.0.) ising=iqa-1
+                  ising1=ising - 1
+                  if(ising.ne.nqim) then
+                     do ii=1,2*ising1*igp
+                        temp1(ii) = xppl(ii,lab21)*Qlp(ii,iqa)*wp(ii)
+                     end do
+                     do ii=2*ising*igp+1,nqmi2*igp
+                        temp2(ii) = xppl(ii,lab21)*Qlp(ii,iqa)*wp(ii)
+                     end do
+                  end if
+C------------------------------------------------------------------
+
                   qal2=qa**lab21
 c$$$                  do i = 1, imax
 c$$$                     xppl(i) = xp(i)**lab21
@@ -1187,13 +1221,26 @@ c     >    ,'Current Idea'
                               res1 = 0.0d0
 *     integrals coming before singularity
                               if (imax.lt.2*ising1*igp) stop 'imax1'
-                              do i=1,2*ising1*igp
-                                 pp=xp(i)
-!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
-                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
-                                 res1 = res1 + wp(i) * fp
-                              end do
-                              
+
+C--------------------------------old----------------------------------
+!                              do i=1,2*ising1*igp
+!                                 pp=xp(i)
+!!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+!                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
+!                                 res1 = res1 + wp(i) * fp
+!                              end do
+C----------------------------end old---------------------------------
+
+                        res1test = dot_product(fpqb(1:2*ising1*igp,lam),
+     $                                temp1(1:2*ising1*igp))
+
+!                if ((abs(res1-res1test)).gt.(1E-6*abs(res1))) then
+!                                print*,'res1diff:',res1,res1test,
+!     $                             abs(res1-res1test)
+!                end if
+!                              if((abs(res1-res1test)/res1).ge.0.001) then
+!                                print*,'res1diff:',res1,res1test
+!                              end if
 *     integrals with singularities
                               Fqa = fpqb(nqmi2*igp+ising,lam)*qa**lab21 
                               res2=0.d0
@@ -1233,11 +1280,12 @@ c     >    ,'Current Idea'
 *     integrals coming after singularity
                               res4=0.d0
                               if (imax.lt.nqmi2*igp) stop 'imax4'
-                              do i=2*ising*igp+1,nqmi2*igp
-                                 pp=xp(i)
-!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
-                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
-                                 res4 = res4 + wp(i) * fp
+C--------------------------------old----------------------------------
+!                              do i=2*ising*igp+1,nqmi2*igp
+!                                 pp=xp(i)
+!!                                 fp=fpqb(i,lam)*pp**lab21*Qlp(i,iqa)
+!                                 fp=fpqb(i,lam)*xppl(i,lab21)*Qlp(i,iqa)
+!                                 res4 = res4 + wp(i) * fp
                                  
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1252,8 +1300,18 @@ c$$$               stop 'stopped at posvmat -2-'
 c$$$            end if
 c$$$!$omp end critical 
 c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^            
-                              end do
-                              res1=res1+res2+res3+res4
+!                              end do
+C----------------------------end old----------------------------------
+                  res4test = dot_product(fpqb(2*ising*igp+1:nqmi2*igp
+     $                           ,lam),temp2(2*ising*igp+1:nqmi2*igp))
+*                             
+ 
+!                if ((abs(res4-res4test)).gt.(1E-6*abs(res4))) then
+!                                print*,'res4diff:',res4,res4test,
+!     $                             abs(res4-res4test)
+!                end if
+                             res1=res1test+res2+res3+res4test
+!                             res1=res1+res2+res3+res4
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
 c$$$            if(isnan(res1).or.isnan(res2).or.isnan(res3).or.isnan(res4))
@@ -1733,6 +1791,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          end do
         !  print*, 'posvmat', iqa         
       end do
+!!$acc end data
       deallocate(w12jtest)
       return
       end subroutine posvmat

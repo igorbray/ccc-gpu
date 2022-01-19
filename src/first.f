@@ -477,7 +477,7 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
      >                         + vmatt(1,1,nchf,1))/2 
          vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
          nqmf = npk(nchf+1) - npk(nchf)
-        else
+        else 
            nqmf = npk(nchf+1) - npk(nchf)
            do ns = 0, nsmax
               do ki = 1, nqmi
@@ -489,6 +489,7 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
            ef=e_t(nchf)
 c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
 c$$$     >        nt_t(nchi)
+           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
            if (abs(ef-ei)*lg.gt.50.0) then
 c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
 c$$$     >           ' ',chan(nt_t(nchi))
