@@ -116,8 +116,8 @@ C  Save the driving term on to the zeroth process
          if (allocated(vmat01)) deallocate(vmat01)
          if (allocated(vmat0)) deallocate(vmat0)
          if (allocated(vmat1)) deallocate(vmat1)
-      else
-         if (allocated(vmat0)) deallocate(vmat0)
+c$$$      else
+c$$$         if (allocated(vmat0)) deallocate(vmat0)
       endif 
 C  Solve the linear equations
 C  The following was an unsuccessful attempt to generate single executables

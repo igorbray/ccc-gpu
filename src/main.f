@@ -2318,11 +2318,11 @@ c$$$               endif
                print*,'nch,natomps(nch),ntot:',nch,natomps(nch),ntot
             enddo
          endif 
-         print'(
-     >     ''Memory (Mb) requested:'',i7,
-     >     '' = VMAT + CHI:'', 2i6)', 
-     >     nint((rmv+rmchi)*nbytes/1e6), nint(rmv*nbytes/1e6),
-     >     nint(rmchi*nbytes/1e6)
+c$$$         print'(
+c$$$     >     ''Memory (Mb) requested:'',i7,
+c$$$     >     '' = VMAT + CHI:'', 2i6)', 
+c$$$     >     nint((rmv+rmchi)*nbytes/1e6), nint(rmv*nbytes/1e6),
+c$$$     >     nint(rmchi*nbytes/1e6)
 
 C Determine nchistart and nchistop for each node
          nchprst = (nchtop+1)*nchtop/2 !nch pairs total
@@ -2696,7 +2696,7 @@ C Allocate the node-dependent VMAT arrays
             mv0=0
             mv1=0
             mchi = nint(1.0/mb*nd * meshr * nbytes)
-            if (itail.ne.0) mchi = mchi*2
+            if (itail.lt.0) mchi = mchi*2
             npernode = (nf-ni+1)*(nf-ni+2)/2+(nf-ni+1)*(nd-nf)
 c$$$            if (nodes.gt.nchtop) stop 'nodes > nchtop'	
 c$$$            if (nodes.eq.1.and.scalapack)
