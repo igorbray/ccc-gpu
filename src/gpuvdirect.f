@@ -56,15 +56,14 @@ c$$$#endif
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
-!$acc& create(temp2)
+!!$acc& create(temp2)
+!$acc& copyin(temp2(1:maxi2,1:nqmi,nchi:nchtop))
 !$acc& create(tmp)
-!!$acc& create(vmatt)
 c$$$!$omp do schedule(dynamic)
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = min(maxtemp3(nchf),meshr)
-!$acc update device(temp2(1:maxi2,1:nqmi,nchf)) async(1)
-!!$acc update device(vmatt(1:nqmfmax,1:nqmi,nchf,0:1)) async(1)
+!!$acc update device(temp2(1:maxi2,1:nqmi,nchf)) async(nchf)
 !$acc kernels 
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
@@ -72,7 +71,7 @@ c$$$!$omp do schedule(dynamic)
                chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1)
             enddo
          enddo
-!$acc wait(1)
+!!$acc wait(nchf)
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
             do kf=1,nqmf
@@ -196,9 +195,9 @@ c
 
       allocate(temp(maxr))
 
-!$omp parallel do default(private) num_threads(nnt) !collapse(2)
-!$omp& schedule(dynamic)
-!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
+!!$omp parallel do default(private) num_threads(nnt) !collapse(2)
+!!$omp& schedule(dynamic)
+!!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
       do nchf=nchi,nchtop
       do ilt = -lia, lia, 2
          const(ilt,nchf) = 0.0
@@ -237,15 +236,15 @@ c$$$               stop 'CJ6 and W do not agree'
          endif
       enddo ! ilt
       end do
-!$omp end parallel do
+!!$omp end parallel do
 
       maxi=maxpsii
 
-!$omp parallel do default(private) num_threads(nnt) !collapse(2)
-!$omp& schedule(dynamic)
-!$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
-!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
-!$omp& nchtop,gpunum)
+!!$omp parallel do default(private) num_threads(nnt) !collapse(2)
+!!$omp& schedule(dynamic)
+!!$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
+!!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
+!!$omp& nchtop,gpunum)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1
@@ -288,7 +287,7 @@ c
          enddo
       enddo
       enddo
-!$omp end parallel do
+!!$omp end parallel do
 
       deallocate(temp)
       end
