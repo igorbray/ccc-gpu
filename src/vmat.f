@@ -1587,6 +1587,8 @@ c$$$                     tail(kf,ki) = (YINF - ztormax
 !                     if (ki.eq.1.and.kf.eq.1) print*,
 !     >                    'yinf,ztormax,phasei,phasef,ctemp:',
 !     >                    yinf,ztormax,phasei(ki),phasef(kf),ctemp
+c$$$               if (nchf.eq.52.and.nchi.eq.43) print*,'tail:',
+c$$$     >            yinf,ztormax,ctemp
                vmatt(kf,ki) = (YINF - ztormax
 !     >                  *real(phasei(ki))*real(phasef(kf))
      >              ) * ctemp
