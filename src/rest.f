@@ -3036,7 +3036,7 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp) then !*0.99) then
+      else if (0.0.lt.x.and.x.lt.xp*0.999) then
 c$$$      else
          r = x/(xp+1e-20)
 c$$$         if (r.gt.0.995) r = 0.995
