@@ -32,7 +32,7 @@
       use ftps_module, only: interpol ! , error
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
 
       common/gausp/xgp(igpm),wgp(igpm),igp
@@ -1802,7 +1802,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -1849,7 +1849,7 @@ c--
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -1865,7 +1865,7 @@ c$$$      dimension pc0(0:ncmax-1,ncmax,0:6),pc1(0:ncmax-1,ncmax,0:6)
       real*8 function f1z(pp,z,qb,lb,la,nb,na,nbi,pc1)
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
 c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
@@ -1926,7 +1926,7 @@ c      common/pcfs/pc1(0:ncmax-1,ncmax,0:lnabmax)
       include 'par.f'
       include 'par.pos'
       implicit real*8 (a-h,o-z)
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
       common /laguercoeffs/
      >   cknd(ncmax,ncmax,0:lnabmax),rlambda(2,0:lnabmax),
@@ -2110,7 +2110,7 @@ c      pause ' wrote to unit 10'
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/cheb/x(ich),w(ich)
       common/funQl/Qlarray(0:ltmax,ich)
@@ -2160,7 +2160,7 @@ c      print*,'chebyshev result=',result,'is used'
 
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/cheb/x(ich),w(ich)
       common/funQl/Qlarray(0:ltmax,ich)
@@ -2278,7 +2278,7 @@ c      print*,'chebyshev result=',result,'is used'
       subroutine geigen(bohr,nn,ll,pp2,result)
 
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -2337,7 +2337,7 @@ c      print*,'chebyshev result=',result,'is used'
       subroutine gegenbauer(m,ll,brap,gegen)
 
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -2359,7 +2359,7 @@ c      if(m.eq.0) return
       subroutine gpseudo(ll,nopt,Nl,rlam,pp2,res0,res1)
 
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -2477,7 +2477,7 @@ c         res3 = res3 + psir * rr * chi0 * dble(rmesh(i,3))
       subroutine wpseudo(bohr,ll,rr,nopt,psir)
 
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -2514,7 +2514,7 @@ c      pause
       subroutine laguerre(nn,ll,arg,result)
 
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
      >   Qlfactor(0:maxl)
@@ -2534,7 +2534,7 @@ c      print*,' laguerre: res=',result,arg,sum
       subroutine laguer1(nn,ll,arg,sum)
 
 c      include 'par.f'
-c      parameter(maxl=8*ltmax)
+c      parameter(maxl=10*ltmax)
 c      common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
 c     >   Qlfactor(0:maxl)
       implicit real*8 (a-h,o-z)
@@ -2818,7 +2818,7 @@ C     modifyed spherical Bessel function
 
       include 'par.f'
       include 'par.pos'
-      parameter( maxl=8*ltmax)
+      parameter( maxl=10*ltmax)
       implicit real*8 (a-h,o-z)    
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
@@ -2897,7 +2897,7 @@ C     relation
             
       include 'par.f'
       include 'par.pos'
-      parameter( maxl=8*ltmax)
+      parameter( maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
       real *8, dimension (0:Lla) :: QN
 
@@ -3138,7 +3138,7 @@ c$$$            print*,'z,Lla,FleQ:',z,Lla,FlegQ(Lla, z)
 c$$$      use apar, only : alkali
 c$$$      include 'par.f'
 c$$$      include 'par.pos'
-c$$$      parameter( maxl=8*ltmax)
+c$$$      parameter( maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
 c$$$      real zasym
 c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -3175,7 +3175,7 @@ c$$$      end if
       subroutine polleg(limit,igz,igp)
       include 'par.f'
       include 'par.pos'
-      parameter (maxl=8*ltmax)
+      parameter (maxl=10*ltmax)
       implicit real*8 (a-h,o-z)       
       common/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igza
       common/gauszR/xgzR(igzm),wgzR(igzm),plR(0:maxl,igzm),igzR
@@ -3348,7 +3348,7 @@ c      print*,' x = ',x,' anal sk0 = ',sk0
 *     pp. 6 and 7 are not (real*8)
       
       include 'par.f'
-      parameter( maxl=8*ltmax)
+      parameter( maxl=10*ltmax)
       implicit real*8 (a-h,o-z)
 c$$$      common/const/pi
       common/factors/factrl(0:maxl),sqrfct(0:maxl),hat(0:maxl),
@@ -3644,7 +3644,7 @@ c      endif
 * numerically in double precision.
 
       include 'par.f'
-      parameter( maxl=8*ltmax)
+      parameter( maxl=10*ltmax)
       parameter(limlst=100, limit=100, maxp1=100)
       implicit real*8 (a-h,o-z)
 c$$$      common/const/pi
@@ -3723,7 +3723,7 @@ c      result=real(res*rlam*rlam/pi)
 
       real*8 function fr21(r2)
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       parameter(limit=100)
       implicit real*8 (a-h,o-z)
       dimension alist(limit),blist(limit),elist(limit),iord(limit),
@@ -3751,7 +3751,7 @@ c      endif
 
       real*8 function fr22(r2)
       include 'par.f'
-      parameter(maxl=8*ltmax)
+      parameter(maxl=10*ltmax)
       parameter(limit=100)
       implicit real*8 (a-h,o-z)
       dimension alist(limit),blist(limit),elist(limit),iord(limit),
