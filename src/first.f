@@ -421,8 +421,10 @@ c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
                ltmin(nchf) = lt
          endif 
  10   continue
-      if (ltmin(nchf).lt.10.and.maxi.eq.meshr) then
+      if (ltmin(nchf).lt.3.and.maxi.eq.meshr) then !for higher lt numerical problems arise
          ctemp(nchf) = rnorm * temp3(maxi,nchf)/rpow2(maxi,ltmin(nchf))
+      else
+         ctemp(nchf) = 0.0
       endif 
       if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
 C  Define the channel dependent distorting potential when running the
@@ -434,7 +436,7 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10) then
+      if (itail.ne.0.and.ctemp(nchf).ne.0.0) then
          it = 1
          if (itail.lt.0) it = 2
          call maketail(itail,ctemp(nchf),chil(1,npk(nchi),it),
