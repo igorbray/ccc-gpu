@@ -2287,7 +2287,8 @@ C  plane waves were always generated for Born subtraction
          mnnbtop=abs(nnbtop)
          valuesin = valuesout
          call makechil(lg,gk,wk,qcut,zero,vdcore_pr,npot,ui,m1,dwpot,
-     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,
+     >      npkb,phasel,nchtop,etot,nbnd0,abnd,npsbnd,1,
+c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,         
      >      albnd,sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
          print '(/,i4,": nodeid exited first MAKECHIL at: ",a10,
@@ -2831,7 +2832,9 @@ c$$$         endif
      >      nodeid,time
          mnnbtop=abs(nnbtop)
          call makechil(lg,gk,wk,qcut,zasym,vdcore_pr,npot,ui,ldw,dwpot,
-     >      npk,minchil,chil,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,
+     >      npk,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,
+     >      nchistart(nodeid),
+c$$$     >      npk,minchil,chil,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,         
      >        sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
          print '(/,i4,": nodeid exited  second MAKECHIL at: ",a10,

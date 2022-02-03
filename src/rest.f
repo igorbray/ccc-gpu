@@ -3352,7 +3352,8 @@ c$$$         print*,test,dk,startk,stopk,nmin
       end
 
       subroutine makechil(lg,gk,wk,qcut,zasym,vdcore,npot,ui,ldw,dwpot,
-     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
+     >   npk,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,nchistart,
+c$$$     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,      
      >   sigma,nnbtop,pos,lnch)
       use gf_module
       use chil_module
