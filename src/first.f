@@ -1,5 +1,5 @@
-      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chil,
-     >   minchil,u,ldw,dwpot,phasel,itail,nznuci,nchtop,nchtope2e,qcut,
+      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chilx,
+     >   minchilx,u,ldw,dwpot,phasel,itail,nznuci,nchtop,nchtope2e,qcut,
      >   vdon,vmat,theta,vdcore,minvdc,maxvdc,lfast,lslow,slowery,td,
      >   te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e,nchmaxe2e,
      >   vmatp,nsmax,
@@ -12,7 +12,7 @@
       use ubb_module
       use apar
       use date_time_module
-C      use chil_module
+      use chil_module
 C      use vmat_module
       include 'par.f'
 
@@ -25,8 +25,9 @@ C      use vmat_module
       logical:: scalapack
 
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
-      dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
-     >   ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
+c$$$      dimension chil(meshr,npk(nchtop+1)-1,1),minchil(npk(nchtop+1)-1,1)
+      dimension 
+     >   u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
      >   uf(maxr,nchan),lnch(nchan,2),nchinew(nchan,2)
      >   ,vdcore(maxr,0:lamax),u1e(maxr),dwpot(maxr,nchan),ctemp(nchan)
       complex phasei, phasef
@@ -94,6 +95,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 
       hat(l)= sqrt(2.0 * l + 1.0)
 
+c$$$      if (npk(2)-npk(1).eq.1) return ! if 1st call
       ni=0
       nf=0
       if (lg.lt.10) then
@@ -177,7 +179,7 @@ c$$$      enddo
 
 c$$$C Put the larger l states first for OpenMP efficiency
 c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
-      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
+c$$$      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
       do nchtmp = nchii, nchif
          nchi = nchtmp !nchinew(nchtmp,1)
 c$$$      do nchi = nchii, nchif
@@ -325,7 +327,7 @@ C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
      >         nznuc,temp)
          endif
 
-       if(pos(nchf).and.pos(nchi)) then 
+         if(pos(nchf).and.pos(nchi)) then
 C     ANDREY: Hydrogen: ssalling + interpolation:
             if (.not.alkali) then
 C  The factor of two below is the reduced mass. We are working with
@@ -491,12 +493,12 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
            ef=e_t(nchf)
 c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
 c$$$     >        nt_t(nchi)
-           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
-           if (abs(ef-ei)*lg.gt.50.0) then
-c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
-c$$$     >           ' ',chan(nt_t(nchi))
-              cycle
-           endif
+c$$$           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
+c$$$           if (abs(ef-ei)*lg.gt.50.0) then
+c$$$c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
+c$$$c$$$     >           ' ',chan(nt_t(nchi))
+c$$$              cycle
+c$$$           endif
            lfa=la_t(nchf)
            nfa=na_t(nchf)
            lf=l_t(nchf)
@@ -513,6 +515,8 @@ c$$$     >           ' ',chan(nt_t(nchi))
      >             gk(1,nchi),nchi,lg,npk,etot,nqmfmax,
      >             vmatt(1,1,nchf,0),lm)
            endif
+           vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vmatt(1,1,nchf,0)
+           vdon(nchi,nchf,0) = vdon(nchf,nchi,0)           
         endif
       end do
 !$omp end parallel do

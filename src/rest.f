@@ -3578,7 +3578,8 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
      >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
-      do nch = 1, nchtop
+      do nch = 1, nchtop      
+c$$$      do nch = nchistart, nchtop !works fine, but pointless until gpuvdirect redefines chil
 C  NCH is the channel index
 C  NT is the state index
 C  LG is the total partial wave (J)
