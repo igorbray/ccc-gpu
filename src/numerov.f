@@ -58,12 +58,12 @@ c$$$     >            sig,mode1,kfn,ifai)
 c$$$               print'("reducing jstart, ln, ecmn, s1, acc:",
 c$$$     >            2i5,1p,3d14.3)',jstart,ln,ecmn,s1,acc
                jstart = jstart - 100
+C  make sure that we are not near a point where DX doubles
+               do jd = 2, njdouble - 1
+                  if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)+3
+               end do       
                go to 20
             endif 
-C  make sure that we are not near a point where DX doubles
-            do jd = 2, njdouble - 1
-               if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)+3
-            end do       
          endif 
          jstop  = jlast1(ecmn,gridx,nx,jdouble,njdouble,expcut)
 c$$$         if (ecmn.gt.200.0) then
@@ -835,7 +835,7 @@ C  solution is < REGSTART.
       do while (gridx(j).lt.xstart.and.j.lt.nx)
          j=j+1
       end do
-      s1 = appf1(l,ecmn,gridx(j),acc)
+c$$$      s1 = appf1(l,ecmn,gridx(j),acc)
 c$$$      if (acc.lt.1e-10) then
 c$$$         regcut = regcut / 10.0
 c$$$         print '("regcut redefined. S1, REGCUT, acc:",1p,3e13.4)',
@@ -847,7 +847,6 @@ C  make sure that we are not near a point where DX doubles
       do jd = 2, njdouble - 1
          if (abs(j-jdouble(jd)).lt.3) j = jdouble(jd) + 3
       end do       
-      
 c$$$      if (j.eq.nx) j = nx + 1
       jfirst1=j
       return

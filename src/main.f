@@ -2300,7 +2300,8 @@ c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,
 c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
-               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
+c$$$               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
+               const = 1.0+0.025*(float(nchi)/float(nchtop-nchi+1))**1.5
                if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
@@ -2352,7 +2353,7 @@ c$$$         nchprst = nchprst / ((sfactor-1.0)/nodes+1.0)
             ! made nodes.ge.1 below due to inefficiency with many Ps-states
 !            if (natompstot.eq.0.or.nodes.ge.1.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
 c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
-         if (natompstot.eq.0.or.lg.gt.-lstoppos) then ! no Ps states in the calculation or 1 node
+         if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
             do nn = 1, nodes-1
                print*,'nn,nchprspernode:',nn,nchprspernode
                nchistop(nn) = nchistart(nn)
@@ -2477,6 +2478,8 @@ C     Determine which, if any, timing data to read
             neff = nint(100.0*nchtimetot/nodetmax/nodes)
             if (myid.le.0) print'("LGold,LG,ipar,neff: ",4i4,"%")',
      >         LGold(ipar),LG,ipar,neff
+         else
+            LGold(ipar) = -1
          endif
          
          
@@ -2846,13 +2849,13 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
             nchmaxe2e1 = 0
             nchtope2e1 = 0            
 
-c$$$            call first(1,0,second,nold,etot,lg,gk,npkb,chil,minchil,
-c$$$     >         uplane,-1,dwpot,phasel,itail,nznuc,nchtop,nchtope2e1,
-c$$$     >         qcut,vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
-c$$$     >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
-c$$$     >         nchmaxe2e1,vmatp,nsmax,
-c$$$     >         nchistart,nchistop,nodeid,scalapack,
-c$$$     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
+            call first(1,0,second,nold,etot,lg,gk,npkb,chil,minchil,
+     >         uplane,-1,dwpot,phasel,itail,nznuc,nchtop,nchtope2e1,
+     >         qcut,vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
+     >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
+     >         nchmaxe2e1,vmatp,nsmax,
+     >         nchistart,nchistop,nodeid,scalapack,
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
          else
             call scattering(myid,0,theta,nold,etot,lg,gk,enionry,npkb,
      >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
@@ -3016,8 +3019,8 @@ c
             call first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chil,
      >         minchil,
      >         ui,ldw,dwpot,phasel,itail,nznuc,nchtop,nchtope2e,qcut,
-     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
-c$$$     >         vdondum,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,            
+c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
+     >         vdondum,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,            
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
@@ -3263,9 +3266,9 @@ c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
 c$$$                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")')
-                  write(42,'(3i4,3i7,f8.1,2i8)') 
-     >               lg,n,ipar,
-     >               nntime(n),nchistart(n),nchistop(n),timeperi,
+                  write(42,'(3i4,3i7,2i8)') 
+     >               lg,ipar,n,
+     >               nntime(n),nchistart(n),nchistop(n),
      >               nchprs(nchistart(n),nchistop(n),nchtop),
      >               naps
 !                  write(42,'(4i4,7i7," ave time of prev LG")') 
@@ -3284,10 +3287,10 @@ c$$$                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")')
 c$$$                  incw = 0
 c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
 c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(3i4,3i7,f8.1,5i8,2i4,"% LG,node,ipar,vt,",
-     >            "i1,i2,tperi,nch,naps,NMAX,tave,mt,prev LG,eff",/)')
-     >            lg,n,ipar,nntime(n),nchistart(n),
-     >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
+               write(42,'(3i4,3i7,5i8,2i4,"% LG,ipar,node,vt,",
+     >            "i1,i2,nch,naps,NMAX,tave,mt,prev LG,eff",/)')
+     >            lg,ipar,n,nntime(n),nchistart(n),
+     >            nchistop(n),nchprs(nchistart(n),nchistop(n),
      >            nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
      >            idiff(valuesin,valuesout),lgold(ipar),neff
 !               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",

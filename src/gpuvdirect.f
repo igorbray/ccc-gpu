@@ -195,9 +195,9 @@ c
 
       allocate(temp(maxr))
 
-!!$omp parallel do default(private) num_threads(nnt) !collapse(2)
-!!$omp& schedule(dynamic)
-!!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
+!$omp parallel do default(private) num_threads(nnt) !collapse(2)
+!$omp& schedule(dynamic)
+!$omp& shared(rnorm,const,lf,lfa,li,lia,lg,nchi,nchtop)
       do nchf=nchi,nchtop
       do ilt = -lia, lia, 2
          const(ilt,nchf) = 0.0
@@ -236,15 +236,15 @@ c$$$               stop 'CJ6 and W do not agree'
          endif
       enddo ! ilt
       end do
-!!$omp end parallel do
+!$omp end parallel do
 
       maxi=maxpsii
 
-!!$omp parallel do default(private) num_threads(nnt) !collapse(2)
-!!$omp& schedule(dynamic)
-!!$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
-!!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
-!!$omp& nchtop,gpunum)
+!$omp parallel do default(private) num_threads(nnt) !collapse(2)
+!$omp& schedule(dynamic)
+!$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
+!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
+!$omp& nchtop,gpunum)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1
@@ -287,7 +287,7 @@ c
          enddo
       enddo
       enddo
-!!$omp end parallel do
+!$omp end parallel do
 
       deallocate(temp)
       end
