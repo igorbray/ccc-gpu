@@ -2269,16 +2269,36 @@ c$$$     >         stop 'vmatp could not be allocated'
 c$$$            vmatp(:,:) = 0.0
 c$$$            allocate(vmat(1,1))
 c$$$         else
+c$$$         if (itail.lt.0) then
+c$$$            allocate(chil(meshr,npkb(nchtop+1)-1,2))
+c$$$            allocate(minchil(npkb(nchtop+1)-1,2))
+c$$$            minchil(1:npkb(nchtop+1)-1,1:2) = min(meshr+1,maxr)
+c$$$          print*,'Allocated CHIL(meshr,npkb,2):',meshr,npkb(nchtop+1)-1
+c$$$         else
+c$$$            allocate(chil(meshr,npkb(nchtop+1)-1,1))
+c$$$            allocate(minchil(npkb(nchtop+1)-1,1))
+c$$$          print*,'Allocated CHIL(meshr,npkb,1):',meshr,npkb(nchtop+1)-1
+c$$$         endif 
          if (itail.lt.0) then
-            allocate(chil(meshr,npkb(nchtop+1)-1,2))
-            allocate(minchil(npkb(nchtop+1)-1,2))
-            minchil(1:npkb(nchtop+1)-1,1:2) = min(meshr+1,maxr)
-          print*,'Allocated CHIL(meshr,npkb,2):',meshr,npkb(nchtop+1)-1
+            ichildim = 2
+c$$$            allocate(chil(meshr,npkb(nchtop+1)-1,2))
+c$$$            allocate(minchil(npkb(nchtop+1)-1,2))
+c$$$            minchil(1:npkb(nchtop+1)-1,1:2) = min(meshr+1,maxr)
+c$$$          print*,'Allocated CHIL(meshr,npkb,2):',meshr,npkb(nchtop+1)-1
          else
-            allocate(chil(meshr,npkb(nchtop+1)-1,1))
-            allocate(minchil(npkb(nchtop+1)-1,1))
-          print*,'Allocated CHIL(meshr,npkb,1):',meshr,npkb(nchtop+1)-1
+            ichildim = 1
+c$$$  allocate(chil(meshr,npkb(nchtop+1)-1,1))
+c$$$            allocate(minchil(npkb(nchtop+1)-1,1))
+c$$$          print*,'Allocated CHIL(meshr,npkb,1):',meshr,npkb(nchtop+1)-1
          endif 
+         meshrr = meshr
+         npkstart = 1
+         npkstop = npkb(nchtop+1)-1
+         allocate(chil(meshr,npkstart:npkstop,ichildim))
+         allocate(minchil(npkstart:npkstop,ichildim))
+         minchil(npkstart:npkstop,1:ichildim) = min(meshr+1,maxr)
+         nchii = 1
+
          if (.not.allocated(chil)) stop 'chil could not be allocated'
 C  Have set zasym to 0.0 and LDW to -1 for input to makechil so that
 C  plane waves were always generated for Born subtraction
@@ -2289,7 +2309,7 @@ C  plane waves were always generated for Born subtraction
          call makechil(lg,gk,wk,qcut,zero,vdcore_pr,npot,ui,m1,dwpot,
      >      npkb,phasel,nchtop,etot,nbnd0,abnd,npsbnd,
 c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,         
-     >      albnd,1,sigma,mnnbtop,pos,lnch)
+     >      albnd,sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
          print '(/,i4,": nodeid exited first MAKECHIL at: ",a10,
      >   ", diff (secs):",i5)',nodeid,time,
@@ -2758,7 +2778,7 @@ C Allocate the node-dependent VMAT arrays
             mv01=0
             mv0=0
             mv1=0
-            mchi = nint(1.0/mb*nd * meshr * nbytes)
+            mchi = nint(1.0/mb*(nd-ni+1) * meshr * nbytes)
             if (itail.lt.0) mchi = mchi*2
             npernode = (nf-ni+1)*(nf-ni+2)/2+(nf-ni+1)*(nd-nf)
 c$$$            if (nodes.gt.nchtop) stop 'nodes > nchtop'	
@@ -2877,19 +2897,26 @@ c$$$         endif
 !            print*, 'calling makechil 3'
          deallocate(chil,stat=istat)
          deallocate(minchil,stat=istat)
-         if (itail.lt.0) then
-            allocate(chil(meshr,npk(nchtop+1)-1,2))
-            allocate(minchil(npk(nchtop+1)-1,2))
-            minchil(1:npk(nchtop+1)-1,1:2) = min(meshr+1,maxr)
-            print*,'Allocated CHIL(meshr,npk,2):',meshr,npk(nchtop+1)-1
-         else
-C The following fails due to defs of chil in gpuvdirect
-c$$$  allocate(chil(meshr,npk(nchistart(nodeid)):npk(nchtop+1)-1,1))
-c$$$            allocate(minchil(npk(nchistart(nodeid)):npk(nchtop+1)-1,1))
-            allocate(chil(meshr,npk(nchtop+1)-1,1))
-            allocate(minchil(npk(nchtop+1)-1,1))
-            print*,'Allocated CHIL(meshr,npk,1):',meshr,npk(nchtop+1)-1
-         endif 
+         npkstart = npk(nchistart(nodeid)) !set back to 1 for all chil 
+         npkstop = npk(nchtop+1)-1
+         allocate(chil(meshr,npkstart:npkstop,ichildim))
+         allocate(minchil(npkstart:npkstop,ichildim))
+         minchil(npkstart:npkstop,ichildim) = min(meshr+1,maxr)
+         nchii = nchistart(nodeid)
+c$$$
+c$$$         if (itail.lt.0) then
+c$$$            allocate(chil(meshr,npk(nchtop+1)-1,2))
+c$$$            allocate(minchil(npk(nchtop+1)-1,2))
+c$$$            minchil(1:npk(nchtop+1)-1,1:2) = min(meshr+1,maxr)
+c$$$            print*,'Allocated CHIL(meshr,npk,2):',meshr,npk(nchtop+1)-1
+c$$$         else
+c$$$C The following fails due to defs of chil in gpuvdirect
+c$$$c$$$  allocate(chil(meshr,npk(nchistart(nodeid)):npk(nchtop+1)-1,1))
+c$$$c$$$            allocate(minchil(npk(nchistart(nodeid)):npk(nchtop+1)-1,1))
+c$$$            allocate(chil(meshr,npk(nchtop+1)-1,1))
+c$$$            allocate(minchil(npk(nchtop+1)-1,1))
+c$$$            print*,'Allocated CHIL(meshr,npk,1):',meshr,npk(nchtop+1)-1
+c$$$         endif 
          if (.not.allocated(chil)) stop 'chil could not be allocated'
 
          call date_and_time(date,time,zone,valuesin)
@@ -2898,7 +2925,6 @@ c$$$            allocate(minchil(npk(nchistart(nodeid)):npk(nchtop+1)-1,1))
          mnnbtop=abs(nnbtop)
          call makechil(lg,gk,wk,qcut,zasym,vdcore_pr,npot,ui,ldw,dwpot,
      >      npk,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,
-     >      nchistart(nodeid),
 c$$$     >      npk,minchil,chil,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,         
      >        sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
@@ -2911,7 +2937,7 @@ c$$$         print*,'Time to make the partial wave table:',s3-s2
          call update(6)
          
 C  Calculate the D matrix for photoionization
-         if (projectile.eq.'photon') then
+         if (projectile.eq.'photon'.and.nodeid.eq.1) then
             if(ntype.eq.0)  call xSATEL(nchtop,lg)
             if(ntype.eq.1)  call mSATEL(nchtop,lg)
             call clock(s1)
@@ -3095,7 +3121,7 @@ c$$$            call sleepy_barrier(MPI_COMM_WORLD)
                valuesin = valuesout
             endif
 C Concatenate the individual node timings into one file lg_ipar
-            if (myid.eq.0) then
+            if (myid.eq.0.and.hlike) then
                write(nodetfile,'(i3,"_",i1)') lg,ipar
                open(43,file=nodetfile)
                write(43,*) nchtop

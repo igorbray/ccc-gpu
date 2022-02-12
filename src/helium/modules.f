@@ -49,7 +49,7 @@
       module chil_module
       real, allocatable :: chil(:,:,:)
       integer, allocatable :: minchil(:,:)
-!      real trat ! used for tail integrals
+      integer meshrr,npkstart,npkstop,ichildim,nchii
       end module chil_module
       
 

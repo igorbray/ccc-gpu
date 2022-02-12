@@ -208,12 +208,10 @@ c     momentum loops
 c$$$            print*,'lf,llf,li,lli,lt1,lt2,ctemp:',
 c$$$     >         lf,llf,li,lli,lt1,lt2,ctemp
             tail(:,:) = 0.0
-            it = 1
-            if (itail.lt.0) it = 2
             if (itail.ne.0.and.ltmin.le.2)
-     >         call maketail(itail,ctemp,chil(1,npki(nchi),it),
-     >         minchil(npki(nchi),it),gki,phasei,li,nqmi,
-     >         chil(1,npkf(nchf),it),minchil(npkf(nchf),it),
+     >         call maketail(itail,ctemp,chil(1,npki(nchi),ichildim),
+     >         minchil(npki(nchi),ichildim),gki,phasei,li,nqmi,
+     >         chil(1,npkf(nchf),ichildim),minchil(npkf(nchf),ichildim),
      >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
 c$$$            call maketail(itail,ctemp,chili(1,npki(nchi)),
 c$$$     >         minci(npki(nchi)),gki,phasei,li,nqmi,
@@ -222,9 +220,9 @@ c$$$     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
 
             allocate(chiform(maxr,kmax))
             do ki=npki(nchi), npki(nchi+1) - 1
-               minki = max(minform, minci(ki))
+               minki = max(minform, minchil(ki,1))
                do i = minki, maxform
-                  chiform(i,ki-kistep) = temp(i) * chili(i,ki)
+                  chiform(i,ki-kistep) = temp(i) * chil(i,ki,1)
                enddo
             enddo
             kistart = npki(nchi)
@@ -235,17 +233,17 @@ C Note si(Ni) = sf(Nf) here
 c$$$c$par doall
             tmp = 0.0
             do ki=kistart, kistop
-               minki = max(minform, minci(ki))
+               minki = max(minform, minchil(ki,1))
                kii = ki - kistep
                do 90 kf = npkf(nchf), npkf(nchf+1) - 1
                   kff = kf - npkf(nchf) + 1
-                  mini = max(minki, mincf(kf))
+                  mini = max(minki, minchil(kf,1))
                   n = maxform - mini + 1
                   if (kf.lt.ki.or.n.le.0) go to 90
 !                  if(ki.eq.kistart .and. kf.eq.npkf(nchf)) then
 !                     print*,"!!>",chilf(100,kf),chiform(100,kii)
 !                  endif
-                  tmp = dot_product(chilf(mini:maxform,kf),
+                  tmp = dot_product(chil(mini:maxform,kf,1),
      >               chiform(mini:maxform,kii)) + tail(kff,kii)
 c$$$                  tmp = sdot(n,chilf(mini,kf),1,chiform(mini,kii),1)
 
@@ -277,6 +275,7 @@ c*********************************************************************
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,KJ,VE1,nchf,nchi,
      >   chiform,minchiform,maxchiform,na,nam,namax)
+      use chil_module
       include 'par.f'
       double precision Z
       common /Zatom/ Z
@@ -428,8 +427,8 @@ c     given lam,jnf1  therefore no need to call getformout2()
  150        do ki = 1, nqmi
                kii = npki(nchi) + ki - 1
 c     calculation of radial integrals
-               call getformout2(lam,chili(1,kii),flf(1,nf1),
-     >              minci(kii),minff(nf1),
+               call getformout2(lam,chil(1,kii,1),flf(1,nf1),
+     >              minchil(kii,1),minff(nf1),
      >              nr,maxff(nf1),m_maxfi,
      >              formout,minform,maxform)
 
@@ -467,10 +466,10 @@ c$$$c$par doall
          maxi=maxchiform(ki)
          do 90 kf = 1, nqmf
             kff = npkf(nchf) + kf - 1
-            mini = max(minchiform(ki), mincf(kff))
+            mini = max(minchiform(ki), minchil(kff,1))
             n = maxchiform(ki) - mini + 1
             if (kff.lt.kii.or.n.le.0) go to 90
-            tmp = dot_product(chilf(mini:maxi,kff),
+            tmp = dot_product(chil(mini:maxi,kff,1),
      >         chiform(mini:maxi,ki))
 c$$$            tmp = sdot(n,chilf(mini,kff),1,chiform(mini,ki),1)
             ve1(kf,ki,0) = ve1(kf,ki,0) - c0p5 * tmp
@@ -493,6 +492,7 @@ c     this subroutine calculates matrix elements for V(r0,r2).
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,ortchil,flchil,KJ,gridk,VE2,nchf,nchi,
      >   chiform,minchiform,maxchiform,na,nam,namax)
+      use chil_module
       include 'par.f'
       double precision Z, fangint
       common /Zatom/ Z
@@ -633,11 +633,11 @@ c                                 tmp_rel = 0.0
 c                              end if
                              
                               if(ipol .ne. 0) then
-                                 j1=max(minff(nf1),minci(kii))
+                                 j1=max(minff(nf1),minchil(kii,1))
                                  j2=maxff(nf1)
                                  tmp_Hg =  SUM(flf(j1:j2,nf1)*
      >                              atompol(j1:j2)*
-     >                              chili(j1:j2,kii))
+     >                              chil(j1:j2,kii,1))
                               else
                                  tmp_Hg = 0.0
                               end if
@@ -729,6 +729,7 @@ c     this subroutine is similar to the ve2me that do the same for V(r0,r2)
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,ortint,ortchil,
      >   flchil,Etot,KJ,gridk,theta,inc,VEE,nchf,nchi,na,nam,namax,
      >   nspm_po,ortchil_po,lo_po,nicm,ncore,is_core_orb)
+      use chil_module
       include 'par.f'
       double precision Z, fangint
       common /Zatom/ Z
@@ -964,11 +965,11 @@ c$$$  c$par doall
          kii = npki(nchi) + ki - 1
          do 90 kf = 1, nqmf
             kff = npkf(nchf) + kf - 1
-            mini = max(minci(kii),minform(kf))
+            mini = max(minchil(kii,1),minform(kf))
             maxi = maxform(kf)
             n = maxform(kf) - mini + 1
             if (kff.lt.kii.or.n.le.0) go to 90
-            veT = dot_product(chili(mini:maxi,kii),
+            veT = dot_product(chil(mini:maxi,kii,1),
      >         formout(mini:maxi,kf))
 c$$$  veT = sdot(n,chili(mini,kii),1,formout(mini,kf),1)
             vee(kf,ki,0) = vee(kf,ki,0) - veT * const

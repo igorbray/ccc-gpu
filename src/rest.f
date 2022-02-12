@@ -3352,7 +3352,7 @@ c$$$         print*,test,dk,startk,stopk,nmin
       end
 
       subroutine makechil(lg,gk,wk,qcut,zasym,vdcore,npot,ui,ldw,dwpot,
-     >   npk,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,nchistart,
+     >   npk,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
 c$$$     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,      
      >   sigma,nnbtop,pos,lnch)
       use gf_module
@@ -3578,8 +3578,7 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
      >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
-      do nch = 1, nchtop      
-c$$$      do nch = nchistart, nchtop !works fine, but pointless until gpuvdirect redefines chil
+      do nch = nchii, nchtop !nchii comes via chil_module
 C  NCH is the channel index
 C  NT is the state index
 C  LG is the total partial wave (J)

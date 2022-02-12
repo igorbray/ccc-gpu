@@ -973,9 +973,10 @@ c$$$         vdon(nchi,nchf,ns) = vdon(nchf,nchi,ns)
 c$$$      enddo 
 c$$$      end
       
-      subroutine core(ifirst,nznuci,lg,etot,chil,minchil,nchtop,
+      subroutine core(ifirst,nznuci,lg,etot,chilx,minchilx,nchtop,
      >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon,vmat,vmatp)
       use vmat_module
+      use chil_module
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -990,7 +991,7 @@ c$$$      end
       real vmat(npk(nchtop+1)-1,npk(nchtop+1)), vdon(nchan,nchan,0:1)
       dimension psic(maxr),ovlp(kmax),vdcore(maxr,0:lamax),temp(maxr),
      >   fun(maxr),u(maxr),vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:1)
-      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
+c$$$      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
       data pi/3.1415927/
       logical posi, positron
 
@@ -1013,17 +1014,17 @@ c$$$      end
          if (l .gt. ldw) then
             do ki = 1, nqm
                kii = npk(nch) + ki - 1
-               do i = max(minchil(kii),minvdc), maxvdc
-                  temp(i) = chil(i,kii) * vdcore(i,la) / rmesh(i,3)
+               do i = max(minchil(kii,1),minvdc), maxvdc
+                  temp(i) = chil(i,kii,1) * vdcore(i,la) / rmesh(i,3)
                enddo 
                do 5 kf = 1, nqm
                   kff = npk(nch) + kf - 1
                   if (kff.lt.kii) go to 5
                   tmp = 0.0
-                  mini = max(minvdc, minchil(kii),minchil(kff))
+                  mini = max(minvdc, minchil(kii,1),minchil(kff,1))
                   maxi = maxvdc
                   do i = mini, maxi
-                     tmp = tmp + chil(i,kff) * temp(i)
+                     tmp = tmp + chil(i,kff,1) * temp(i)
                   end do
 c$$$                  if (packed) then
 c$$$                     vmatp(kii+(kff-1)*kff/2,0) = - rnorm * tmp 
@@ -1083,10 +1084,10 @@ C  core potentials
      >                  float(2 * l + 1)
                      do ki = 1, nqm
                         kii = npk(nch) + ki - 1
-                        minfun = minchil(kii)
+                        minfun = minchil(kii,1)
                         maxfun = maxpsic
                         do i = minfun, maxfun
-                           fun(i) = psic(i) * chil(i,kii)
+                           fun(i) = psic(i) * chil(i,kii,1)
                         end do
                         call form(fun,minfun,maxfun,rpow1(1,lt),
      >                     rpow2(1,lt),minrp(lt),maxrp(lt),maxfun,
@@ -1100,9 +1101,9 @@ C  core potentials
                            kff = npk(nch) + kf - 1
                            if (kff.lt.kii) go to 15
                            sum = 0.0
-                           mini = max(mini1,minchil(kff))
+                           mini = max(mini1,minchil(kff,1))
                            do i = mini, maxi
-                              sum = sum + chil(i,kff) * temp(i)
+                              sum = sum + chil(i,kff,1) * temp(i)
                            end do
 c$$$                           if (packed) then
 c$$$                              vmatp(kii+(kff-1)*kff/2,0) = const * sum

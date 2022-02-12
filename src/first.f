@@ -154,8 +154,10 @@ c$$$      do gpunum=0,ngpus-1
       print*,'NODEID, MYID associated with GPU:',nodeid,myid,
      >     acc_get_device_num(acc_device_nvidia)
 
-!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
-!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+c$$$!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
+c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+!$acc enter data copyin(chil(1:meshr,1:npkstart:npkstop,1))
+!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
 
 c$$$       end do
 #endif
@@ -439,12 +441,11 @@ C  Born case. The units are Rydbergs.
          enddo
       endif
       if (itail.ne.0.and.ctemp(nchf).ne.0.0) then
-         it = 1
-         if (itail.lt.0) it = 2
-         call maketail(itail,ctemp(nchf),chil(1,npk(nchi),it),
-     >      minchil(npk(nchi),it),gk(1,nchi),phasei,li,nqmi,
-     >      chil(1,npk(nchf),it),minchil(npk(nchf),it),gk(1,nchf),phasef
-     >      ,lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
+         call maketail(itail,ctemp(nchf),chil(1,npk(nchi),ichildim),
+     >      minchil(npk(nchi),ichildim),gk(1,nchi),phasei,li,nqmi,
+     >      chil(1,npk(nchf),ichildim),minchil(npk(nchf),ichildim),
+     >      gk(1,nchf),phasef,
+     >      lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
       endif
 C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
 C  them.
@@ -493,7 +494,7 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
            ef=e_t(nchf)
 c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
 c$$$     >        nt_t(nchi)
-c$$$           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
+           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
 c$$$           if (abs(ef-ei)*lg.gt.50.0) then
 c$$$c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
 c$$$c$$$     >           ' ',chan(nt_t(nchi))
@@ -626,8 +627,11 @@ c$$$     >         idiff(valuesin,valuesout)
 c$$$      do gpunum=0,ngpus-1
       gpunum = mod(myid,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
-!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
-!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+c$$$!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
+c$$$!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+!$acc exit data delete(chil(1:meshr,npkstart:npkstop,1:1))
+!$acc& delete(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
+
 !$acc& finalize
 
 c$$$      enddo

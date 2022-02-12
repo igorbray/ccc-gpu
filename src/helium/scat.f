@@ -1,7 +1,8 @@
       subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
-     >   enionry,npk,chil,minc,vdcore,dwpot,nchm,Nmax,namax,
+     >   enionry,npk,chilx,mincx,vdcore,dwpot,nchm,Nmax,namax,
      >   nze,td,te1,te2,te3,vdon,vmat,nsmax,itail,phasel)
       use CI_MODULE
+      use chil_module
       use po_module
       use DM_MODULE
       use vmat_module
@@ -24,11 +25,14 @@ c      implicit real*8 (a-h,o-z)
       common /CcoefsE/  E(KNM)
       double precision E, ortint, Etot, Etot_nu, Etot_ve
       common /meshrr/ nr, gridr(nmaxr,3)
+c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
+c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
+c$$$     >   npbot(0:lamax),nptop(0:lamax)
       common /increarrange/ inc
       dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
 c$$$      allocatable :: chiform(:,:),minchiform(:),maxchiform(:)
-      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1),df(maxr)
-      dimension gridk(kmax,nchan), dwpot(maxr,nchan),
+c$$$      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1)
+      dimension gridk(kmax,nchan), df(maxr), dwpot(maxr,nchan),
      >   vdcore(maxr,0:lamax),
      >   vdon(nchan,nchan,0:1), vmat(npk(nchm+1)-1,npk(nchm+1)),
      >   temp(maxr),psii(maxr),psif(maxr)
@@ -63,7 +67,8 @@ crr -added by Rav
       complex phasel(kmax,nchan)
       integer, allocatable :: nchansi(:), nchansf(:) 
       real gridp(nmaxr,3)
-       real*8 ya(10),xa(10),yr,ry,dy 
+      real*8 ya(10),xa(10),yr,ry,dy
+      character*9 nodetfile
       integer ngpus, gpunum, omp_get_thread_num
       external omp_get_thread_num
 
@@ -74,15 +79,22 @@ crr -added by Rav
          nchii = nchistart(nodeid)
          nchif = nchistop(nodeid) 
       endif
-
+c$$$      if (KJ.lt.10) then
+c$$$         write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,KJ,ipar
+c$$$      elseif (KJ.lt.100) then
+c$$$         write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,KJ,ipar
+c$$$      else
+c$$$         write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,KJ,ipar
+c$$$      endif
+      
 #ifdef GPU
       ngpus= max(1,acc_get_num_devices(acc_device_nvidia))
       gpunum = mod(myid,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
       print*,'MYID associated with GPU:',myid,
      >     acc_get_device_num(acc_device_nvidia) 
-!$acc enter data copyin(chil(1:nr,1:npk(nchm+1)-1))
-!$acc& copyin(nchm,npk(1:nchm+1),minc(1:npk(nchm+1)-1))
+!$acc enter data copyin(chil(1:nr,npkstart:npkstop,1)
+!$acc& copyin(nchm,npk(1:nchm+1),minchil(npkstart:npkstop,1))
 #endif 
  
 C  One electron continuum of Helium assumes the target He+ is left in
@@ -98,16 +110,17 @@ CRRRRRR - Rav's add
       nchatom=0
       nchps(:)=0
       nchat(:)=0
- 
+
+c$$$      if (npk(2)-npk(1).gt.1) open(42,file=nodetfile)
+
       IF(nze.eq.1) THEN
-      nqm1= npk(1+1) - npk(1)
-      nqmm=npk(nchm+1)-npk(nchm)
+         nqm1= npk(1+1) - npk(1)
+         nqmm=npk(nchm+1)-npk(nchm)
 
       IF(nqmm*nqm1.gt.1)  then
-
-        lpsmax=0
-        maxrps=0
-          do i=nchii,nchm 
+         lpsmax=0
+         maxrps=0
+         do i=nchii,nchm 
        call getchinfo (i, nt, KJ, psii, maxpsit, eit, lit, nit, Li)
            posf = positron(nit,lit,npost)
 !        PRINT*, 'nch,Ps:: lp1,nion,lion', i,KJ,lit,posf, '::',lp1,lion,Li   
@@ -278,7 +291,7 @@ c     array lo_po(:) is already set up
 c     
 c     
 c     get overlap for projectile and s.p. functions
-         call ortchilnsp(KJ,npk,chil,minc,nchm,fl,maxf,
+         call ortchilnsp(KJ,npk,chil,minchil,nchm,fl,maxf,
      >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
          call date_and_time(date,time,zone,valuesout)
          print '(" ortchilnsp call complete at: ",a10,
@@ -288,7 +301,7 @@ c     get overlap for projectile and s.p. functions
             if(inc .eq. 0) then
                ortchil_po = ortchil
             else
-               call ortchilnsp_po(nr,KJ,npk,chil,minc,nchm,fl_po,
+               call ortchilnsp_po(nr,KJ,npk,chil,minchil,nchm,fl_po,
      >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
             endif
          endif
@@ -378,7 +391,7 @@ C$OMP PARALLEL DO
 C$OMP& SCHEDULE(dynamic)
 C$OMP& default(private)
 C$OMP& shared(nchm,Nmax,la,sa,lpar,nspm,lo,itail,phasel)
-C$OMP& shared(C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,flchil)
+C$OMP& shared(C,fl,maxf,minf,npk,chil,minchil,ortint,ortchil,flchil)
 C$OMP& shared(KJ,gridk,vmat,vdon,ifirst,td,te1,te2,te3,na,nam,namax)
 C$OMP& shared(is_core_orb)
 C$OMP& shared(nicm,ncore,nspm_po,ortchil_po,lo_po)
@@ -435,18 +448,18 @@ c$$$               enddo
                maxchiform(:) = 0
 c$$$               call clock(s1)
                call ve2me(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >            C,fl,maxf,minf,npk,chil,minc,
+     >            C,fl,maxf,minf,npk,chil,minchil,
      >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >            C,fl,maxf,minf,npk,chil,minc,
+     >            C,fl,maxf,minf,npk,chil,minchil,
      >            ortint,ortchil,flchil,KJ,gridk,vmatt,nchf,nchi,
      >            chiform,minchiform,maxchiform,na,nam,namax)
 c$$$               call clock(s2)
 C  Store time for e2 matrix elements
                te2 = te2 + s2 - s1
                call ve1me(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >            C,fl,maxf,minf,npk,chil,minc,
+     >            C,fl,maxf,minf,npk,chil,minchil,
      >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >            C,fl,maxf,minf,npk,chil,minc,
+     >            C,fl,maxf,minf,npk,chil,minchil,
      >            ortint,KJ,vmatt,nchf,nchi,
      >            chiform,minchiform,maxchiform,na,nam,namax)
 c$$$               deallocate(chiform)
@@ -471,9 +484,9 @@ c$$$                  theta_ve = 0.0
 c$$$               endif
 c
                call ve2me12(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >              C,fl,maxf,minf,npk,chil,minc,
+     >              C,fl,maxf,minf,npk,chil,minchil,
      >              nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >              C,fl,maxf,minf,npk,chil,minc,ortint,ortchil,
+     >              C,fl,maxf,minf,npk,chil,minchil,ortint,ortchil,
      >              flchil,Etot_ve,KJ,gridk,theta_ve,inc,vmatt,nchf,
 c$$$     >              flchil,Etot_ve,KJ,gridk,thetao,inc,vmatt,nchf,
      >              nchi,na,nam,namax,nspm_po,ortchil_po,lo_po,nicm,
@@ -488,18 +501,18 @@ c$$$            call clock(s1)
             if (.not.posi.and..not.posf) then
                if(i_sw_ng.eq. 0) then  
                   call vdme(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minc,
+     >               C,fl,maxf,minf,npk,chil,minchil,
      >               nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minc,ortint,KJ,dwpot,
+     >               C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
      >               vdon,vmatt,nchf,nchi,na,nam,namax,
      >               itail,gridk(1,nchi),phasel(1,nchi),gridk(1,nchf),
      >               phasel(1,nchf))
 !       print*,'vdme is blocked for testing'
                elseif(i_sw_ng .eq. 1) then
                   call vdme_ng(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >                 C,fl,maxf,minf,npk,chil,minc,
+     >                 C,fl,maxf,minf,npk,chil,minchil,
      >                 nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >                 C,fl,maxf,minf,npk,chil,minc,ortint,KJ,dwpot,
+     >                 C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
      >                 vdon,vmatt,nchf,nchi,na,nam,namax)
                else
                   print*,"Wrong value of i_sw_ng=",i_sw_ng
@@ -514,10 +527,10 @@ CRRR adds by Rav: for Ps-formation and Ps-Ps transitions
         maxps=min(maxpsii,maxpsif)
         if(allocated(fd0)) 
      >  fd01(1:maxps,0:lpsmax)=REAL(fd0(1:maxps,0:lpsmax,npsi,npsf)) 
-        call pspsdme(nqmi,psii,maxpsii,lia,Li,nia,chil(1,npk(nchi)),
-     >     minc(npk(nchi)),gridk(1,nchi),nqmf,psif,
-     >     maxpsif,lfa,Lf,nfa,chil(1,npk(nchf)),
-     >     minc(npk(nchf)),gridk(1,nchf),KJ,nchf,nchi,
+        call pspsdme(nqmi,psii,maxpsii,lia,Li,nia,chil(1,npk(nchi),1),
+     >     minchil(npk(nchi),1),gridk(1,nchi),nqmf,psif,
+     >     maxpsif,lfa,Lf,nfa,chil(1,npk(nchf),1),
+     >     minchil(npk(nchf),1),gridk(1,nchf),KJ,nchf,nchi,
      >     nchm,npk,posf,0,vdon,vmatt,
      >     maxrps,lpsmax,fd01,itail,phasel(1,nchi),
      >     phasel(1,nchf))
@@ -660,8 +673,8 @@ c
 
 #ifdef GPU
        call acc_set_device_num(gpunum,acc_device_nvidia)
-!$acc exit data delete(chil(1:nr,1:npk(nchm+1)-1))
-!$acc& delete(nchm,npk(1:nchm+1),minc(1:npk(nchm+1)-1))
+!$acc exit data delete(chil(1:nr,npkstart:npkstop,1))
+!$acc& delete(nchm,npk(1:nchm+1),minchil(npkstart:npkstop))
 !$acc& finalize
 #endif 
 
@@ -680,12 +693,13 @@ c
       end
 c--------------------------------------------------------------------------
 c 
-      subroutine ortchilnsp(KJ,npk,chil,minc,nchm,fl,maxf,
+      subroutine ortchilnsp(KJ,npk,chilx,minchilx,nchm,fl,maxf,
      >   minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
+      use chil_module
       include 'par.f'
       dimension  lo(nspmax), npk(nchm+1)
       dimension  fl(maxr,nspmax),maxf(nspmax),minf(nspmax),temp(maxr)
-      dimension chil(nr,npk(nchm+1)-1), minc(npk(nchm+1)-1)
+c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
       dimension ortchil(npk(nchm+1)-1,nspm),flchil(npk(nchm+1)-1,nspm)
       double precision Z
       common /Zatom/ Z
@@ -704,7 +718,8 @@ C$OMP& SCHEDULE(dynamic)
 C$OMP& private(nch,n,temp,maxt,ei,lia,nia,L,u,i,kqq,nsp,min1,max1)
 C$OMP& private(tmp,tmp1)
 C$OMP& shared(ze,ortchil,flchil,vdcore,dwpot,npk)
-      do nch=1,nchm
+      do nch=nchii,nchm
+!         do nch=1,nchm
          call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
          if (dwpot(1,nch).eq.0.0) then
             do i = 1, nr
@@ -727,13 +742,13 @@ C$OMP& shared(ze,ortchil,flchil,vdcore,dwpot,npk)
                   do i = min1, max1
                      temp(i) = fl(i,nsp) * gridr(i,3)
                   enddo
-                  call tmpfcexch(temp,min1,max1,nr,chil(1,kqq),tmp1,L)
+                  call tmpfcexch(temp,min1,max1,nr,chil(1,kqq,1),tmp1,L)
 c                  call fcexch(temp,nr,chil(1,kqq),tmp1,L)
                   tmp = 0.0
                   tmp1 = - tmp1 / ze
-                  do i = max(minf(nsp),minc(kqq)), maxf(nsp)
-                     tmp = tmp + chil(i,kqq) * fl(i,nsp)
-                     tmp1 = tmp1 + chil(i,kqq) * fl(i,nsp) *
+                  do i = max(minf(nsp),minchil(kqq,1)), maxf(nsp)
+                     tmp = tmp + chil(i,kqq,1) * fl(i,nsp)
+                     tmp1 = tmp1 + chil(i,kqq,1) * fl(i,nsp) *
      >                  (u(i)/2.0/ze + rpow2(i,0))   ! division by 2 is to go from Ry to au.
 !     >                  (u(i)/2.0/ze + 1.0/gridr(i,1))   ! division by 2 is to go from Ry to au.
                   enddo 
@@ -741,7 +756,7 @@ c                  call fcexch(temp,nr,chil(1,kqq),tmp1,L)
                   flchil(kqq,nsp) = - ze * tmp1
                   if(Z.eq.-80.0) then
                      call relcorH12(lo(nsp),fl(1:nr,nsp),minf(nsp),
-     >                  maxf(nsp),chil(1:nr,kqq),minc(kqq),nr,
+     >                  maxf(nsp),chil(1:nr,kqq,1),minchil(kqq,1),nr,
      >                  flchil(kqq,nsp))
                   end if
 
@@ -777,16 +792,18 @@ c     by Green function.
     
 c--------------------------------------------------------------------------
 c
-      subroutine ortchilnsp_po(nr,KJ,npk,chil,minc,nchm,fl,maxf,
+      subroutine ortchilnsp_po(nr,KJ,npk,chilx,minchilx,nchm,fl,maxf,
      >   minf,lo,nspm,ortchil)
+      use chil_module
       include 'par.f'
       dimension  lo(nspm),npk(nchm+1)
       dimension  fl(nr,nspm),maxf(nspm),minf(nspm),
      >   temp(maxr)
-      dimension chil(nr,npk(nchm+1)-1), minc(npk(nchm+1)-1)
+c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
       dimension ortchil(npk(nchm+1)-1,nspm)
       
-      do nch=1,nchm
+      do nch=nchii,nchm
+!         do nch=1,nchm
          call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
          
          do kqq = npk(nch), npk(nch+1) - 1
@@ -796,7 +813,7 @@ c
                   min1 = minf(nsp)
                   max1 = maxf(nsp)
                   ortchil(kqq,nsp) =
-     >                 SUM(chil(min1:max1,kqq)*fl(min1:max1,nsp))
+     >                 SUM(chil(min1:max1,kqq,1)*fl(min1:max1,nsp))
 !                  if(kqq .eq. 2) then
 !                 print*,'po:', kqq,nsp,max1,
 !     >                    fl(max1-2,nsp),fl(max1-1,nsp),

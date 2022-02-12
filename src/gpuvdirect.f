@@ -1,15 +1,16 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
-     >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxi2,temp2,ifirst)
+     >   mintemp3,maxtemp3,temp3,ltmin,minchilx,chilx,ctemp,itail,trat,
+     >   nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
+     >   maxi2,temp2,ifirst)
+      use chil_module
 #ifdef GPU
       use openacc
 #endif
       integer npk(nchtop+1)
       integer childim
-      integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
-     >     minchil(npk(nchtop+1)-1)
-      real chil(1:meshr,1:(npk(nchtop+1)-1))
+      integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
+c$$$     >     ,minchil(npk(nchtop+1)-1)
+c$$$      real chil(1:meshr,1:(npk(nchtop+1)-1))
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
       real temp3(1:meshr,nchi:nchtop)
       real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
@@ -51,8 +52,10 @@ c$$$#endif
 !$acc data 
 !$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
 !$acc& present(npk(1:nchtop+1))
-!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
-!$acc& present(minchil(1:npk(nchtop+1)-1))
+c$$$!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
+c$$$!$acc& present(minchil(1:npk(nchtop+1)-1))
+!$acc& present(chil(1:meshr,npkstart:npkstop,1))
+!$acc& present(minchil(npkstart:npkstop,1)
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
@@ -68,7 +71,7 @@ c$$$!$omp do schedule(dynamic)
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
             do i = 1, maxi !minchil(ki+npk(nchi)-1), maxi !minki, maxi
-               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1)
+               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1,1)
             enddo
          enddo
 !!$acc wait(nchf)
@@ -76,8 +79,8 @@ c$$$!$omp do schedule(dynamic)
          do ki = 1, nqmi
             do kf=1,nqmf
                kff = npk(nchf) + kf - 1
-               mini = minchil(kff)
-               tmp(ki,kf) = dot_product(chil(mini:maxi2,kff)
+               mini = minchil(kff,1)
+               tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1)
      >            ,temp2(mini:maxi2,ki,nchf))
             enddo
          enddo
@@ -87,13 +90,13 @@ c$$$!$omp do schedule(dynamic)
                kii = npk(nchi) + ki - 1
                kff = npk(nchf) + kf - 1
 c$$$               if (kff.ge.kii) then
-                  mini = minchil(kff)
+                  mini = minchil(kff,1)
 
 !                  tmp = dot_product(chil(mini:maxi2,kff)
 !     >            ,temp2(mini:maxi2,ki,nchf))
 
                   vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+dot_product(
-     >                 chil(mini:maxi,kff),
+     >                 chil(mini:maxi,kff,1),
      >                 chitemp(mini:maxi,ki))+tmp(ki,kf)
                   vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2*tmp(ki,kf)
 c$$$     >                 chil(minchil(kff):maxi,kff),
@@ -162,18 +165,18 @@ c$$$!$omp end parallel
       end
 
 
-      subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
-     >   li,lf,minchil,nqmi,lg,rnorm,second,npk,
+      subroutine makev3e(chilx,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
+     >   li,lf,minchilx,nqmi,lg,rnorm,second,npk,
      >   nqmfmax,vmatt,nchtop,nnt,ngpus,temp2,maxi)
+      use chil_module
       include 'par.f'
       integer nnt,gpunum
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension npk(nchtop+1),fun(maxr)
-      dimension chil(meshr,npk(nchtop+1)-1)
-      dimension minchil(npk(nchtop+1)-1),
-     >   const(-lamax:lamax,nchtop)
+c$$$      dimension chil(meshr,npk(nchtop+1)-1)
+c$$$      dimension minchil(npk(nchtop+1)-1)
       dimension psii(maxr),
-     >   psif(maxr,nchtop)
+     >   psif(maxr,nchtop),const(-lamax:lamax,nchtop)
       dimension maxpsif(nchtop), lfa(nchtop), lf(nchtop)
       real temp2(meshr,nqmi,nchtop)
       real, allocatable :: temp(:)
@@ -248,11 +251,11 @@ c$$$               stop 'CJ6 and W do not agree'
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1
-         minfun = minchil(kii)
+         minfun = minchil(kii,1)
          maxfun = maxpsif(nchf)
 
          do i = minfun, maxfun
-            fun(i) = chil(i,kii) * psif(i,nchf)
+            fun(i) = chil(i,kii,1) * psif(i,nchf)
          end do
          do i = 1, meshr
             temp2(i,ki,nchf) = 0.0
