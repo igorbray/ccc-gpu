@@ -237,7 +237,7 @@ C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
-C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho)
+C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho,ichildim)
         do nchf = nchi, nchtop
             ef=e_t(nchf)
             lfa=la_t(nchf)
