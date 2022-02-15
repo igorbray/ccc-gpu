@@ -177,7 +177,7 @@ C      real veq(maxq), qmesh(maxq)
 C     data for 2-D interpolation:    
       real, dimension(maxr) :: ubbb0, ubbb3            
       external positron
-      logical positron, torf, reconstruct_psi
+      logical positron, torf, reconstruct_psi, firstrun
 
 C     ql_module variables:
       real*8 pi8, lgqa, lgq, qq1, qa, dQlp
@@ -254,8 +254,12 @@ c      print*, 'KMP_STACKSIZE:',kmp_get_stacksize_s()
 #endif
 #ifdef _single
 #define nbytes 4
+#define MY_MPI_REAL MPI_REAL
+#define MY_MPI_COMPLEX MPI_COMPLEX
 #elif defined _double
 #define nbytes 8
+#define MY_MPI_REAL MPI_DOUBLE_PRECISION
+#define MY_MPI_COMPLEX MPI_DOUBLE_COMPLEX
 #endif
 
 c MPI initialization and environment characteristics
@@ -2234,6 +2238,7 @@ C  Define 1st Born matrix elements for subtraction in the cross program
             do nchi = 1, nchtop
                do nchf = 1, nchtop
                   vdon(nchf,nchi,ns) = 0.0
+                  vdondum(nchf,nchi,ns) = 0.0
                enddo
             enddo 
          enddo
@@ -2778,7 +2783,7 @@ C Allocate the node-dependent VMAT arrays
             mv01=0
             mv0=0
             mv1=0
-            mchi = nint(1.0/mb*(nd-ni+1) * meshr * nbytes)
+            mchi=nint(1.0/mb*(nd-ni+1)*meshr*nbytes)
             if (itail.lt.0) mchi = mchi*2
             npernode = (nf-ni+1)*(nf-ni+2)/2+(nf-ni+1)*(nd-nf)
 c$$$            if (nodes.gt.nchtop) stop 'nodes > nchtop'	
@@ -2860,27 +2865,32 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
                      
          call clock(s1)
          valuesin = valuesout
-         if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
-     >      minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
-     >        vdon,vmat,vmatp)
+         firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw
+         if (firstrun) then
+            if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
+     >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
+     >         vdon,vmat,vmatp)
          
-         if (hlike) then
-            ne2e1 = 0
-            nchmaxe2e1 = 0
-            nchtope2e1 = 0            
+            if (hlike) then
+               ne2e1 = 0
+               nchmaxe2e1 = 0
+               nchtope2e1 = 0            
 
-            call first(1,0,second,nold,etot,lg,gk,npkb,chil,minchil,
-     >         uplane,-1,dwpot,phasel,itail,nznuc,nchtop,nchtope2e1,
-     >         qcut,vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
-     >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e1,
-     >         nchmaxe2e1,vmatp,nsmax,
-     >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
+               call first(1,0,second,nold,etot,lg,gk,npkb,chil,minchil,
+     >            uplane,-1,dwpot,phasel,itail,nznuc,nchtop,nchtope2e1,
+     >            qcut,vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,
+     >            lslow,slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,
+     >            ephasee2e,ne2e1,nchmaxe2e1,vmatp,nsmax,
+     >            nchistart,nchistop,nodeid,scalapack,
+     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
+            else
+               call scattering(myid,0,theta,nold,etot,lg,gk,enionry,
+     >            npkb,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
+     >            nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
+            end if
          else
-            call scattering(myid,0,theta,nold,etot,lg,gk,enionry,npkb,
-     >         chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
-     >         nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
-         end if
+            print*,'VDON obtained from 2nd call to First'
+         endif
          call clock(s2)
 c$$$         print*,'Time to make the partial Born matrix elements:',s2-s1
          call date_and_time(date,time,zone,valuesout)
@@ -3030,7 +3040,8 @@ c
             call clock(s2)
             tc = s2 - s1
          endif
-c
+
+c     
 c     if speed is true then ispeed needs to be set to 3 in order
 c     for the first subroutine to only calculate the elements
 c     that have not already been worked out via the interpolation
@@ -3072,6 +3083,23 @@ cDIR$ SUPPRESS
      >      ", J=",i3,", nchprs:",i7,", diff (secs):",i5)',nodeid,time,
      >      lg,nchprs(nchistart(nodeid),nchistop(nodeid),nchtop),
      >      idiff(valuesin,valuesout)
+
+         if (.not.firstrun) then
+            do ns = 0, nsmax
+               vdon(:,:,ns)= 0.0
+               do nchi = 1, nchtop
+                  call MPI_Reduce(vdondum(1,nchi,ns),vdon(1,nchi,ns),
+     >               nchtop,MY_MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+               enddo
+            enddo
+         endif
+c$$$         do nchi =1, nchtop
+c$$$            do nchf =1,nchtop
+c$$$               const=gk(1,nchf)*gk(1,nchi)
+c$$$               print*,nchi,nchf,vdon(nchf,nchi,0)/const,
+c$$$     >            vdondum(nchf,nchi,0)/const
+c$$$            enddo
+c$$$         enddo
          call update(6)
          ntime(:,ipar) = 0
          ntime(nodeid,ipar) = idiff(valuesin,valuesout)
@@ -3092,13 +3120,6 @@ c$$$         reconstruct_psi = .false.
             print*,'Deallocated CHIL',istat ! comment out this statement to use CHIL in tmatcco.f
          endif 
          endif ! mod(myid,nomp).eq.0 
-#ifdef _single
-#define MY_MPI_REAL MPI_REAL
-#define MY_MPI_COMPLEX MPI_COMPLEX
-#elif defined _double
-#define MY_MPI_REAL MPI_DOUBLE_PRECISION
-#define MY_MPI_COMPLEX MPI_DOUBLE_COMPLEX
-#endif
 #define TAG0 1
 #define TAG1 2
 #define TAG01 3

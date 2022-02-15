@@ -494,7 +494,7 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
            ef=e_t(nchf)
 c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
 c$$$     >        nt_t(nchi)
-           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
+c$$$           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
 c$$$           if (abs(ef-ei)*lg.gt.50.0) then
 c$$$c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
 c$$$c$$$     >           ' ',chan(nt_t(nchi))

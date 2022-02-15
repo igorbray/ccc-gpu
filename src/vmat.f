@@ -1051,13 +1051,18 @@ C  in the cross program
 c$$$         if (packed) then
 c$$$            vdon(nch,nch,0) = vmatp(npk(nch)+(npk(nch)-1)*npk(nch)/2,0)
 c$$$         else
-         if (npk(2)-npk(1).eq.1.and.nodeid.eq.1) then
+c$$$         if (npk(2)-npk(1).eq.1.and.nodeid.eq.1) then
+c$$$            vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
+c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
+c$$$        endif
+c$$$        endif
+         if (scalapack.and.ifirst.eq.1) then
+            vdon(nch,nch,0) = vmat01(npk(nch),npk(nch))
+            vdon(nch,nch,1) = vdon(nch,nch,0)
+         else
             vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
             vdon(nch,nch,1) = vdon(nch,nch,0)
-         endif 
-c$$$            vdon(nch,nch,0) = vmat(nch,nch)
-c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
-c$$$         endif 
+         endif
 C  Core exchange only for electron scattering and if not using local exchange
 C  core potentials
             
