@@ -2792,7 +2792,7 @@ C  Need to make SIGTOLD from the info above
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         " TICS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * max(0.0,ein),chan(nchip),lg,ns,ip,
-     >         (sigtop(nchip,ns) * unit - sumo) 
+     >         max(sigtop(nchip,ns) * unit - sumo,0.0) 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         "   TNBCS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * ein,chan(nchip),lg,ns,ip,

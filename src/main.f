@@ -1617,11 +1617,11 @@ c$$$         enddo
 c$$$         print*,'Max number of (e,2e) channels:', nchtope2e
 c$$$         if (nchtope2e.gt.nchane2e) stop 'INCREASE NCHANE2E'
 c$$$      endif 
-      call date_and_time(date,time,zone,valuesout)
-      print '(/,i4,": nodeid structure complete at: ",a10,
-     >   ", diff (secs):",i5)',nodeid,time,
-     >   idiff(valuesin,valuesout)
-	valuesin = valuesout
+c$$$      call date_and_time(date,time,zone,valuesout)
+c$$$      print '(/,i4,": nodeid structure complete at: ",a10,
+c$$$     >   ", diff (secs):",i5)',nodeid,time,
+c$$$     >   idiff(valuesin,valuesout)
+c$$$      valuesin = valuesout
       
       pi8 = 8d0 * pi * pi
       
@@ -1806,10 +1806,10 @@ c$$$  call egrid(npotgf,etot)
       nqmold = nqm              ! not used
       iparmin = 0
       if (npar.eq.-1) iparmin = 1
-      call date_and_time(date,time,zone,valuesout)
-      print '(/,i4,": nodeid starting partial waves at: ",a10,
-     >   ", diff (secs):",i5)',nodeid,time,
-     >   idiff(valuesin,valuesout)
+c$$$      call date_and_time(date,time,zone,valuesout)
+c$$$      print '(/,i4,": nodeid starting partial waves at: ",a10,
+c$$$     >   ", diff (secs):",i5)',nodeid,time,
+c$$$     >   idiff(valuesin,valuesout)
       endif ! mod(myid,nomp).eq.0
 
       call mpi_bcast(mylstart,1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
@@ -1980,15 +1980,15 @@ c$$$     >         nunit,vdcore,minvdc,maxvdc,abs(ne2e),slowery,iborn,
 c$$$     >         BornICS,tfile,abs(nnbtop),ovlpnl,ovlpnn)
 c$$$            endif 
          call date_and_time(date,time,zone,valuesin)
-         print '(/,i4,": nodeid calling KGRID at: ",a10)',
-     >      nodeid,time
+c$$$         print '(/,i4,": nodeid calling KGRID at: ",a10)',
+c$$$     >      nodeid,time
          call kgrid(ispeed,nk,sk,etot,gk,wk,weightk,nbnd,nqm,lg,
      >      nchtop,nchopt,npk,nold,ndumm,luba,ifirst,npsbnd,abs(nnbtop),
      >      hlike,uba,theta,nodes)
-         call date_and_time(date,time,zone,valuesout)
-         print '(/,i4,": nodeid exited KGRID at: ",a10,
-     >   ", diff (secs):",i5)',nodeid,time,
-     >   idiff(valuesin,valuesout)
+c$$$         call date_and_time(date,time,zone,valuesout)
+c$$$         print '(/,i4,": nodeid exited KGRID at: ",a10,
+c$$$     >   ", diff (secs):",i5)',nodeid,time,
+c$$$     >   idiff(valuesin,valuesout)
 
 C---- ANDREY ---- make Fourier transforms of psinb and psinb*v -------
          if (nze.eq.1) then            
@@ -2889,7 +2889,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >            nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
             end if
          else
-            print*,'VDON obtained from 2nd call to First'
+            if (myid.le.0) print*,'VDON obtained from 2nd call to First'
          endif
          call clock(s2)
 c$$$         print*,'Time to make the partial Born matrix elements:',s2-s1
