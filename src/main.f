@@ -2512,10 +2512,9 @@ C     Determine which, if any, timing data to read
      >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff
 
 C  Marginally improve on above by seeing if nodes with max times can be spread
-            ntimemax = nodet(ntm)+1
-            do while (nodet(ntm).lt.ntimemax)
-               ntimemax = nodet(ntm)
-               call iteratenodes(ntm,nodes,nchtime,nchtop)
+            torf = .true.
+            do while (torf)
+               call iteratenodes(ntm,nodes,nchtime,nchtop,torf)
             enddo
             do n = 1, nodes-1
                if (myid.le.0) print"(
@@ -5562,29 +5561,35 @@ c$$$     >            kii,real(wk(kii+npk(nch)-1))
       end
 C End Added by Ivan
 
-      subroutine iteratenodes(ntm,nodes,nchtime,nchtop)
+      subroutine iteratenodes(ntm,nodes,nchtime,nchtop,torf)
       use vmat_module
+      logical torf
       integer nchtime(nchtop)
       if (nchistop(ntm)-nchistart(ntm).gt.1) then
          if (nchtime(nchistart(ntm))+
      >      nodet(max(ntm-1,1)).lt.nodet(ntm)) then !ntm > 1
+            torf = .true.
             nodet(ntm) = nodet(ntm)-nchtime(nchistart(ntm))
             nodet(ntm-1) = nodet(ntm-1)+nchtime(nchistart(ntm))
             nchistart(ntm) = nchistart(ntm)+1
             nchistop(ntm-1) = nchistop(ntm-1)+1
-            if (nodeid.eq.1) print*,'increased nchistart:',
+            if (nodeid.eq.1) print"('increased nchistart:',4i6)",
      >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
-         elseif (nchtime(nchistop(ntm))+nodet(max(ntm+1,nodes)) !ntm < nodes
+         elseif (nchtime(nchistop(ntm))+nodet(min(ntm+1,nodes)) !ntm < nodes
      >         .lt.nodet(ntm)) then
+            torf = .true.
             nodet(ntm) = nodet(ntm)-nchtime(nchistop(ntm))
             nodet(ntm+1) = nodet(ntm+1)+nchtime(nchistop(ntm))
             nchistop(ntm)=nchistop(ntm)-1
             nchistart(ntm+1)=nchistart(ntm+1)-1
-            if (nodeid.eq.1) print*,'decreased nchistop:',
+            if (nodeid.eq.1) print"('decreased nchistop: ',4i6)",
      >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
          else
-            if (nodeid.eq.1) print*,'unable to improve:',
-     >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+            torf = .false.
+            if (nodeid.eq.1) print"('unable to improve:  ',6i6)",
+     >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm),
+     >         nchtime(nchistart(ntm))+nodet(max(ntm-1,1)),
+     >         nchtime(nchistop(ntm))+nodet(min(ntm+1,nodes))
          endif
          ntm = 1
          do n=1, nodes
@@ -5592,6 +5597,7 @@ C End Added by Ivan
          enddo
 c$$$         if (nodeid.eq.1) print*,'ntm:',ntm,nodet(ntm)
       else
+         torf = .false.
          if (nodeid.eq.1) print*,'unable to improve:',
      >      ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
       endif
