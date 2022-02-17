@@ -67,7 +67,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*80
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*35
       character date*8,time*10,zone*5
       integer*8 npernode
       integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
@@ -273,7 +273,7 @@ c$$$      print*,'NUM_PROCESSES_PER_NODE:',NUM_PROCESSES_PER_NODE()
 c$$$      if (ntasks.ge.8.and.nomp.ne.8) stop 'ntasks.ge.8.and.nomp.ne.8'
       nodes = max(1, ntasks / nomp)
 
-      allocate(nchistart(nodes),nchistop(nodes))
+      allocate(nchistart(nodes),nchistop(nodes),nodet(nodes))
       allocate(nchistartold(nodes,0:1),nchistopold(nodes,0:1))
       allocate(ntime(nodes,0:1),nntime(nodes))
       allocate(natompsnode(nodes),nrange(nodes),tscale(nodes))
@@ -1388,12 +1388,13 @@ c            end if
 c      
 
 
-      
-      print*,   'Number of      atomic states and max channels:',
-     >   nstmax,nchanmax
-      if (nze.eq.1) 
-     >   print*,'Number of positronium states and max channels:',
-     >   nposstmax,nposchmax
+      if (myid.le.0) then
+         print*,   'Number of      atomic states and max channels:',
+     >      nstmax,nchanmax
+         if (nze.eq.1) 
+     >      print*,'Number of positronium states and max channels:',
+     >      nposstmax,nposchmax
+      endif
       nent = min(nent,nstmax+nposstmax)
       nchanmax = nchanmax + nposchmax
       if (nchanmax.gt.nchan) then
@@ -1445,8 +1446,8 @@ c$$$            u(i) = vasymp(i) - nze *(ui(i) + 2.0 * vdcore(i,0))
       endif
 
 
-      
-      print'(''Total energy of the collision system:'',
+      if (myid.le.0)
+     >   print'(''Total energy of the collision system:'',
      >   f13.4,'' eV ('',f11.4,'' Ryd )'')', ry * etot, etot
 C  Define continuum grid
 c$$$      if (natop(linc).gt.abs(nnbtop).and.ntstop.eq.2.and.nold.eq.0) then
@@ -1498,7 +1499,8 @@ c$$$      endif
       do while(n.ne.0)
          call getchinfo (n,nchp,0,temp,maxpsi,enpsi,la,na,lp)
          if (n.ne.0) then
-            print'(a8,'' scattering on '',a6,i3,a4,'' at'',f11.4,
+            if (myid.le.0)
+     >         print'(a8,'' scattering on '',a6,i3,a4,'' at'',f11.4,
      >         '' eV ('',f11.4,'' Ryd )'')', projectile,target,
      >         n,chan(n),ry * (etot - enpsi), etot - enpsi
             if (etot.gt.enpsi) then
@@ -1516,15 +1518,16 @@ c$$$      endif
          endif 
       enddo
       if (bothpar) then
-         if (npar.eq.0) print*,'WARNING: Consider setting NPAR = 1'
+         if (npar.eq.0.and.myid.le.0)
+     >      print*,'WARNING: Consider setting NPAR = 1'
       else
          if (npar.eq.1) then
             npar = 0
-            print*,'WARNING: NPAR reset to 0'
+            if (myid.le.0) print*,'WARNING: NPAR reset to 0'
          endif
       endif 
          
-      print*,'Number of initial states:',nent
+      if (myid.le.0) print*,'Number of initial states:',nent
       if (nze.ge.1.or.projectile.eq.'photon') nsmax = 0
 C The following is for photoionization from triplet states
       if (iSpin.eq.1) nsmax = 1
@@ -1859,7 +1862,7 @@ c$$$         if (speed) then
 c$$$            ispeed = 2
 c$$$            call kgrid(ispeed,nk,sk,etot,gkeep,wk,weightk,nbnd,nqm,lg,
 c$$$     >         nchkeep,nchopt,npkeep,nold,ndumm,luba,ifirst,npsbnd,
-c$$$     >         abs(nnbtop),hlike,uba,theta,nodes)
+c$$$     >         abs(nnbtop),hlike,uba,theta,nodes,nodeid)
 c$$$            mv = (npkeep(nchkeep+1)-1) * (npkeep(nchkeep+1)) ! * 4
 c$$$            mchi =  meshr * (npkeep(nchkeep+1)-1) ! * 4
 c$$$         
@@ -1984,8 +1987,8 @@ c$$$         print '(/,i4,": nodeid calling KGRID at: ",a10)',
 c$$$     >      nodeid,time
          call kgrid(ispeed,nk,sk,etot,gk,wk,weightk,nbnd,nqm,lg,
      >      nchtop,nchopt,npk,nold,ndumm,luba,ifirst,npsbnd,abs(nnbtop),
-     >      hlike,uba,theta,nodes)
-c$$$         call date_and_time(date,time,zone,valuesout)
+     >      hlike,uba,theta,nodes,nodeid)
+         call date_and_time(date,time,zone,valuesout)
 c$$$         print '(/,i4,": nodeid exited KGRID at: ",a10,
 c$$$     >   ", diff (secs):",i5)',nodeid,time,
 c$$$     >   idiff(valuesin,valuesout)
@@ -2338,13 +2341,13 @@ c$$$               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
 c$$$               endif
             enddo
          enddo
-         if (nodeid.eq.1.and.lptop.ge.0) then
-            ntot = 0
-            do nch = 1, nchtop
-               ntot = ntot + natomps(nch)
-               print*,'nch,natomps(nch),ntot:',nch,natomps(nch),ntot
-            enddo
-         endif 
+c$$$         if (nodeid.eq.1.and.lptop.ge.0) then
+c$$$            ntot = 0
+c$$$            do nch = 1, nchtop
+c$$$               ntot = ntot + natomps(nch)
+c$$$               print*,'nch,natomps(nch),ntot:',nch,natomps(nch),ntot
+c$$$            enddo
+c$$$         endif 
 c$$$         print'(
 c$$$     >     ''Memory (Mb) requested:'',i7,
 c$$$     >     '' = VMAT + CHI:'', 2i6)', 
@@ -2477,36 +2480,57 @@ C     Determine which, if any, timing data to read
             tave(ipar)=float(nchtimetot)/nodes
             nchistart(1)=1
             nttot = 0
-            nodetmax=0
+            ntm = 1
             nch=1
             do n = 1, nodes-1
-               nodet = 0
+               nodet(n) = 0
                do while (nttot.lt.tave(ipar)*n)
-                  nodet = nodet + nchtime(nch)
+                  nodet(n) = nodet(n) + nchtime(nch)
                   nttot = nttot + nchtime(nch)
                   nch = nch + 1
                enddo
                if (tave(ipar)*n-(nttot-nchtime(nch-1)).lt.
      >            nttot-tave(ipar)*n.and.nch.gt.nchistart(n)) then
-                  nodet = nodet-nchtime(nch-1)
+                  nodet(n) = nodet(n)-nchtime(nch-1)
                   nttot = nttot-nchtime(nch-1)
                   nch = nch - 1
                endif
-               if (nodet.gt.nodetmax) nodetmax = nodet
+               if (nodet(n).gt.nodet(ntm)) ntm = n
                nchistop(n)=nch-1
-               if (myid.le.0) print*,'n,nchistart,nchistop:',
-     >            n,nchistart(n),nchistop(n)
+               if (myid.le.0) print"(
+     >            'LG,IPAR,n,nchistart,nchistop,nodet:',6i6)",
+     >            lg,ipar,n,nchistart(n),nchistop(n),nodet(n)
                nchistart(n+1)=nch
             enddo
-            nodet = nchtimetot - nttot !time for last node
-            if (nodet.gt.nodetmax) nodetmax = nodet
-            neff = nint(100.0*nchtimetot/nodetmax/nodes)
-            if (myid.le.0) print'("LGold,LG,ipar,neff: ",4i4,"%")',
-     >         LGold(ipar),LG,ipar,neff
+            n = nodes
+            nodet(n) = nchtimetot - nttot !time for last node
+            if (nodet(n).gt.nodet(ntm)) ntm = n
+            neff = nint(100.0*nchtimetot/nodet(ntm)/nodes)
+            if (myid.le.0) print"(
+     >         'LG,IPAR,n,nchistart,nchistop,nodet:',6i6,
+     >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
+     >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff
+
+C  Marginally improve on above by seeing if nodes with max times can be spread
+            ntimemax = nodet(ntm)+1
+            do while (nodet(ntm).lt.ntimemax)
+               ntimemax = nodet(ntm)
+               call iteratenodes(ntm,nodes,nchtime,nchtop)
+            enddo
+            do n = 1, nodes-1
+               if (myid.le.0) print"(
+     >            'LG,IPAR,n,nchistart,nchistop,nodet:',6i6)",
+     >            lg,ipar,n,nchistart(n),nchistop(n),nodet(n)
+            enddo
+            n= nodes
+            neff = nint(100.0*nchtimetot/nodet(ntm)/nodes)
+            if (myid.le.0) print"(
+     >         'LG,IPAR,n,nchistart,nchistop,nodet:',6i6,
+     >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
+     >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff 
          else
             LGold(ipar) = -1
          endif
-         
          
 c$$$         tscale(:) = 1.0
 c$$$         tave(:)= 0.0
@@ -2796,7 +2820,7 @@ c$$$     >         stop 'require at least 2 nodes with scalapack'
                mv1 = 0
                if (.not.allocated(vmat01)) stop 'vmat01 not allocated'
 c$$$               vmat01(:,:) = 0.0
-               print*,'nodeid,ni,nf:',nodeid,ni,nf
+c$$$               print*,'nodeid,ni,nf:',nodeid,ni,nf
                vmat01(ni:nf,ni:nf+1) = 0.0
                if (nf.lt.nd) then
                   allocate(vmat0(nf+1:nd,ni:nf))
@@ -2930,8 +2954,8 @@ c$$$         endif
          if (.not.allocated(chil)) stop 'chil could not be allocated'
 
          call date_and_time(date,time,zone,valuesin)
-         print '(/,i4,": nodeid calling second MAKECHIL at: ",a10)',
-     >      nodeid,time
+c$$$         print '(/,i4,": nodeid calling second MAKECHIL at: ",a10)',
+c$$$     >      nodeid,time
          mnnbtop=abs(nnbtop)
          call makechil(lg,gk,wk,qcut,zasym,vdcore_pr,npot,ui,ldw,dwpot,
      >      npk,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,
@@ -3050,8 +3074,8 @@ c
          if (speed) ispeed=3
 
          call date_and_time(date,time,zone,valuesin)
-         print '(/,i4,": nodeid entering VMAT routines at: ",a10)',
-     >      nodeid,time
+c$$$         print '(/,i4,": nodeid entering VMAT routines at: ",a10)',
+c$$$     >      nodeid,time
          if (hlike) then
             call first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chil,
      >         minchil,
@@ -3292,67 +3316,43 @@ c$$$            enddo
 C   Solve Ax=b inside the main routine; below will be replaced with scalapack
          if (myid.le.0) then
             call date_and_time(date,time,zone,valuesout)
-c$$$            if (scaleexists) then
-               open(42,file='time'//ench,position='append')
-               ntmax = 0
-               timetot = 0.0
-               do n=1,nodes
-                  timetot = timetot + nntime(n)
-                  if (nntime(n).gt.ntmax) ntmax = nntime(n)
-               enddo
-               neff = 0
-               if (ntmax.gt.0) neff = 100.0*timetot/nodes/ntmax
-               do n=1,nodes-1
-                  naps = 0
-                  do nch = nchistart(n), nchistop(n)
-                     naps = naps + natomps(nch)
-                  enddo
-                  timeperi = float(nntime(n))/
-     >               (nchistart(n+1)-nchistart(n))
-c$$$                  incw = 0
-c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
-c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-c$$$                  write(42,'(4i4,3i7,f8.1,3i8," ave time of prev LG")')
-                  write(42,'(3i4,3i7,2i8)') 
-     >               lg,ipar,n,
-     >               nntime(n),nchistart(n),nchistop(n),
-     >               nchprs(nchistart(n),nchistop(n),nchtop),
-     >               naps
-!                  write(42,'(4i4,7i7," ave time of prev LG")') 
-!     >               lg,n,ipar,inc(n,ipar),
-!     >               nntime(n),nchistart(n),nchistop(n),ntimeperi,
-!     >               nchprs(nchistart(n),nchistop(n),nchtop),
-!     >               naps, nint(tave)
-               enddo
-               n = nodes
+            open(42,file='time'//ench,position='append')
+            ntmax = 0
+            timetot = 0.0
+            do n=1,nodes
+               timetot = timetot + nntime(n)
+               if (nntime(n).gt.ntmax) ntmax = nntime(n)
+            enddo
+            neff = 0
+            if (ntmax.gt.0) neff = 100.0*timetot/nodes/ntmax
+            do n=1,nodes-1
                naps = 0
                do nch = nchistart(n), nchistop(n)
                   naps = naps + natomps(nch)
                enddo
                timeperi = float(nntime(n))/
-     >            (nchistop(n)-nchistart(n)+1)
-c$$$                  incw = 0
-c$$$                  if (n.eq.nodetimemax) inc(n,ipar) = inc(n,ipar)-inct
-c$$$                  if (n.eq.nodetimemin) inc(n,ipar) = inc(n,ipar)+inct
-               write(42,'(3i4,3i7,5i8,2i4,"% LG,ipar,node,vt,",
-     >            "i1,i2,nch,naps,NMAX,tave,mt,prev LG,eff",/)')
-     >            lg,ipar,n,nntime(n),nchistart(n),
-     >            nchistop(n),nchprs(nchistart(n),nchistop(n),
-     >            nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
-     >            idiff(valuesin,valuesout),lgold(ipar),neff
-!               write(42,'(4i4,3i7,f8.1,3i8,2i4,"% LG,node,ipar,inc,vt,",
-!     >            "i1,i2,tperi,nch,naps,mt,prev LG,eff",/)')
-!     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
-!     >            nchistop(n),timeperi,nchprs(nchistart(n),nchistop(n),
-!     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
-!     >            neff
-!               write(42,'(4i4,7i7,2i4,"% LG,node,ipar,inc,vt,",
-!     >            "i1,i2,tperi,nch,naps,mt,LGold,eff")')
-!     >            lg,n,ipar,inc(n,ipar),nntime(n),nchistart(n),
-!     >            nchistop(n),ntimeperi,nchprs(nchistart(n),nchistop(n),
-!     >            nchtop),naps,idiff(valuesin,valuesout),lgold(ipar),
-!     >            neff
-               close(42)
+     >            (nchistart(n+1)-nchistart(n))
+               write(42,'(3i4,3i7,2i8)') 
+     >            lg,ipar,n,
+     >            nntime(n),nchistart(n),nchistop(n),
+     >            nchprs(nchistart(n),nchistop(n),nchtop),
+     >            naps
+            enddo
+            n = nodes
+            naps = 0
+            do nch = nchistart(n), nchistop(n)
+               naps = naps + natomps(nch)
+            enddo
+            timeperi = float(nntime(n))/
+     >         (nchistop(n)-nchistart(n)+1)
+            write(42,'(3i4,3i7,7i8,i4,"% LG,ipar,node,vt,",
+     >         "i1,i2,nch,naps,NMAX,tave,mt,ttot,LGold,eff",/)')
+     >         lg,ipar,n,nntime(n),nchistart(n),
+     >         nchistop(n),nchprs(nchistart(n),nchistop(n),
+     >         nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
+     >         idiff(valuesin,valuesout),
+     >         idiff(valuesinLG,valuesout),lgold(ipar),neff
+            close(42)
 c$$$            endif 
  
 c$$$         do ns = 0, nsmax
@@ -5561,3 +5561,39 @@ c$$$     >            kii,real(wk(kii+npk(nch)-1))
       enddo
       end
 C End Added by Ivan
+
+      subroutine iteratenodes(ntm,nodes,nchtime,nchtop)
+      use vmat_module
+      integer nchtime(nchtop)
+      if (nchistop(ntm)-nchistart(ntm).gt.1) then
+         if (nchtime(nchistart(ntm))+
+     >      nodet(max(ntm-1,1)).lt.nodet(ntm)) then !ntm > 1
+            nodet(ntm) = nodet(ntm)-nchtime(nchistart(ntm))
+            nodet(ntm-1) = nodet(ntm-1)+nchtime(nchistart(ntm))
+            nchistart(ntm) = nchistart(ntm)+1
+            nchistop(ntm-1) = nchistop(ntm-1)+1
+            if (nodeid.eq.1) print*,'increased nchistart:',
+     >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+         elseif (nchtime(nchistop(ntm))+nodet(max(ntm+1,nodes)) !ntm < nodes
+     >         .lt.nodet(ntm)) then
+            nodet(ntm) = nodet(ntm)-nchtime(nchistop(ntm))
+            nodet(ntm+1) = nodet(ntm+1)+nchtime(nchistop(ntm))
+            nchistop(ntm)=nchistop(ntm)-1
+            nchistart(ntm+1)=nchistart(ntm+1)-1
+            if (nodeid.eq.1) print*,'decreased nchistop:',
+     >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+         else
+            if (nodeid.eq.1) print*,'unable to improve:',
+     >         ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+         endif
+         ntm = 1
+         do n=1, nodes
+            if (nodet(n).gt.nodet(ntm)) ntm = n
+         enddo
+c$$$         if (nodeid.eq.1) print*,'ntm:',ntm,nodet(ntm)
+      else
+         if (nodeid.eq.1) print*,'unable to improve:',
+     >      ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+      endif
+      return
+      end

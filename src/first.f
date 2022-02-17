@@ -618,8 +618,8 @@ c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
 c$$$     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
 c$$$     >         chan(nt_t(nchi)),natomps(nchi),
 c$$$     >         idiff(valuesin,valuesout)
-            write(42,'(2i5,a4,i6,i11)') nchi,li,chan(nt_t(nchi)),
-     >         idiff(valuesin,valuesout),natomps(nchi)
+            write(42,'(2i5,a4,i6,i11,i4)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout),natomps(nchi),nodeid
          endif
       end do
 

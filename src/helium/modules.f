@@ -27,7 +27,7 @@
       module vmat_module
       real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
       integer, allocatable :: nchistart(:), nchistop(:)
-      integer, allocatable ::  ntime(:,:),
+      integer, allocatable ::  ntime(:,:), nodet(:),
      >   nntime(:),nchistartold(:,:),nchistopold(:,:)
       integer  nodeid
       logical scalapack

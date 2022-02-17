@@ -3433,7 +3433,7 @@ c$$$      endif
       calculated(:,:) = .false. ! used to store psib in analytic call to pseudo
 c$$$      allocate (psib(meshr,nnbtop,latop),epsib(nnbtop,latop))
       nz = nint(zasym)
-      print*,'Entered MAKECHIL with ZASYM:',zasym
+c$$$      print*,'Entered MAKECHIL with ZASYM:',zasym
       alpha = 0.0
       utemp(:) = 0.0
 

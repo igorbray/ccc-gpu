@@ -849,7 +849,8 @@ C-----ANDREY: end mitroy simplification ------------------------------
                
 *     a pole dominance Faddeev approach; seems not to work at all. Why?
 *     f0z(iz)=-efactor*resP1*resH1
-            end do            !iz
+c$$$               write(42,*) iz, f0z(iz)
+            end do              !iz
 
             iq=iq+1
             
@@ -1023,7 +1024,11 @@ c$$$     >                        l2,l1,la1,lb1))
                               do iz=1,igz
                                  resz=resz + f0z(iz) *  pl(lam,iz)
                               end do
-                              res0(lam)=resz                                  
+                              res0(lam)=resz
+c$$$                              print"('nchf,nchi,resz:',
+c$$$     >                  2i2,1p,7e10.2)",
+c$$$     >                  nchf,nchi,resz
+
                               if(iq.eq.1) then
 *                                calculating f(p)----------------------------
                                  do i=1,imax !                        
@@ -1653,6 +1658,9 @@ c      call transpl(lam,lab2,res1t,x,ylam,y2lam,qa,Lla,lm)
         endif
         !print*,qa,qb,result/qa
         reslam=reslam+(2*lam+1)*wigner*result
+c$$$           print"('nchf,nchi,qal2,res0(lam),res1:',
+c$$$     >2i2,1p,7e10.2)",
+c$$$     >        nchf,nchi,qal2,res0(lam),res1
 c$$$c$$$C_TEST________________________________________________________________
 c$$$!$omp critical  
 c$$$            if(isnan(reslam).or.isnan(result)) then
@@ -1685,6 +1693,9 @@ c$$$c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
                         
                      end do
                      suml1=suml1+(2*l1+1)*suml2*w3j1
+c$$$                     print"('nchf,nchi,suml1,suml2,w3j1,cla,clb,c0,qb:',
+c$$$     >                  2i2,1p,7e10.2)",
+c$$$     >                  nchf,nchi,suml1,suml2,w3j1,cla,clb,c0,qb
 
 c$$$c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -2862,10 +2873,10 @@ c      open(99,file='matritsa')
          enddo
       enddo
       
-      print*
-      print*,' posVmat: using ',igz,' points for z and ',
-     >   igp,'*nqmi*2 for p integral'
-      print*,' Forming tables of Ql and Pl'
+c$$$      print*
+c$$$      print*,' posVmat: using ',igz,' points for z and ',
+c$$$     >   igp,'*nqmi*2 for p integral'
+c$$$      print*,' Forming tables of Ql and Pl'
       dfactrl(0)=1.d0
       dfactrl2(0)=1.d0
       Qlfactor(0)=1.d0
@@ -3209,6 +3220,7 @@ C     print*, '   (1.1) polleg'
             pl8(i)=((2*i-1)*z*pl8(i-1)-(i-1)*pl8(i-2))/dble(i)
             pl(i,ig)=pl8(i)*wga(ig)
          end do
+c$$$         write(43,"(i4,1p,1000e10.2)") ig,(pl(i,ig),i=0,limit)
       enddo
 cRRRR***** for z integral
       zeps=0.03d0

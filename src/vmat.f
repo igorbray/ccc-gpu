@@ -1650,7 +1650,7 @@ cCCC      print*,'Number of tail integral calculations:',it
       
       subroutine kgrid(ispeed,nkor,skor,etot,gk,wk,weightk,nbnd,nqm,lg,
      >   nchtop,nchopt,npk,nold,ndumm,luba,ifirst,npsbnd,nnbtop,hlike,
-     >   uba,theta,nodes)
+     >   uba,theta,nodes,nodeid)
       use gf_module !propagates analytic
       include 'par.f'
       complex wk(kmax*nchan), phase, sigc
@@ -1699,7 +1699,7 @@ C     End added by Alex
 C  NBAD stores the number of channels |phi(n)> such that
 C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
       nbad = 0
-      if (lprint.eq.0) lprint = max(latop,lg)
+      if (lprint.eq.0.and.nodeid.eq.1) lprint = max(latop,lg)
       
       if (lg.le.lprint) print '(''Kgrid quadrature set'',2i3)',
      >   lg,lprint
@@ -1719,8 +1719,8 @@ C  The following is a loop of the form REPEAT ... UNTIL(condition)
          rk = - sqrt(-e)
       end if
       analytic = nanalytic.le.-2.and.e.ge.aenergyswitch !aenergyswitch is in modules.f
-      print'(a3, " channel energy (eV) and k:",1p,2e15.6)', chan(ntmp),
-     >   EeV,rk
+c$$$      print'(a3, " channel energy (eV) and k:",1p,2e15.6)', chan(ntmp),
+c$$$     >   EeV,rk
 c$$$      if (analytic.and.EeV.ge.0.0.and.EeV.lt.1e-3) then !+ve energies for extract_J
 C analytic tail integrals have not been implemented for zero energy
 c$$$      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0).and.itail.ge.0)then
@@ -2057,8 +2057,8 @@ c$$$         endif
      >         dstopp, sumi - sumip
             print'(''fall off power:'',f5.1,23x,''= '',f7.5)',sk(mint),
      >         sumi
+            print*,'last n, k:',jj,gridk(jj)
          endif 
-         print*,'last n, k:',jj,gridk(jj)
 
 c$$$         if (abs(sumi - 1.0).gt.1e-2.and.la.eq.li) nbad = nbad + 1
          if (abs(sumi - 1.0).gt.1e-2) nbad = nbad + 1
@@ -2260,7 +2260,7 @@ c$$$         endif
          print*,'Channel, NQK+1, KMAX:',nch,nqk+1,kmax
          stop 'Increase KMAX'
       endif
-      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
+c$$$      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
       
       npk(nchtop+1) = npk(nchtop) + nqk + 1 
       ldumm = -1
