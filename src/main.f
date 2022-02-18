@@ -2322,6 +2322,10 @@ c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,
          print '(/,i4,": nodeid exited first MAKECHIL at: ",a10,
      >   ", diff (secs):",i5)',nodeid,time,
      >   idiff(valuesin,valuesout)
+c$$$         if (nodeid.eq.1) then
+c$$$            write(nodetfile,'(i3,"_",i1,".est")') lg,ipar
+c$$$            open(42,file=nodetfile)
+c$$$         endif
          do nchi = 1, nchtop
             natomps(nchi) = 0
             do nchf = nchi, nchtop
@@ -2329,17 +2333,24 @@ c$$$            if (pos(nchf).neqv.pos(nchi)) natomps(nchi)=natomps(nchi)!+1
 c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
 c$$$               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
-               const = 1.0+0.025*(float(nchi)/float(nchtop-nchi+1))**1.5
+               const = 1.0 !+0.025*(float(nchi)/float(nchtop-nchi+1))**1.5
                if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
-     >              1.3**lnch(nchf,1)*1.3**lnch(nchi,1)*
+     >              1.15**lnch(nchf,1)*1.15**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
      >              (npk(2)-npk(1))**2
      >            /1.05**abs(lnch(nchi,2)-lg)/1.05**abs(lnch(nchf,2)-lg)
 c$$$               endif
             enddo
+c$$$            if (nodeid.eq.1) then
+c$$$               write(42,*) nchi,natomps(nchi)
+c$$$               if (nchi.eq.nchtop) then
+c$$$                  close(42)
+c$$$                  stop
+c$$$               endif
+c$$$            endif
          enddo
 c$$$         if (nodeid.eq.1.and.lptop.ge.0) then
 c$$$            ntot = 0
@@ -2511,7 +2522,7 @@ C     Determine which, if any, timing data to read
      >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
      >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff
 
-C  Marginally improve on above by seeing if nodes with max times can be spread
+C  Marginally improve on above by seeing if nodes with max times can be reduced
             torf = .true.
             do while (torf)
                call iteratenodes(ntm,nodes,nchtime,nchtop,torf)
@@ -2531,267 +2542,6 @@ C  Marginally improve on above by seeing if nodes with max times can be spread
             LGold(ipar) = -1
          endif
          
-c$$$         tscale(:) = 1.0
-c$$$         tave(:)= 0.0
-c$$$         tscale(nodes) = sfactor
-c$$$         inquire(file='time'//ench,exist=exists)
-c$$$         inquire(file='time_all',exist=timeexists)
-c$$$         if (exists.or.timeexists) then !.and.lg.gt.mylstart) then
-c$$$            if (exists) then
-c$$$               open(42,file='time'//ench)
-c$$$            else
-c$$$               open(42,file='time_all')
-c$$$            endif 
-c$$$            ntime(:,:) = 0
-c$$$            ip = 0
-c$$$ 10         read(42,*,end=20,err=20) lgp,n,ip,inc(n,ip),
-c$$$     >         ntime(min(nodes,n),ip),nchistartold(min(nodes,n),ip),
-c$$$     >         nchistopold(min(nodes,n),ip) !avoid arrays out of bounds
-c$$$            lgold(ip) = lgp
-c$$$            inc(:,:) = 0
-c$$$            nodesold(ip) = n    ! nodesold + 1
-c$$$            if (ip.ne.ipar.or.lgp.ne.lg.or.n.ne.nodes) go to 10
-c$$$c$$$               go to 10 !ensures read of last LG entry
-c$$$ 20         continue 
-c$$$            close(42)
-c$$$            print*,'Last LG read in time file:',lgold(ipar)
-c$$$            if (nchistopold(nodesold(ip),ip).ne.nchtop) inc(:,:)=0 !reset to zero as sometimes non-zero for repeated low LG
-c$$$            if (nodesold(ipar).eq.nodes.and.ntime(1,ipar).gt.0) then
-c$$$               ntimemin=10000000
-c$$$               ntimemax=0
-c$$$               ntimetot = 0
-c$$$               do n = 1, nodes
-c$$$                  ntimetot = ntimetot + ntime(n,ipar)
-c$$$                  if (ntime(n,ipar).lt.ntimemin) then
-c$$$                     ntimemin = ntime(n,ipar)
-c$$$                     nodemint = n
-c$$$                  endif
-c$$$                  if (ntime(n,ipar).gt.ntimemax) then
-c$$$                     ntimemax = ntime(n,ipar)
-c$$$                     nodemaxt = n
-c$$$                  endif
-c$$$               enddo
-c$$$               tave(ipar) = float(ntimetot)/nodes
-c$$$               diffp = (ntimemax-ntimemin)/tave(ipar)
-c$$$c$$$                  print*,'nodemint,nodemaxt,diffp:',nodemint,nodemaxt,
-c$$$c$$$     >                 diffp
-c$$$c$$$                  timeperi = float(ntimetot)/nchistopold(nodes,ipar)
-c$$$
-c$$$               n = 1
-c$$$               if (lgold(ipar).lt.10) then
-c$$$                write(nodetfile,'(i3,"_",i1,"_",i1)') n,lgold(ipar),ipar
-c$$$               elseif (lgold(ipar).lt.100) then
-c$$$                write(nodetfile,'(i3,"_",i2,"_",i1)') n,lgold(ipar),ipar
-c$$$               else
-c$$$                write(nodetfile,'(i3,"_",i3,"_",i1)') n,lgold(ipar),ipar
-c$$$               endif
-c$$$               inquire(file=nodetfile,exist=exists)
-c$$$               nchtimetot = 0
-c$$$               nchtimemax = 0
-c$$$               do while (exists.and.n.le.nodes)
-c$$$                  open(42,file=nodetfile)
-c$$$                  nchistartold(n,ipar) = 10000000
-c$$$                  nchistopold(n,ipar) = 0
-c$$$ 13               read(42,'(i5,9x,i6)',end=14) nch,nchtime(nch)
-c$$$                  nchtimetot = nchtimetot + nchtime(nch)
-c$$$                  if(nchtime(nch).gt.nchtimemax) nchtimemax=nchtime(nch)
-c$$$                 if(nch.lt.nchistartold(n,ipar))nchistartold(n,ipar)=nch
-c$$$                  if (nch.gt.nchistopold(n,ipar))nchistopold(n,ipar)=nch
-c$$$                  goto 13
-c$$$ 14               close(42)
-c$$$                  n = n + 1
-c$$$                  if (lgold(ipar).lt.10) then
-c$$$                     write(nodetfile,'(i3,"_",i1,"_",i1)') 
-c$$$     >                  n,lgold(ipar),ipar
-c$$$                  elseif (lgold(ipar).lt.100) then
-c$$$                     write(nodetfile,'(i3,"_",i2,"_",i1)') 
-c$$$     >                  n,lgold(ipar),ipar
-c$$$                  else
-c$$$                     write(nodetfile,'(i3,"_",i3,"_",i1)') 
-c$$$     >                  n,lgold(ipar),ipar
-c$$$                  endif
-c$$$                  inquire(file=nodetfile,exist=exists)
-c$$$               enddo
-c$$$               nodesprev = n - 1
-c$$$               if (nodesprev.gt.1.and.
-c$$$     >            nchistopold(nodesprev,ipar).eq.nchistop(nodes)) then
-c$$$                  tave(ipar) = float(nchtimetot)/float(nodesprev)
-c$$$                  if (myid.le.0) print'(
-c$$$     >            "LGold,ipar,nodes,nchtop,nchtimemax,ntmax,tave: ",
-c$$$     >            3i4,4x,4i7)',lgold(ipar),ipar,nodesprev,nchtop,
-c$$$     >            nchtimemax,ntimemax,nint(tave(ipar))
-c$$$                  neffprev = 0
-c$$$                  neff = 1
-c$$$                  fac = 1.0
-c$$$                  it = 0
-c$$$                  do while(neff.ge.neffprev.and.neff.le.95.and.it.lt.10)
-c$$$                     it = it + 1
-c$$$                     fac = fac * 1.01
-c$$$                     neffprev = neff
-c$$$                  nt = 0
-c$$$                  n = 1
-c$$$                  nch = 1
-c$$$                  nistart = 1
-c$$$                  incsum = 0
-c$$$                  nodetprev = 0
-c$$$                  nodettot = 0  !tot node time before the current node
-c$$$                  nodetmax = tave(ipar) !max node time
-c$$$                  if (nodetmax.lt.nchtimemax) then
-c$$$                     nodetmax = nchtimemax
-c$$$                     if (myid.le.0)print*,'CAUTION: single ch time>tave'
-c$$$                  endif
-c$$$                  do n = 1, nodesprev - 1
-c$$$                     nch = nistart
-c$$$                     nodet = nchtime(nistart) !current node time
-c$$$c$$$                  do while (nodet.lt.tave(ipar)) !.and.nch.lt.nchtopprev)
-c$$$                  do while (nodet+nodettot.lt.n*tave(ipar).and.
-c$$$     >                 nchtop-nch.gt.nodes-n)
-c$$$c$$$                    dowhile(nodet.lt.nodetmax.and.nchtop-nch.gt.nodes-n)
-c$$$c$$$                     do while(nodet.lt.tave(ipar).and.
-c$$$c$$$     >                  nchtop-nch.gt.nodes-n)
-c$$$                        nodetprev = nodet
-c$$$                        nch = nch + 1
-c$$$                        nodet = nodet + nchtime(nch)
-c$$$                     enddo
-c$$$c$$$                  if (nodet-tave(ipar).gt.tave(ipar)-nodetprev) then
-c$$$c$$$                     if (nodet+nodettot.gt.n*tave(ipar)) then
-c$$$c$$$                     if (nodet+nodettot-n*tave(ipar).gt.
-c$$$c$$$     >                  n*tave(ipar)-nodetprev-nodettot) then
-c$$$                     if (nodet+nodettot-n*tave(ipar).gt.
-c$$$     >                  n*tave(ipar)-nodetprev-nodettot
-c$$$     >                  .or.nodet.gt.nodetmax*fac) then
-c$$$                        if (nch.gt.nistart) then
-c$$$                           nch = nch - 1
-c$$$                           nodet = nodetprev
-c$$$                        endif
-c$$$                     endif
-c$$$                     if (nodet.gt.nodetmax) nodetmax = nodet
-c$$$                     nodettot = nodettot + nodet
-c$$$                     nistop = nch !max(nistart,nch)
-c$$$c$$$                     incold(n,ipar) = nistop-nistart-
-c$$$c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar))
-c$$$c$$$                     if (nchistopold(nodesprev,ipar).eq.nchistop(nodes))
-c$$$c$$$     >                  incold(n,ipar)=nistop-nistart-
-c$$$c$$$     >                  (nchistop(n)-nchistart(n))-inc(n,ipar)
-c$$$                     nchistart(n) = nistart
-c$$$                     nchistop(n) = nistop
-c$$$                     nistart = nistop + 1 !nch
-c$$$                     if (myid.le.0) print'(
-c$$$     >            "LG,ipar,nodeid,it,nistop,nodet,nodettot,ntave: ",
-c$$$     >                 4i4,4i7)', lg,ipar,n,it,
-c$$$     >                 nistop,nodet,nodettot,nint(n*tave(ipar))
-c$$$                     incsum = incsum + incold(n,ipar)
-c$$$c$$$                  print"('node,nchistart,nchistop,time:',3i6,f6.1)", 
-c$$$c$$$     >                 n,nchistart(n)inc(n,ipar),nodet
-c$$$                  enddo
-c$$$                  nodet = nchtimetot - nodettot
-c$$$                  if (nodet.gt.nodetmax) nodetmax = nodet
-c$$$                  neff = nint(100.0*nchtimetot/nodetmax/nodesprev)
-c$$$                  n = nodesprev
-c$$$                  nchistart(n) = nistart
-c$$$                  nistop = nchistopold(n,ipar)
-c$$$                  nchistop(n) = nistop
-c$$$                  if (myid.le.0)
-c$$$     >            print'("LGold,LG,ipar,nodeid,it,nistop,nodet,neff: ",
-c$$$     >            5i4,3i7,"%",f5.2)',LGold(ipar),LG,ipar,n,it,nistop,
-c$$$     >            nodet,neff,fac                  
-c$$$                     if (neff.lt.neffprev.and.it.lt.10) then
-c$$$                        it = 9 ! will exit the while loop with prev fac
-c$$$                        fac = fac / 1.02 !1.01**2
-c$$$                        neff = neffprev + 1
-c$$$                     endif
-c$$$                  enddo ! neff loop
-c$$$               endif !nodesprev.gt.1
-c$$$
-c$$$               incsum = 0
-c$$$               do n = 1, nodes - 1
-c$$$c$$$                     timeperi = max(1.0 , float(ntime(n,ipar))/
-c$$$c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1))
-c$$$! c$$$                     timeperi = 0.5 * ntime(n,ipar)/
-c$$$! c$$$     >                  (nchistopold(n,ipar)-nchistartold(n,ipar)+1) +
-c$$$! c$$$     >                  0.5 * ntime(n+1,ipar)/
-c$$$! c$$$     >                  (nchistopold(n+1,ipar)-nchistartold(n+1,ipar)+1)
-c$$$c$$$                     if (lptop.ge.0) then
-c$$$c$$$                        if (diffp.gt.0.1) then
-c$$$c$$$                           if (n.eq.nodemint) then
-c$$$c$$$                              incstep = 1
-c$$$c$$$                           elseif (n.eq.nodemaxt) then
-c$$$c$$$                              incstep = -1
-c$$$c$$$                           else
-c$$$c$$$                              incstep = 0
-c$$$c$$$                           endif
-c$$$c$$$                        endif
-c$$$c$$$                        incstep = 0
-c$$$c$$$                        inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
-c$$$c$$$                     else
-c$$$c$$$                        ni = nchistopold(n,ipar)-nchistartold(n,ipar)+1
-c$$$c$$$                        timeperi = max(float(ntime(n,ipar))/ni, 1.0)
-c$$$c$$$                       incstep=nint((tave(ipar)-ntime(n,ipar))/timeperi)
-c$$$c$$$                        if (incstep.gt.ni/2) incstep = ni/2
-c$$$c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$c$$$c$$$                     if ((tave-ntime(n,ipar))*(tave-ntime(n+1,ipar))
-c$$$c$$$c$$$     >                  .lt.0.0) then
-c$$$c$$$c$$$                        if (incstep.gt.1) incstep = 1
-c$$$c$$$c$$$                        if (incstep.lt.-1) incstep = -1
-c$$$c$$$c$$$                     else 
-c$$$c$$$c$$$                        if (incstep.gt.ni) incstep = ni
-c$$$c$$$c$$$                        if (incstep.lt.-ni/2) incstep = -ni/2
-c$$$c$$$c$$$                     endif 
-c$$$c$$$                     endif
-c$$$c$$$                     inc(n,ipar) = inc(n,ipar) + incstep
-c$$$!               inc(n,ipar) = inc(n,ipar) + incold(n,ipar)
-c$$$                  incsum = incsum + inc(n,ipar)
-c$$$c$$$                     print"('node,incstep,inc,timeperi:',3i6,f6.1)", 
-c$$$c$$$     >                  n,incstep,inc(n,ipar),timeperi
-c$$$               enddo 
-c$$$               inc(nodes,ipar) = - incsum
-c$$$c$$$                  tave = ntimetot / nodes
-c$$$c$$$                  nchtot = 0
-c$$$c$$$                  do n = 1, nodes !- 1
-c$$$c$$$                     nrange(n) = nint(tave/tscale(n) * nchtop/nchtopold)
-c$$$c$$$c$$$                     nrange(n) = nchistop(n)-nchistart(n)+1
-c$$$c$$$c$$$                     if (ntime(n).lt.tave*0.9) then
-c$$$c$$$c$$$                        nrange(n) = nrange(n) + 1
-c$$$c$$$c$$$                     elseif (ntime(n).gt.tave*1.1) then
-c$$$c$$$c$$$                        nrange(n) = nrange(n) - 1
-c$$$c$$$c$$$                     endif
-c$$$c$$$                     nchtot = nchtot + nrange(n)
-c$$$c$$$                     if(nodeid.eq.1)print*,'node,nrange,nchtot,nchtop:',
-c$$$c$$$     >                    n,nrange(n),nchtot,nchtop
-c$$$c$$$                  enddo
-c$$$c$$$c$$$                  if (nodes.gt.2) then
-c$$$c$$$c$$$                     print*,'old nrange(nodes-1):',nrange(nodes-1)
-c$$$c$$$c$$$                     nrange(nodes-1) = nrange(nodes-1)
-c$$$c$$$c$$$     >                    - (nchtot-nchtop) / 2
-c$$$c$$$c$$$                     print*,'new nrange(nodes-1):',nrange(nodes-1)
-c$$$c$$$c$$$                  end if
-c$$$c$$$c$$$                  if (nchtot.lt.nchtop) then
-c$$$c$$$                     do n = 1, nodes - 1
-c$$$c$$$                        nchistop(n) = nchistart(n) + nrange(n) - 1
-c$$$c$$$                        nchistart(n+1) = nchistop(n) + 1
-c$$$c$$$                     enddo
-c$$$c$$$c$$$                  else
-c$$$c$$$c$$$                     tscale(:)=1.0
-c$$$c$$$c$$$                  endif 
-c$$$            else
-c$$$               print*,
-c$$$     >            'CAUTION: nodes<>nodesold',ipar,nodesold(ipar)
-c$$$               inc(:,:) = 0
-c$$$            endif 
-c$$$         endif ! timefile exists
-c$$$         inct = 0
-c$$$         do n = 1, nodes - 1
-c$$$            inct = inct + inc(n,ipar)
-c$$$c$$$                     print"('node,nchistopold:',2i6)",n,nchistop(n)
-c$$$            nchistop(n) = max(nchistop(n)+inct,nchistart(n))
-c$$$            nchistop(n) = min(nchistop(n),nchtop-nodes+n)
-c$$$c$$$                     print"('node,nchistopnew:',2i6)",n,nchistop(n)
-c$$$            if (nchistart(n).gt.nchistop(n))
-c$$$     >         stop 'nchistart > nchistop'
-c$$$            nchistart(n+1) = nchistop(n) + 1
-c$$$         enddo
-
-
 #ifdef _single
 #define nbytes 4
 #elif defined _double
@@ -5561,6 +5311,7 @@ c$$$     >            kii,real(wk(kii+npk(nch)-1))
       end
 C End Added by Ivan
 
+C Take node(ntm) with max time, and see if initial/final channels can be moved to other nodes
       subroutine iteratenodes(ntm,nodes,nchtime,nchtop,torf)
       use vmat_module
       logical torf
@@ -5598,7 +5349,7 @@ C End Added by Ivan
 c$$$         if (nodeid.eq.1) print*,'ntm:',ntm,nodet(ntm)
       else
          torf = .false.
-         if (nodeid.eq.1) print*,'unable to improve:',
+         if (nodeid.eq.1) print"('unable to improve:  ',4i6)",
      >      ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
       endif
       return
