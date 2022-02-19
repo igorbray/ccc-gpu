@@ -45,7 +45,8 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax),itail
-      integer nptopin(0:lamax),lnch(nchan,2),nchtime(nchan)
+      integer nptopin(0:lamax),lnch(nchan,2),nchtime(nchan),
+     >   nchtimeold(nchan)
       common /worksp/
      >   ps2(maxr,ncmax),psen2(ncmax),minps2(ncmax),maxps2(ncmax)
       dimension minps(ncmax),npk(nchan+1),npkb(nchan+1),npkeep(nchan+1),
@@ -67,11 +68,11 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*35
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*46
       character date*8,time*10,zone*5
       integer*8 npernode
-      integer valuesin(8), valuesout(8), inc(1000,0:1), lgold(0:1),
-     >     valuesinLG(8),incold(1000,0:1),nodesold(0:1)
+      integer valuesin(8), valuesout(8), lgold(0:1),
+     >     valuesinLG(8),nodesold(0:1)
       integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
@@ -186,7 +187,8 @@ C     to test ftps1:
 !      integer, parameter :: dp=selected_real_kind(15), dim=512
 !     real(kind=dp), dimension(dim) :: kk, ft1
 
-      character fname*5, fname1*7, enq*16
+      character fname*5, fname1*7, enq*16,chstate(nchan)*3,
+     >   chstateold(nchan)*3
 
 c     test for funleg2
       real*8 x, dx1, qq(5000), QL(5000)
@@ -239,8 +241,6 @@ C==== ANDREY ===================================================
 
       lstoppos = -1
       lptop = -1
-      inc(:,:) = 0
-      incold(:,:) = 0
       lgold(:) = -1
       nodesold(:)=-1
       myid = -1
@@ -1835,7 +1835,8 @@ C     Start the partial wave LG (=J total orbital angular momentum) loop
          nchtope2e = 0
          nchmaxe2e=1
          ne2e0 = 0
-c$$$         if (ne2e.ne.0) then
+
+c$$$  if (ne2e.ne.0) then
 c$$$            nche2e = 1
 c$$$            call getche2e(nche2e,lg,lfast,lslow,lfa,lf)
 c$$$            do while (nche2e.ne.0)
@@ -2322,10 +2323,6 @@ c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,
          print '(/,i4,": nodeid exited first MAKECHIL at: ",a10,
      >   ", diff (secs):",i5)',nodeid,time,
      >   idiff(valuesin,valuesout)
-c$$$         if (nodeid.eq.1) then
-c$$$            write(nodetfile,'(i3,"_",i1,".est")') lg,ipar
-c$$$            open(42,file=nodetfile)
-c$$$         endif
          do nchi = 1, nchtop
             natomps(nchi) = 0
             do nchf = nchi, nchtop
@@ -2337,20 +2334,13 @@ c$$$               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
                if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
-     >              1.15**lnch(nchf,1)*1.15**lnch(nchi,1)*
+     >              1.2**lnch(nchf,1)*1.2**lnch(nchi,1)*
      >              (npk(nchi+1)-npk(nchi))*
      >              (npk(nchf+1)-npk(nchf))/
      >              (npk(2)-npk(1))**2
      >            /1.05**abs(lnch(nchi,2)-lg)/1.05**abs(lnch(nchf,2)-lg)
 c$$$               endif
             enddo
-c$$$            if (nodeid.eq.1) then
-c$$$               write(42,*) nchi,natomps(nchi)
-c$$$               if (nchi.eq.nchtop) then
-c$$$                  close(42)
-c$$$                  stop
-c$$$               endif
-c$$$            endif
          enddo
 c$$$         if (nodeid.eq.1.and.lptop.ge.0) then
 c$$$            ntot = 0
@@ -2372,21 +2362,6 @@ C Determine nchistart and nchistop for each node
             natompstot = natompstot + natomps(nch)
          enddo
          natompspernode = natompstot/nodes
-c$$$         sfactor=1.0            
-c$$$         inquire(file='scale',exist=scaleexists)
-c$$$         if (scaleexists) then
-c$$$            open(42,file='scale')
-c$$$            read(42,*) nn,(inc(n,0),n=1,nn)
-c$$$            close(42)
-c$$$            incsum = 0
-c$$$            do n = 1, nodes - 1
-c$$$               incsum = incsum + inc(n,0)
-c$$$            enddo
-c$$$            inc(nodes,0) = - incsum ! just for output to time file purposes
-c$$$         endif
-c$$$         print"('nodeid, J, sfactor:',i4,i3,f5.2,2i5)",
-c$$$     >      nodeid,lg,sfactor
-c$$$         nchprst = nchprst / ((sfactor-1.0)/nodes+1.0)
          nchprspernode = nchprst / nodes
          nchistart(1) = 1
             ! made nodes.ge.1 below due to inefficiency with many Ps-states
@@ -2465,29 +2440,88 @@ C     Determine which, if any, timing data to read
          lgold(ipar) = lg
          nchtimetot = 0
          exists = .false.
-         do while(.not.exists.and.
-     >      (lgold(ipar).eq.lg.or.lgold(ipar).ge.latop))
+c$$$         do while(.not.exists.and.
+c$$$     >      (lgold(ipar).eq.lg.or.lgold(ipar).ge.latop))
+c$$$            write(nodetfile,'(i3,"_",i1)') lgold(ipar),ipar
+c$$$            inquire(file=nodetfile,exist=exists)
+c$$$            if (exists) then
+c$$$               open(43,file=nodetfile)
+c$$$               read(43,*) nchtopold
+c$$$               if (nchtopold.ne.nchtop) then
+c$$$                  lgold(ipar)=lgold(ipar)-1
+c$$$                  exists = .false.
+c$$$                  close(43)
+c$$$               else
+c$$$ 44               read(43,'(i5,9x,i6)',end=45) nch,nchtime(nch)
+c$$$                  nchtimetot = nchtimetot + nchtime(nch)
+c$$$                  goto 44
+c$$$ 45               close(43)
+c$$$                  if (nch.ne.nchtop) stop 'nch.ne.nchtop'
+c$$$               endif
+c$$$            else
+c$$$               lgold(ipar)=lgold(ipar)-1
+c$$$            endif
+c$$$         enddo
+         do while(.not.exists.and.lgold(ipar).ge.ipar)
             write(nodetfile,'(i3,"_",i1)') lgold(ipar),ipar
             inquire(file=nodetfile,exist=exists)
             if (exists) then
                open(43,file=nodetfile)
                read(43,*) nchtopold
-               if (nchtopold.ne.nchtop) then
-                  lgold(ipar)=lgold(ipar)-1
-                  exists = .false.
-                  close(43)
-               else
- 44               read(43,'(i5,9x,i6)',end=45) nch,nchtime(nch)
-                  nchtimetot = nchtimetot + nchtime(nch)
-                  goto 44
- 45               close(43)
-                  if (nch.ne.nchtop) stop 'nch.ne.nchtop'
-               endif
+ 44            read(43,'(2i5,a4,i6)',end=45) nch,lf,chstateold(nch),
+     >            nchtimeold(nch)
+c$$$               print*,'chstate,nchtimeold:',chstate(nch),nchtimeold(nch)
+c$$$               nchtimetot = nchtimetot + nchtimeold(nch)
+               goto 44
+ 45            close(43)
             else
                lgold(ipar)=lgold(ipar)-1
             endif
          enddo
-         if (exists.and.nchtimetot.gt.nodes*10) then
+         if (exists.and.nchtop.gt.nodes) then
+            do nch = 1, nchtop
+               call getchinfo (nch,nchp,lg,temp,maxpsi,enpsi,la,na,lp)
+               chstate(nch)=chan(nchp)
+            enddo
+            const = float(nchtop)/float(nchtopold)
+            nch = 1
+            inc = 0
+            do while (nch.le.nchtop)
+               do while(chstate(nch).eq.chstateold(nch-inc)
+     >            .and.nch.le.nchtop)
+                  nchtime(nch) = nint(nchtimeold(nch-inc)*const)
+c$$$                print*,'chan,nchtime,chanold,nchtimeold:',chstate(nch),
+c$$$     >             nchtime(nch),chstateold(nch-inc),nchtimeold(nch-inc)
+                  nch = nch + 1
+               enddo
+               if (nch.le.nchtop) then
+                  n = nch
+                  do while (chstate(n).eq.chstate(nch))
+                     call getchnl(chstate(n),nn,ln,nc)
+                     nchtime(n) = nchtime(n) * (1.0+ln/50.0)
+c$$$                     if (nodeid.eq.1) print*,chstate(n),ln
+                     n = n - 1
+                  enddo
+               endif
+c$$$  nchtime(nch-1)=nchtime(nch-1)*1.15
+               inc = inc+1
+            enddo
+
+c$$$            if (nodeid.eq.1) then
+c$$$               write(nodetfile,'(i3,"_",i1,".est")') lg,ipar
+c$$$               open(42,file=nodetfile)
+c$$$               do nch = 1, nchtop
+c$$$                  write(42,*) nch,nchtime(nch),natomps(nch)
+c$$$               enddo
+c$$$               close(42)
+c$$$            endif
+            natomps(1:nchtop)=nchtime(1:nchtop) !for writing to the time files
+            nchtimetot = 0
+            do nch = 1, nchtop
+c$$$               write(42,*) nch, nchtime(nch)
+               nchtimetot = nchtimetot + nchtime(nch)
+            enddo
+
             tave(ipar)=float(nchtimetot)/nodes
             nchistart(1)=1
             nttot = 0

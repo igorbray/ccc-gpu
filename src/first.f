@@ -105,7 +105,8 @@ c$$$      if (npk(2)-npk(1).eq.1) return ! if 1st call
       else
          write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
       endif
-
+      nodetime = 0
+      
       nnt=omp_get_max_threads()
 c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
 
@@ -618,8 +619,9 @@ c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
 c$$$     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
 c$$$     >         chan(nt_t(nchi)),natomps(nchi),
 c$$$     >         idiff(valuesin,valuesout)
-            write(42,'(2i5,a4,i6,i11,i4)') nchi,li,chan(nt_t(nchi)),
-     >         idiff(valuesin,valuesout),natomps(nchi),nodeid
+            nodetime = nodetime + idiff(valuesin,valuesout)
+            write(42,'(2i5,a4,i6,2i11,i4)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout),natomps(nchi),nodetime,nodeid
          endif
       end do
 
