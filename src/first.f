@@ -157,7 +157,7 @@ c$$$      do gpunum=0,ngpus-1
 
 c$$$!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
-!$acc enter data copyin(chil(1:meshr,1:npkstart:npkstop,1))
+!$acc enter data copyin(chil(1:meshr,npkstart:npkstop,1:1))
 !$acc& copyin(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
 
 c$$$       end do

@@ -93,7 +93,7 @@ c$$$      endif
       call acc_set_device_num(gpunum,acc_device_nvidia)
       print*,'MYID associated with GPU:',myid,
      >     acc_get_device_num(acc_device_nvidia) 
-!$acc enter data copyin(chil(1:nr,npkstart:npkstop,1)
+!$acc enter data copyin(chil(1:nr,npkstart:npkstop,1))
 !$acc& copyin(nchm,npk(1:nchm+1),minchil(npkstart:npkstop,1))
 #endif 
  

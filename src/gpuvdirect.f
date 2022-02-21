@@ -55,7 +55,7 @@ c$$$#endif
 c$$$!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
 c$$$!$acc& present(minchil(1:npk(nchtop+1)-1))
 !$acc& present(chil(1:meshr,npkstart:npkstop,1))
-!$acc& present(minchil(npkstart:npkstop,1)
+!$acc& present(minchil(npkstart:npkstop,1))
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
