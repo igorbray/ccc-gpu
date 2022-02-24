@@ -725,7 +725,7 @@ C  This routine reads the input file 'ccc.in'
      >   itail,corep,r0,ninc,linc,ipar,nent,zasym,nunit,ndbl,nps,iborn,
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
-     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid)
+     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid,limit_time)
                                
       use ubb_module, only: ubb_max1
       use ql_module, only: maxql1, maxql2, dqlg, qlgmin, qlgmax
@@ -742,7 +742,7 @@ C  This routine reads the input file 'ccc.in'
      >   r0(0:lamax),npbot(0:lamax),nptop(0:lamax),npsp(0:lamax),
      >   alphap(0:lamax)
       character targets(30)*6,roman(0:30)*10,target*(*),projectile*(*),
-     >   infile*80
+     >   infile*80,runtime*8
       data roman/' -',' I','II','III','IV',' V','VI','VII','VIII','IX',
      >   ' X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX',
      > 'XX','20+','21+','22+','23+','24+','25+','26+','27+','28+','29+'/
@@ -786,6 +786,7 @@ c$$$     >   35009.78,49304.8/
          r0(la) = 1.0
       enddo
 
+      limit_time = 1000000
       inquire(file='ccc.in',exist=exists)
       if (exists) then
          nin = 3
@@ -794,13 +795,30 @@ c$$$     >   35009.78,49304.8/
      >        print*,'ccc.in found'
       else
          num_args = command_argument_count()
-         if (num_args .eq. 1) then
+         if (num_args .le. 2) then
             call get_command_argument(1,infile)
             nin=3
             open(nin,file=infile)
             if (myid.le.0)
      >           print*,'ccc.in not found;will use: '//infile
-         else
+            if (num_args .eq. 2) then
+               call get_command_argument(2,runtime)
+               if (runtime(3:3).ne.':'.or.runtime(6:6).ne.':') then
+                  print*,'required time format: hh:mm:ss; will use:',
+     >               limit_time
+               else
+                  limit_time = 0
+                  i = 1
+                  do n = 1, 3
+                     limit_time = limit_time + 60**(3-n)*
+     >                  (10*(ichar(runtime(i:i))-ichar('0'))
+     >                  +ichar(runtime(i+1:i+1))-ichar('0'))
+                     i = i + 3
+                  enddo
+                  if (myid.le.0) print*,'time limit:',limit_time,runtime
+               endif
+            endif
+         else 
             nin = 5
             if (myid.le.0)
      >           print*,'ccc.in not found;will use standard input'

@@ -308,7 +308,7 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end do
       nchpmax = nchp
       if (np(1).eq.0) then
-         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
+c$$$         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
          call reorderstates(states,nchpmax,lptop.ge.0)
       endif 
       else ! not first_time
@@ -1849,13 +1849,13 @@ c$$$               endif
                   call getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstop = stopk
                   sk(j) = stopk
-                  print*,'stopk:',stopk,(stopk-rk)/(rk-startk)
+c$$$                  print*,'stopk:',stopk,(stopk-rk)/(rk-startk)
                else 
                   dk = startk/nt/10
                   call getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstart = startk
                   sk(j-1) = startk
-                  print*,'startk:',startk,(stopk-rk)/(rk-startk)
+c$$$                  print*,'startk:',startk,(stopk-rk)/(rk-startk)
                endif
             endif
          enddo 

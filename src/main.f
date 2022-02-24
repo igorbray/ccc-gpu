@@ -14,6 +14,7 @@ c$$$      use chil_module
       use ftps_module
       use gf_module
       use chil_module
+C      use date_time_module can't do this as time gets overwritten
 c MPI Fortran header file
       include 'mpif.h'
       include 'par.f'
@@ -71,8 +72,8 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
      >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*46
       character date*8,time*10,zone*5
       integer*8 npernode
-      integer valuesin(8), valuesout(8), lgold(0:1),
-     >     valuesinLG(8),nodesold(0:1)
+      integer valuesin(8), valuesout(8), 
+     >     valuesinLG(8),nodesold(0:1), lgold(0:1)
       integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
@@ -208,7 +209,7 @@ c     test for funleg2
       real (kind = qp) :: QLvd, QLpp, part1, part2, part3 
 
 c     defining to allow gcc build
-      character chin*1
+      character chin*1, stime*3
 
 c      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
 c      integer, allocatable :: nchistart(:), nchistop(:)
@@ -246,12 +247,6 @@ C==== ANDREY ===================================================
       myid = -1
       ntasks = 1
       nbnd0(:) = 0
-#ifdef _CRAYFTN
-      call pxfgetenv('OMP_STACKSIZE',0,stacksize,0,ierr)
-      print*, 'OMP_STACKSIZE:',stacksize
-#else
-c      print*, 'KMP_STACKSIZE:',kmp_get_stacksize_s()
-#endif
 #ifdef _single
 #define nbytes 4
 #define MY_MPI_REAL MPI_REAL
@@ -267,6 +262,15 @@ c note: make these your first (or nearly so) executable statements
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, ntasks, ierr )
+#ifdef _CRAYFTN
+      call pxfgetenv('OMP_STACKSIZE',0,stacksize,0,ierr)
+      print*, 'OMP_STACKSIZE:',stacksize
+#else
+c      print*, 'KMP_STACKSIZE:',kmp_get_stacksize_s()
+      CALL GET_ENVIRONMENT_VARIABLE('SLURM_TACC_RUNLIMIT_MINS',stime)
+c$$$      limit_time=limittime(stime)
+      if (myid.le.0) print*,'slurm time limit:',stime!,limit_time
+#endif
       nomporig = max(1,OMP_GET_MAX_THREADS())
       nomp = 1 ! nomporig ! revert for many tasks per node, see same comment below and in redistribute.f
 c$$$      print*,'NUM_PROCESSES_PER_NODE:',NUM_PROCESSES_PER_NODE()
@@ -341,7 +345,7 @@ C
      >   itail,corep,r0,ninc,linc,npar,nent,zasym,nunit,ndbl,nps,iborn,
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
-     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid)
+     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid,limit_time)
       cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
       write(ench,'(1p,"_",e10.4)') energy
       if (nodes.eq.1) cnode = ''
@@ -2498,7 +2502,7 @@ c$$$     >             nchtime(nch),chstateold(nch-inc),nchtimeold(nch-inc)
                   n = nch
                   do while (chstate(n).eq.chstate(nch))
                      call getchnl(chstate(n),nn,ln,nc)
-                     nchtime(n) = nchtime(n) * (1.0+ln/50.0)
+                     nchtime(n) = nchtime(n) * (1.0+ln/100.0)
 c$$$                     if (nodeid.eq.1) print*,chstate(n),ln
                      n = n - 1
                   enddo
@@ -2568,10 +2572,17 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
             enddo
             n= nodes
             neff = nint(100.0*nchtimetot/nodet(ntm)/nodes)
-            if (myid.le.0) print"(
+            if (myid.le.0) then
+               print"(
      >         'LG,IPAR,n,nchistart,nchistop,nodet:',6i6,
      >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
      >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff 
+               print"('nodet(ntm),limit_time:',2i6,i4,'%')",
+     >            nodet(ntm),limit_time,nodet(ntm)*100/limit_time
+            endif
+            if (nodet(ntm)*1.1.gt.limit_time) 
+     >         print"('WARNING: nodet(ntm)/limit_time:',i4,'%')",
+     >         nodet(ntm)*100/limit_time
          else
             LGold(ipar) = -1
          endif
@@ -2885,7 +2896,7 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
      >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
          end if 
          call date_and_time(date,time,zone,valuesout)
-cDIR$ SUPPRESS
+c$$$cDIR$ SUPPRESS
          print '(/,i4,": nodeid exiting  VMAT routines at: ",a10,
      >      ", J=",i3,", nchprs:",i7,", diff (secs):",i5)',nodeid,time,
      >      lg,nchprs(nchistart(nodeid),nchistop(nodeid),nchtop),
@@ -2896,7 +2907,8 @@ cDIR$ SUPPRESS
                vdon(:,:,ns)= 0.0
                do nchi = 1, nchtop
                   call MPI_Reduce(vdondum(1,nchi,ns),vdon(1,nchi,ns),
-     >               nchtop,MY_MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+     >               nchtop,MY_MPI_REAL,
+     >               MPI_SUM,0,MPI_COMM_WORLD,ierr)
                enddo
             enddo
          endif
@@ -3091,8 +3103,7 @@ c$$$            enddo
          if (allocated(vmat0)) deallocate(vmat0)
          if (allocated(vmat1)) deallocate(vmat1)
 
-         nntime(:) = 0
-! The following is causing problems on Frontera
+         nntime(1:nodes) = 0
          CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER, 
      >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
@@ -3108,6 +3119,7 @@ C   Solve Ax=b inside the main routine; below will be replaced with scalapack
             enddo
             neff = 0
             if (ntmax.gt.0) neff = 100.0*timetot/nodes/ntmax
+            print*,'Actual efficiency:',neff,'%'
             do n=1,nodes-1
                naps = 0
                do nch = nchistart(n), nchistop(n)
@@ -5385,6 +5397,22 @@ c$$$         if (nodeid.eq.1) print*,'ntm:',ntm,nodet(ntm)
          torf = .false.
          if (nodeid.eq.1) print"('unable to improve:  ',4i6)",
      >      ntm,nchistart(ntm),nchistop(ntm),nodet(ntm)
+      endif
+      return
+      end
+
+      function limittime(stime)
+      character stime*3
+      ntime = 1000000
+      if (stime(2:2).eq.' ') then
+         limittime = ichar(stime(1:1))-ichar('0')
+      else if (stime(3:3).eq.' ') then
+         limittime = 10*(ichar(stime(1:1))-ichar('0'))
+     >      +ichar(stime(2:2))-ichar('0')
+      else
+         limittime = 100*(ichar(stime(1:1))-ichar('0'))
+     >      +10*(ichar(stime(2:2))-ichar('0'))
+     >      +ichar(stime(3:3))-ichar('0')
       endif
       return
       end
