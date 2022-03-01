@@ -2579,10 +2579,10 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
      >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff 
                print"('nodet(ntm),limit_time:',2i6,i4,'%')",
      >            nodet(ntm),limit_time,nodet(ntm)*100/limit_time
-            endif
-            if (nodet(ntm)*1.1.gt.limit_time) 
-     >         print"('WARNING: nodet(ntm)/limit_time:',i4,'%')",
-     >         nodet(ntm)*100/limit_time
+               if (nodet(ntm)*1.1.gt.limit_time) 
+     >            print"('WARNING: nodet(ntm)/limit_time:',i4,'%')",
+     >            nodet(ntm)*100/limit_time
+            endif               
          else
             LGold(ipar) = -1
          endif
