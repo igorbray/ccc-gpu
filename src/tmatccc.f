@@ -82,6 +82,15 @@ C     End added by Alex
 
       inquire (file='sprint',exist=sprint)
       inquire (file='lprint',exist=lprint)
+      if (lprint) then
+         open(42,file='lprint')
+         read(42,*,err=10) nistart,nistop,nfstart,nfstop
+         close(42)
+         goto 20
+ 10      continue
+         stop 'specfy start/stop values in lprint'
+ 20      continue
+      endif
       r = float((-1)**ns * min(1,iex))
       nd = npk(nchtop+1) - 1
       if (nd .ne. ichi) STOP 'ND .NE. ICHI in GETTMAT'
@@ -824,9 +833,12 @@ c$$$     >         cubint(x1,y1,x2,y2,x3,y3,x4,y4,gk(1,nchf)),y3,y4
 C$OMP END PARALLEL DO
 
          if (lprint.and.nchf.le.74) then !74 corresponds to z
+            if (nchf.lt.nfstart.or.nchf.gt.nfstop) cycle
             do nchi = 1, min(nchtop,74) !nchf
+               if (nchi.lt.nistart.or.nchi.gt.nistop) cycle
 C               write(lfile,'"lplot.",2i2) nchf,nchi
-               open(52,file="lplot."//ch(nchf)//ch(nchi)//ch(ns))
+               open(52,file="lplot."//ch(nchf)//ch(nchi)//'_'//ch(lg)
+     >            //ch(ns)//ch(ipar))
             divk = gk(1,nchi) * gk(1,nchf)
             if (divk.eq.0.0) divk = 1.0
 c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),
