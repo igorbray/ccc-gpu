@@ -240,22 +240,23 @@ C  restore ipar to zero
       ipar = 0
       xerr = 0.1
       yerr = 0.0
-      print*
-      if (cnode.eq.'') then
-         open(42,file='cfile')
-         open(43,file='cfile1')
-         open(44,file='dfile')
-         open(45,file='dfile1')
-      else
+c$$$      print*
+c$$$      if (cnode.eq.'') then
+c$$$         open(42,file='cfile')
+c$$$         open(43,file='cfile1')
+c$$$         open(44,file='dfile')
+c$$$         open(45,file='dfile1')
+c$$$      else
+      if (jstart.eq.0) then
          open(42,file=cnode//'cfile'//ench)
          open(43,file=cnode//'cfile1'//ench)
          open(44,file=cnode//'dfile'//ench)
          open(45,file=cnode//'dfile1'//ench)
-      endif 
-      do ip = 0, 1
-         do nt = 1, nttop(ip)
-            do np = 1, npt(nt,ip)
-               if (enf(np,nt,ip).gt.0.0) then
+c$$$      endif 
+         do ip = 0, 1
+            do nt = 1, nttop(ip)
+               do np = 1, npt(nt,ip)
+                  if (enf(np,nt,ip).gt.0.0) then
 c$$$                  if (np.le.npt(nt,ip)-2) then
 c$$$                     check = (enf(np,nt,ip)*4.0-enf(np+1,nt,ip)-
 c$$$     >                  enf(np+2,nt,ip))/enf(np,nt,ip)
@@ -265,30 +266,31 @@ c$$$     >                  enf(np,nt,ip)
 c$$$                  else
 c$$$                     check = 0.0
 c$$$                  endif 
-                  if (np.gt.1) then
+                     if (np.gt.1) then
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  (enf(np-1,nt,ip)+enf(np,nt,ip))/2.0*ry,
      >                  enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
-                  else
+                     else
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  enf(np,nt,ip)/2.0*ry,enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
+                     endif 
+                  else
+                     write(44+ip,'(i2,1p,100e13.5)')
+     >                  nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
                   endif 
-               else
-                  write(44+ip,'(i2,1p,100e13.5)')
-     >               nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
-               endif 
+               enddo
             enddo
-         enddo
-      enddo 
-      print*,'efiles written to disk'
-      close(42)
-      close(43)
-      close(44)
-      close(45)
+         enddo 
+         print*,'efiles written to disk'
+         close(42)
+         close(43)
+         close(44)
+         close(45)
+      endif !jstart=0
       ip = 0
       
       nsp = nsmax + 1

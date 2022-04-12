@@ -1672,19 +1672,21 @@ cCCC      print*,'Number of tail integral calculations:',it
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common/smallr/ formcut,regcut,expcut,fast
-      logical fast,hlike,usetrapz,uba(nchan),positron,pos
+      logical fast,hlike,usetrapz,uba(nchan),positron,pos,lprint
       common/cont/ ce(ncmax),cint(ncmax),ncstates,energy
       character chan(knm)*3
       common /charchan/ chan
       common /chanen/ enchan(knm)
 
-      data lprint,pi,ucentr/0,3.1415927,maxr*0.0/
+      data ucentr/maxr*0.0/
 
 C     Added by alex
 c$$$      logical analytic
 
 c$$$      analytic = lg.le.(-nqm-2) !Use NQM in ccc.in as a switch.
       nanalytic = nqm
+      pi = atan(1.0)*4.0
+
 c$$$      nbox = 1
 
 c$$$      inquire(FILE="analytic",EXIST=analytic)  
@@ -1699,10 +1701,8 @@ C     End added by Alex
 C  NBAD stores the number of channels |phi(n)> such that
 C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
       nbad = 0
-      if (lprint.eq.0.and.nodeid.eq.1) lprint = max(latop,lg)
-      
-      if (lg.le.lprint) print '(''Kgrid quadrature set'',2i3)',
-     >   lg,lprint
+      lprint = nodeid.eq.1.and.lg.le.latop
+      if (lprint) print '(''Kgrid quadrature set'')'
       nch = 1
       npk(nch) = 1
       call getchinfo (nch, ntmp, lg, psi, maxpsi, ea, la, na, li)
@@ -1783,7 +1783,7 @@ c$$$            wfixed(i) = real(ww(i))
 c$$$         enddo
 c$$$      end if
       
-      if (lg.le.1)
+      if (lprint)
      >   print '(''interval   points    start       stop          '//
      >   'test'')'
       enk = endk
@@ -1995,7 +1995,7 @@ c$$$            endif
                endif 
             end do
             tmpold = tmp
-            if (lg.le.lprint) then
+            if (lprint) then
                if (dstart.lt.rk.and.rk.lt.dstop) then
                   print '(i5,i10,f12.6,'' *'',f10.6,f13.5)', j,nk(j),
      >               dstart, dstop, sumi - sumip
@@ -2052,7 +2052,7 @@ c$$$     >      nold.eq.-2) then
 c$$$            enk = min(endkt + 0.2, 6.0)
 c$$$            go to 30
 c$$$         endif
-         if (lg.le.lprint) then
+         if (lprint) then
             print '(i5,i10,f12.6,''       oo'',f16.5)', mint,nk(mint),
      >         dstopp, sumi - sumip
             print'(''fall off power:'',f5.1,23x,''= '',f7.5)',sk(mint),
@@ -2099,7 +2099,7 @@ C  Check that the integration rule will handle the principle value singularity
          else
             sum = 0.0
          endif 
-         if (lg.le.lprint)
+         if (lprint)
      >      print '(''State, NCH, NST, NA, LA, L, K, EA:'',a4,2i4,
      >      3i3,1p,2e13.4)',chan(ntmp),nch,ntmp,na,la,li,rk,ea
       else
@@ -2111,7 +2111,7 @@ C  Check that the integration rule will handle the principle value singularity
             print*,'Test of closed channel integral:',- 2.0 / sqrt(-e)*
      >         atan(sk(2)/sqrt(-e)) / sum, sum
          endif 
-         if (lg.le.lprint)
+         if (lprint)
      >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,2i4,3i3,
      >      1p,e13.4,''    closed'')',chan(ntmp),nch,ntmp,na,la,li,e
       end if 
@@ -2204,7 +2204,7 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
                wk(kp) = (0.0,0.0)
             end if 
             if (analytic) wk(kp)=cmplx(0.0,imag(wk(kp))) !needed for PHOTO (0.0,0.0)
-            if (lg.le.lprint) print*,'On-shell weight:',wk(kp)
+            if (lprint) print*,'On-shell weight:',wk(kp)
             if (abs(real(wk(kp))).gt.1e-2) then
                error stop 'Real part of on shell weight must be < 1e-2'
             endif 
@@ -2212,7 +2212,7 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
             gk(i,nch) = gridk(i-1)
             ek = gridk(i-1) * gridk(i-1)
 C     The T(kf,ki) matrix has been divided by KF and KI
-            if (abs(rk-gridk(i-1)).gt.1e-4) then
+            if (abs(rk-gridk(i-1)).gt.1e-5) then
                wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! * posfac
             else
                wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
@@ -2252,7 +2252,7 @@ c$$$         endif
          sum = 0.0
       endif 
 
-      if (lg.le.lprint) print*
+      if (lprint) print*
       nchtop = nch
       if (nqm.gt.0) nqk = min(nqk,nqm-1)
       nqk = nqk + nbnd(lset) ! bound state wk are set in MAKECHIL
@@ -2273,7 +2273,7 @@ c$$$      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
       end if 
       if (nch.ne.0) go to 10
       
-      if (lg.le.lprint.and.nodes.eq.1) print*,'NBAD:', nbad
+      if (lprint) print*,'NBAD:', nbad
       return
       end
 c-----------------------------------------------------------------

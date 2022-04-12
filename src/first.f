@@ -5,7 +5,7 @@
      >   vmatp,nsmax,
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid,natomps,lnch)
+     >   vni,vnf,vnd,nodes,natomps,lnch)
 #ifdef GPU
       use openacc
 #endif
@@ -37,7 +37,8 @@ c$$$      dimension chil(meshr,npk(nchtop+1)-1,1),minchil(npk(nchtop+1)-1,1)
      >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3, nodetfile*9
+      character chan(knm)*3, nodetfile*20,ench*11,cnode*3
+      common /MPI_info/myid, ntasks, cnode, ench
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -98,15 +99,17 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 c$$$      if (npk(2)-npk(1).eq.1) return ! if 1st call
       ni=0
       nf=0
-      if (lg.lt.10) then
-         write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,lg,ipar
-      elseif (lg.lt.100) then
-         write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,lg,ipar
-      else
-         write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
-      endif
+c$$$      if (lg.lt.10) then
+c$$$         write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,lg,ipar
+c$$$      elseif (lg.lt.100) then
+c$$$         write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,lg,ipar
+c$$$      else
+c$$$         write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
+c$$$      endif
+      write(nodetfile,'(i3,"_",i1,a11,"_",i3.3)') lg,ipar,ench,nodeid
+      nodetfile=adjustl(nodetfile)
+
       nodetime = 0
-      
       nnt=omp_get_max_threads()
 c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
 

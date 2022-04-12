@@ -2404,7 +2404,8 @@ C  This is for very large incident energies
       common /chanen/ enchan(knm)
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
-      save ext,oldpjp
+      integer lgold(0:1)
+      save ext,oldpjp,oldpj,lgold
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       
       data pi,ry,chunit/3.1415927,13.6058,
@@ -2544,7 +2545,30 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
+c$$$            if (nchip.eq.2.and.nchp.eq.2) print*,lg,ipar,
+c$$$     >         oldpjp(nchp,nchip,ipar),partcs(nchp,nchip,0)
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
+            if (lgold(ipar).eq.lg-1.and.lg.gt.10
+     >         .and.chan(nchip)(1:1).eq.'p' !ne.chan(nchp)(1:1)
+     >         ) then
+               if (oldpjp(nchp,nchip,ipar).ne.0.0) then
+                  if (partcsT/oldpjp(nchp,nchip,ipar).gt.5.0) then
+c$$$                     if (nchip.eq.2) print*,lg,ipar,nchp,
+c$$$     >                  oldpjp(nchp,nchip,ipar),partcsT,
+c$$$     >                  partcsT/oldpjp(nchp,nchip,ipar)
+                     partcsT = oldpjp(nchp,nchip,ipar) *0.9
+                     sigtop(nchip,0:nsmax) = sigtop(nchip,0:nsmax) -
+     >                  partcs(nchp,nchip,0:nsmax) + partcsT
+                     partcs(nchp,nchip,0:nsmax) = partcsT
+                  endif
+               else 
+c$$$                  if (nchip.eq.2) print*,lg,ipar,nchp
+                  sigtop(nchip,0:nsmax) = sigtop(nchip,0:nsmax) -
+     >               partcs(nchp,nchip,0:nsmax)
+                  partcs(nchp,nchip,0:nsmax) = 0.0
+                  partcsT = 0.0
+               endif
+            endif
             if (BornICS(nchp,nchip).ne.0.0) then
                extra = BornICS(nchp,nchip) -
      >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
@@ -3012,9 +3036,12 @@ c$$$     >                 (partcs(nchp,nchip,0)+partcs(nchp,nchip,1))*unit,
 c$$$     >                 oldpjp(nchp,nchip,ipar)
 c$$$               endif
 C below ensures correct extrapolation for each parity
-               oldpjp(nchp,nchip,modulo(ipar+1,2)) = 
-     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
+c$$$               oldpjp(nchp,nchip,modulo(ipar+1,2)) = 
+c$$$     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             endif
+            oldpjp(nchp,nchip,ipar) = 
+     >         partcs(nchp,nchip,0)+partcs(nchp,nchip,1)
+            lgold(ipar) = lg
             extrapcs = summedcs + extrapcs
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))

@@ -69,7 +69,7 @@ c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
       common /dynamical_C/ nmaxhe, namax,pnewC
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       character opcl*10, e2efile(ncmax)*60,target*6,projectile*8,
-     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*9,string*46
+     >   tfile*80,csfile*80,ench*11,ch*1,nodetfile*20,string*46
       character date*8,time*10,zone*5
       integer*8 npernode
       integer valuesin(8), valuesout(8), 
@@ -346,9 +346,10 @@ C
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
      >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid,limit_time)
-      cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
+c$$$      cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
+c$$$      if (nodes.eq.1) 
+      cnode = ''
       write(ench,'(1p,"_",e10.4)') energy
-      if (nodes.eq.1) cnode = ''
       if (myid.le.0) print*, 'nomp, nodes:',
      >   nomporig,nodes!,myid,nodeid
 
@@ -1189,27 +1190,29 @@ C  Define positronium states
      >            npsp(lp)-lp, ps2, psen2, minps2, maxps2,rmesh,uplane,
      >            maxupl, meshr,cknd(1,nstart+1,lp))
                if (alphap(lp).lt.0.0.and.etot.gt.0.0) then
+                  pmid = etot
                   n = npsp(lp)-lp
-                  do while (psen2(n).gt.etot)
+                  do while (psen2(n).gt.pmid)
                      n = n - 1
                   enddo
-                  if (abs((psen2(n)+psen2(n+1))/2.0-etot).gt.
-     >               abs((psen2(n-1)+psen2(n))/2.0-etot)) n = n - 1
-                  test = (psen2(n)+psen2(n+1))/2.0 - etot
-                  if (myid.le.0) print*,test,psen2(n),etot,psen2(n+1)
+                  if (abs((psen2(n)+psen2(n+1))/2.0-pmid).gt.
+     >               abs((psen2(n-1)+psen2(n))/2.0-pmid)) n = n - 1
+                  test = (psen2(n)+psen2(n+1))/2.0 - pmid
+                  if (myid.le.0)print*,test,psen2(n),pmid,psen2(n+1)
                   alphanew = - alphap(lp)
                   iter = 1
                   do while (abs(test).gt.1e-4.and.iter.lt.100)
                      iter = iter + 1
-                     alphanew = alphanew - test/etot/100.0
+                     alphanew = alphanew - test/pmid/100.0
                      if (myid.le.0) print*,'New alpha:',alphanew
                      ps2(:,:) = 0.0
                      psen2(:) = 0.0
                      call makeps(0.5, .true., alphanew, lp, expcut,
      >                  npsp(lp)-lp, ps2, psen2, minps2, maxps2, rmesh, 
      >                  uplane,maxupl, meshr,cknd(1,nstart+1,lp))
-                     test = (psen2(n)+psen2(n+1))/2.0 - etot
-                     if (myid.le.0) print*,test,psen2(n),etot,psen2(n+1)
+                     test = (psen2(n)+psen2(n+1))/2.0 - pmid
+                     if (myid.le.0) print*,test,psen2(n),pmid,
+     >                  psen2(n+1)
                   enddo
                   if (iter.ge.100) stop '100 iterations failed'
                   rlambda(2,lp) = alphanew * 2.0
@@ -1825,15 +1828,16 @@ c$$$     >   idiff(valuesin,valuesout)
       call mpi_bcast(iparmin, 1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
       call mpi_bcast(npar,    1,MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
 
+      ntimeLG_IPARtot = 0
 C     Start the partial wave LG (=J total orbital angular momentum) loop
       do 770 lg = mylstart, mylstop
-         if (myid.le.0) then
-            call date_and_time(date,time,zone,valuesinLG)
-            print '("Partial wave LG:",i4," started at:",a10)',
-     >           LG,time
-         endif
          do ipar = iparmin, min(abs(npar),lg)
             if (lg.eq.mylstart.and.ipar.lt.ipstart) cycle !allow restart for ip=1
+            if (myid.le.0) then
+               call date_and_time(date,time,zone,valuesinLG)
+               print '("Partial wave LG:",i4," started at:",a10)',
+     >            LG,time
+            endif
             if (mod(myid,nomp).eq.0) then
                nodeid = myid/nomp + 1
          nchtope2e = 0
@@ -2467,7 +2471,8 @@ c$$$               lgold(ipar)=lgold(ipar)-1
 c$$$            endif
 c$$$         enddo
          do while(.not.exists.and.lgold(ipar).ge.ipar)
-            write(nodetfile,'(i3,"_",i1)') lgold(ipar),ipar
+            write(nodetfile,'(i3,"_",i1,a11)') lgold(ipar),ipar,ench
+            nodetfile = adjustl(nodetfile)
             inquire(file=nodetfile,exist=exists)
             if (exists) then
                open(43,file=nodetfile)
@@ -2482,6 +2487,7 @@ c$$$               nchtimetot = nchtimetot + nchtimeold(nch)
                lgold(ipar)=lgold(ipar)-1
             endif
          enddo
+         if (lg.eq.lgold(ipar).and.nchtop.ne.nchtopold) exists = .false.
          if (exists.and.nchtop.gt.nodes) then
             do nch = 1, nchtop
                call getchinfo (nch,nchp,lg,temp,maxpsi,enpsi,la,na,lp)
@@ -2509,6 +2515,7 @@ c$$$                     if (nodeid.eq.1) print*,chstate(n),ln
                endif
 c$$$  nchtime(nch-1)=nchtime(nch-1)*1.15
                inc = inc+1
+               if (nch-inc.lt.1) stop 'delete J_ipar file'
             enddo
 
 c$$$            if (nodeid.eq.1) then
@@ -2573,15 +2580,16 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
             n= nodes
             neff = nint(100.0*nchtimetot/nodet(ntm)/nodes)
             if (myid.le.0) then
+               limitt = limit_time-ntimeLG_IPARtot
                print"(
      >         'LG,IPAR,n,nchistart,nchistop,nodet:',6i6,
      >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
      >         nchistart(n),nchistop(n),nodet(n),LGold(ipar),neff 
                print"('nodet(ntm),limit_time:',2i6,i4,'%')",
-     >            nodet(ntm),limit_time,nodet(ntm)*100/limit_time
-               if (nodet(ntm)*1.1.gt.limit_time) 
+     >            nodet(ntm),limitt,nodet(ntm)*100/limitt
+               if (nodet(ntm)*1.1.gt.limitt) 
      >            print"('WARNING: nodet(ntm)/limit_time:',i4,'%')",
-     >            nodet(ntm)*100/limit_time
+     >            nodet(ntm)*100/limitt
             endif               
          else
             LGold(ipar) = -1
@@ -2700,7 +2708,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >            lslow,slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,
      >            ephasee2e,ne2e1,nchmaxe2e1,vmatp,nsmax,
      >            nchistart,nchistop,nodeid,scalapack,
-     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
+     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,natomps,lnch)
             else
                call scattering(myid,0,theta,nold,etot,lg,gk,enionry,
      >            npkb,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
@@ -2879,7 +2887,7 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
      >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
      >         nchmaxe2e,vmatp,nsmax,
      >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,myid,natomps,lnch)
+     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,natomps,lnch)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'
@@ -2962,17 +2970,23 @@ c$$$            call sleepy_barrier(MPI_COMM_WORLD)
             endif
 C Concatenate the individual node timings into one file lg_ipar
             if (myid.eq.0.and.hlike) then
-               write(nodetfile,'(i3,"_",i1)') lg,ipar
-               open(43,file=nodetfile)
+               write(nodetfile,'(i3,"_",i1,a11)') lg,ipar,ench
+               open(43,file=adjustl(nodetfile))
                write(43,*) nchtop
                do node = 1, nodes
-                  if (lg.lt.10) then
-                     write(nodetfile,'(i3,"_",i1,"_",i1)') node,lg,ipar
-                  elseif (lg.lt.100) then
-                     write(nodetfile,'(i3,"_",i2,"_",i1)') node,lg,ipar
-                  else
-                     write(nodetfile,'(i3,"_",i3,"_",i1)') node,lg,ipar
-                  endif
+c$$$                  if (lg.lt.10) then
+c$$$                     write(nodetfile,'(i3,"_",i1,"_",i1,a11)') node,lg,
+c$$$     >                  ipar,ench
+c$$$                  elseif (lg.lt.100) then
+c$$$                     write(nodetfile,'(i3,"_",i2,"_",i1,a11)') node,lg,
+c$$$     >                  ipar,ench
+c$$$                  else
+c$$$                     write(nodetfile,'(i3,"_",i3,"_",i1,a11)') node,lg,
+c$$$     >                  ipar,ench
+c$$$                  endif
+                  write(nodetfile,'(i3,"_",i1,a11,"_",i3.3)') lg,ipar,
+     >               ench,node
+                  nodetfile=adjustl(nodetfile)
                   open(42,file=nodetfile,status='old')
  42               read(42,'(a)',end=43) string
                   write(43,'(a)') string
@@ -3103,11 +3117,14 @@ c$$$            enddo
          if (allocated(vmat0)) deallocate(vmat0)
          if (allocated(vmat1)) deallocate(vmat1)
 
-         nntime(1:nodes) = 0
-         CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER, 
-     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+C bring each node (process) time to nntime(nodes) in root=0
+         call MPI_GATHER(ntime(nodeid,ipar),1,MPI_INTEGER,nntime,1,
+     >      MPI_INTEGER,0,MPI_COMM_WORLD,ierr)
+c$$$
+c$$$         nntime(1:nodes) = 0
+c$$$         CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER, 
+c$$$     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
-C   Solve Ax=b inside the main routine; below will be replaced with scalapack
          if (myid.le.0) then
             call date_and_time(date,time,zone,valuesout)
             open(42,file='time'//ench,position='append')
@@ -3387,16 +3404,17 @@ c$$$         call sleepy_barrier(MPI_COMM_WORLD)! On Magnus this fails
 c$$$      if (nodes.gt.1) call sleepy_barrier(MPI_COMM_WORLD)
 
 c$$$      call sleepy_barrier(MPI_COMM_WORLD) ! This works perfectly on Magnus
-
-      enddo                     !end of ipar loop
-c$$$         if (canstop(0).and.canstop(abs(npar)).and.ntype.ge.0.and.
-c$$$     >      ntasks.eq.-1) go to 780
       if (myid.le.0) then
          call date_and_time(date,time,zone,valuesout)
-         print '(/,"Partial wave LG: ",i4," completed at: ",a10,
-     >   ", diff (secs):",i5)',lg,time,
-     >        idiff(valuesinLG,valuesout)
+         ntimeLG_IPAR = idiff(valuesinLG,valuesout)
+         ntimeLG_IPARtot = ntimeLG_IPARtot + ntimeLG_IPAR
+         print '("Partial wave LG: ",i4," IPAR:",i2," completed at: ",
+     >   a10,", diff (secs):",i5)',lg,ipar,time,
+     >      ntimeLG_IPAR
       endif
+      enddo  !end of ipar loop
+c$$$         if (canstop(0).and.canstop(abs(npar)).and.ntype.ge.0.and.
+c$$$     >      ntasks.eq.-1) go to 780
       call MPI_Barrier(  MPI_COMM_WORLD, ierr)
  770  continue ! LG loop      
           
