@@ -2445,37 +2445,16 @@ c$$$               enddo
          endif 
 
 C     Determine which, if any, timing data to read
+         call MPI_Barrier(  MPI_COMM_WORLD, ierr)
          lgold(ipar) = lg
          nchtimetot = 0
-         exists = .false.
-c$$$         do while(.not.exists.and.
-c$$$     >      (lgold(ipar).eq.lg.or.lgold(ipar).ge.latop))
-c$$$            write(nodetfile,'(i3,"_",i1)') lgold(ipar),ipar
-c$$$            inquire(file=nodetfile,exist=exists)
-c$$$            if (exists) then
-c$$$               open(43,file=nodetfile)
-c$$$               read(43,*) nchtopold
-c$$$               if (nchtopold.ne.nchtop) then
-c$$$                  lgold(ipar)=lgold(ipar)-1
-c$$$                  exists = .false.
-c$$$                  close(43)
-c$$$               else
-c$$$ 44               read(43,'(i5,9x,i6)',end=45) nch,nchtime(nch)
-c$$$                  nchtimetot = nchtimetot + nchtime(nch)
-c$$$                  goto 44
-c$$$ 45               close(43)
-c$$$                  if (nch.ne.nchtop) stop 'nch.ne.nchtop'
-c$$$               endif
-c$$$            else
-c$$$               lgold(ipar)=lgold(ipar)-1
-c$$$            endif
-c$$$         enddo
+ 41      exists = .false.
          do while(.not.exists.and.lgold(ipar).ge.ipar)
             write(nodetfile,'(i3,"_",i1,a11)') lgold(ipar),ipar,ench
             nodetfile = adjustl(nodetfile)
             inquire(file=nodetfile,exist=exists)
             if (exists) then
-               open(43,file=nodetfile)
+               open(43,file=nodetfile,action='read')
                read(43,*) nchtopold
  44            read(43,'(2i5,a4,i6)',end=45) nch,lf,chstateold(nch),
      >            nchtimeold(nch)
@@ -2489,6 +2468,7 @@ c$$$               nchtimetot = nchtimetot + nchtimeold(nch)
          enddo
          if (lg.eq.lgold(ipar).and.nchtop.ne.nchtopold) exists = .false.
          if (exists.and.nchtop.gt.nodes) then
+            if (nodeid.eq.1) print*,'Using:',nodetfile,nchtopold,nchtop
             do nch = 1, nchtop
                call getchinfo (nch,nchp,lg,temp,maxpsi,enpsi,la,na,lp)
                chstate(nch)=chan(nchp)
@@ -2515,7 +2495,12 @@ c$$$                     if (nodeid.eq.1) print*,chstate(n),ln
                endif
 c$$$  nchtime(nch-1)=nchtime(nch-1)*1.15
                inc = inc+1
-               if (nch-inc.lt.1) stop 'delete J_ipar file'
+               if (nch-inc.lt.1) then
+! Occasionally, a line is missing or some other problem, and we start again.
+                  if (nodeid.eq.1) print*,'changing nodetfile:'
+                  lgold(ipar)=lgold(ipar)-1
+                  goto 41
+               endif
             enddo
 
 c$$$            if (nodeid.eq.1) then
@@ -2974,16 +2959,6 @@ C Concatenate the individual node timings into one file lg_ipar
                open(43,file=adjustl(nodetfile))
                write(43,*) nchtop
                do node = 1, nodes
-c$$$                  if (lg.lt.10) then
-c$$$                     write(nodetfile,'(i3,"_",i1,"_",i1,a11)') node,lg,
-c$$$     >                  ipar,ench
-c$$$                  elseif (lg.lt.100) then
-c$$$                     write(nodetfile,'(i3,"_",i2,"_",i1,a11)') node,lg,
-c$$$     >                  ipar,ench
-c$$$                  else
-c$$$                     write(nodetfile,'(i3,"_",i3,"_",i1,a11)') node,lg,
-c$$$     >                  ipar,ench
-c$$$                  endif
                   write(nodetfile,'(i3,"_",i1,a11,"_",i3.3)') lg,ipar,
      >               ench,node
                   nodetfile=adjustl(nodetfile)
@@ -3412,10 +3387,10 @@ c$$$      call sleepy_barrier(MPI_COMM_WORLD) ! This works perfectly on Magnus
      >   a10,", diff (secs):",i5)',lg,ipar,time,
      >      ntimeLG_IPAR
       endif
+      call MPI_Barrier(  MPI_COMM_WORLD, ierr)
       enddo  !end of ipar loop
 c$$$         if (canstop(0).and.canstop(abs(npar)).and.ntype.ge.0.and.
 c$$$     >      ntasks.eq.-1) go to 780
-      call MPI_Barrier(  MPI_COMM_WORLD, ierr)
  770  continue ! LG loop      
           
       if (alkali) then
