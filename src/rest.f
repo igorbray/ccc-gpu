@@ -787,6 +787,25 @@ c$$$     >   35009.78,49304.8/
       enddo
 
       limit_time = 1000000
+      num_args = command_argument_count()
+      if (num_args .eq. 2) then
+         call get_command_argument(2,runtime)
+         if (runtime(3:3).ne.':'.or.runtime(6:6).ne.':') then
+            print*,'required time format: hh:mm:ss; will use:',
+     >         limit_time
+         else
+            limit_time = 0
+            i = 1
+            do n = 1, 3
+               limit_time = limit_time + 60**(3-n)*
+     >            (10*(ichar(runtime(i:i))-ichar('0'))
+     >            +ichar(runtime(i+1:i+1))-ichar('0'))
+               i = i + 3
+            enddo
+            if (myid.le.0) print*,'time limit:',limit_time,runtime
+         endif
+      endif
+
       inquire(file='ccc.in',exist=exists)
       if (exists) then
          nin = 3
@@ -801,23 +820,6 @@ c$$$     >   35009.78,49304.8/
             open(nin,file=infile)
             if (myid.le.0)
      >           print*,'ccc.in not found;will use: '//infile
-            if (num_args .eq. 2) then
-               call get_command_argument(2,runtime)
-               if (runtime(3:3).ne.':'.or.runtime(6:6).ne.':') then
-                  print*,'required time format: hh:mm:ss; will use:',
-     >               limit_time
-               else
-                  limit_time = 0
-                  i = 1
-                  do n = 1, 3
-                     limit_time = limit_time + 60**(3-n)*
-     >                  (10*(ichar(runtime(i:i))-ichar('0'))
-     >                  +ichar(runtime(i+1:i+1))-ichar('0'))
-                     i = i + 3
-                  enddo
-                  if (myid.le.0) print*,'time limit:',limit_time,runtime
-               endif
-            endif
          else 
             nin = 5
             if (myid.le.0)

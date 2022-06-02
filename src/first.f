@@ -25,6 +25,7 @@ C      use vmat_module
       logical:: scalapack
 
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
+     >   ,gpuin(8),gpuout(8),gputime,gputimetot
 c$$$      dimension chil(meshr,npk(nchtop+1)-1,1),minchil(npk(nchtop+1)-1,1)
       dimension 
      >   u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
@@ -110,6 +111,7 @@ c$$$      endif
       nodetfile=adjustl(nodetfile)
 
       nodetime = 0
+      gputimetot = 0
       nnt=omp_get_max_threads()
 c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
 
@@ -463,12 +465,14 @@ C  them.
 
       mini1 = mintemp3(nchtop)
 
-! create an array of pos to have all posf and 
+      call date_and_time(date,time,zone,gpuin)
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
      >     maxi2,temp2,ifirst)
-
+      call date_and_time(date,time,zone,gpuout)
+      gputime=idiff(gpuin,gpuout)
+      gputimetot = gputimetot + gputime
       deallocate(temp2)
 
 
@@ -623,8 +627,9 @@ c$$$     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
 c$$$     >         chan(nt_t(nchi)),natomps(nchi),
 c$$$     >         idiff(valuesin,valuesout)
             nodetime = nodetime + idiff(valuesin,valuesout)
-            write(42,'(2i5,a4,i6,2i11,i4)') nchi,li,chan(nt_t(nchi)),
-     >         idiff(valuesin,valuesout),natomps(nchi),nodetime,nodeid
+            write(42,'(2i5,a4,i6,2i11,3i4)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout),natomps(nchi),nodetime,nodeid,
+     >         gputime,gputimetot
          endif
       end do
 

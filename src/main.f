@@ -2696,7 +2696,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,natomps,lnch)
             else
                call scattering(myid,0,theta,nold,etot,lg,gk,enionry,
-     >            npkb,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
+     >            npkb,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >            nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
             end if
          else
@@ -2885,7 +2885,7 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
             t2nd = s2 - s1
          else
             call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
-     >         npk,chil,minchil,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
+     >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
          end if 
          call date_and_time(date,time,zone,valuesout)
@@ -5249,7 +5249,7 @@ c$$$      return
 
 
 C Added by Ivan
-      subroutine invertgf(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      subroutine invertgfd(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
       include 'par.f'
       dimension gf(kmaxgf,kmaxgf,nchtop),
      >   npk(nchan+1)
@@ -5283,7 +5283,41 @@ c$$$         print*,'DGETRI completed:',infodgetri
       enddo
       end
 
-      subroutine invertsymgf(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      subroutine invertgfs(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      include 'par.f'
+      dimension gf(kmaxgf,kmaxgf,nchtop),
+     >     npk(nchan+1)
+      integer infodgetrf, infodgetri, lworkopt, maxksize
+      integer, allocatable :: ipivgf(:)
+      real, allocatable :: work(:)
+      
+      do nch = nchstart, nchstop
+         maxksize = npk(nch+1)-npk(nch)-1 
+         allocate(ipivgf(maxksize))
+         allocate(work(1))
+         call SGETRF(maxksize, maxksize, 
+     >        gf(2:npk(nch+1)-npk(nch),
+     >        2:npk(nch+1)-npk(nch),nch),
+     >        maxksize,ipivgf,infodgetrf)
+c$$$  print*,'DGETRF completed:',infodgetrf
+         call SGETRI(maxksize,gf(2:(npk(nch+1)-npk(nch)),
+     >        2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >        ipivgf,work,-1,infodgetri)
+c$$$  print*,'DGETRI completed:',infodgetri
+         lworkopt = work(1)
+c$$$  print*,'optimal lwork:',lworkopt
+         deallocate(work)
+         allocate(work(lworkopt))
+         call SGETRI(maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >        2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >        ipivgf,work,lworkopt,infodgetri)
+c$$$  print*,'DGETRI completed:',infodgetri
+         deallocate(work)
+         deallocate(ipivgf)
+      enddo
+      end
+
+      subroutine invertsymgfd(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
       include 'par.f'
       dimension gf(kmaxgf,kmaxgf,nchtop),
      >   npk(nchan+1)
@@ -5326,6 +5360,49 @@ c
       enddo
       end
 
+      subroutine invertsymgfs(gf,kmaxgf,nchstart,nchstop,nchtop,npk)
+      include 'par.f'
+      dimension gf(kmaxgf,kmaxgf,nchtop),
+     >   npk(nchan+1)
+      integer infodsytrf, infodsytri, lworkopt, maxksize
+      integer, allocatable :: ipivgf(:)
+      real, allocatable :: work(:)
+ 
+      do nch = nchstart, nchstop
+         maxksize = npk(nch+1)-npk(nch)-1 
+         allocate(ipivgf(maxksize))
+         allocate(work(1))
+         call SSYTRF('L', maxksize, 
+     >      gf(2:npk(nch+1)-npk(nch),
+     >      2:npk(nch+1)-npk(nch),nch),
+     >      maxksize,ipivgf,work,-1,infodsytrf)
+c$$$         print*,'DSYTRF completed:',infodgetrf
+         lworkopt = work(1)
+c$$$         print*,'optimal lwork:',lworkopt
+         deallocate(work)
+         allocate(work(lworkopt))
+         call SSYTRF('L', maxksize, 
+     >      gf(2:npk(nch+1)-npk(nch),
+     >      2:npk(nch+1)-npk(nch),nch),
+     >      maxksize,ipivgf,work,lworkopt,infodsytrf)
+c$$$         print*,'DSYTRF completed:',infodgetrf
+         call SSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >      2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >      ipivgf,work,infodsytri)
+c$$$         print*,'DSYTRI completed:',infodgetri
+c
+c   Reconstructing the upper triangular part of the matrix
+c
+         do kii = 2,npk(nch+1)-npk(nch)
+            do kjj = 2,kii
+               gf(kjj,kii,nch) = gf(kii,kjj,nch)
+            enddo
+         enddo
+         deallocate(work)
+         deallocate(ipivgf)
+      enddo
+      end
+
       subroutine vmatfromgf(gf,kmaxgf,npk,vmatgf,nii,nfi,nij,nfj,
      >   nchstart,nchstop,nchtop,wk)
       include 'par.f'
@@ -5333,7 +5410,11 @@ c
       complex wk(npk(nchtop+1))
       dimension vmatgf(nii:nfi,nij:nfj)
       dimension gf(kmaxgf,kmaxgf,nchtop)
-      call invertsymgf(gf, kmaxgf, nchstart, nchstop, nchtop, npk) 
+#ifdef _single
+      call invertsymgfs(gf, kmaxgf, nchstart, nchstop, nchtop, npk)
+#elif defined _double
+      call invertsymgfd(gf, kmaxgf, nchstart, nchstop, nchtop, npk)
+#endif
       do nch = nchstart, nchstop
          do kii = npk(nch)+1,npk(nch+1)-1
             do kjj = npk(nch)+1,kii

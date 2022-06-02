@@ -3754,10 +3754,10 @@ C     used for calculation of Q_l(q,qa) in funleg3.
       function SinIntegral(x)
 !     Asymptotic expansion of Si(x) for rough evaluation        
       real, parameter :: pi = 3.1415926535897932384626433832795
-      SinIntegral= Pi/2. + (87178291200/x**15 - 479001600/x**13 + 
+      SinIntegral= Pi/2. + (87178291200.0/x**15 - 479001600/x**13 + 
      -     3628800/x**11 - 40320/x**9 + 720/x**7 - 24/x**5 + 
      -     2/x**3 - 1/x)*Cos(x) + 
-     -     (-6227020800/x**14 + 39916800/x**12 - 362880/x**10 + 
+     -     (-6227020800.0/x**14 + 39916800/x**12 - 362880/x**10 + 
      -     5040/x**8 - 120/x**6 + 6/x**4 - x**(-2))*Sin(x)
       return
       end

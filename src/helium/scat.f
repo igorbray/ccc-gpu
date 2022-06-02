@@ -1,5 +1,5 @@
       subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
-     >   enionry,npk,chilx,mincx,vdcore,dwpot,nchm,Nmax,namax,
+     >   enionry,npk,vdcore,dwpot,nchm,Nmax,namax,
      >   nze,td,te1,te2,te3,vdon,vmat,nsmax,itail,phasel)
       use CI_MODULE
       use chil_module
@@ -67,7 +67,7 @@ crr -added by Rav
       complex phasel(kmax,nchan)
       integer, allocatable :: nchansi(:), nchansf(:) 
       real gridp(nmaxr,3)
-      real*8 ya(10),xa(10),yr,ry,dy
+      real*8 ya(10),xa(10),yr,ry,dy,formf0
       character*9 nodetfile
       integer ngpus, gpunum, omp_get_thread_num
       external omp_get_thread_num
@@ -291,7 +291,7 @@ c     array lo_po(:) is already set up
 c     
 c     
 c     get overlap for projectile and s.p. functions
-         call ortchilnsp(KJ,npk,chil,minchil,nchm,fl,maxf,
+         call ortchilnsp(KJ,npk,nchm,fl,maxf,
      >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
          call date_and_time(date,time,zone,valuesout)
          print '(" ortchilnsp call complete at: ",a10,
@@ -301,7 +301,7 @@ c     get overlap for projectile and s.p. functions
             if(inc .eq. 0) then
                ortchil_po = ortchil
             else
-               call ortchilnsp_po(nr,KJ,npk,chil,minchil,nchm,fl_po,
+               call ortchilnsp_po(nr,KJ,npk,nchm,fl_po,
      >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
             endif
          endif
@@ -693,7 +693,7 @@ c
       end
 c--------------------------------------------------------------------------
 c 
-      subroutine ortchilnsp(KJ,npk,chilx,minchilx,nchm,fl,maxf,
+      subroutine ortchilnsp(KJ,npk,nchm,fl,maxf,
      >   minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
       use chil_module
       include 'par.f'
@@ -792,7 +792,7 @@ c     by Green function.
     
 c--------------------------------------------------------------------------
 c
-      subroutine ortchilnsp_po(nr,KJ,npk,chilx,minchilx,nchm,fl,maxf,
+      subroutine ortchilnsp_po(nr,KJ,npk,nchm,fl,maxf,
      >   minf,lo,nspm,ortchil)
       use chil_module
       include 'par.f'
