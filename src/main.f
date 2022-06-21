@@ -1394,7 +1394,6 @@ c            end if
       end if
 c      
 
-
       if (myid.le.0) then
          print*,   'Number of      atomic states and max channels:',
      >      nstmax,nchanmax
@@ -1452,7 +1451,6 @@ c$$$            u(i) = vasymp(i) - nze *(ui(i) + 2.0 * vdcore(i,0))
          close(42)
       endif
 
-
       if (myid.le.0)
      >   print'(''Total energy of the collision system:'',
      >   f13.4,'' eV ('',f11.4,'' Ryd )'')', ry * etot, etot
@@ -1467,6 +1465,7 @@ c$$$     >         psinb(1,1+abs(nnbtop),l),enpsinb(1+abs(nnbtop),l),minps,
 c$$$     >         istoppsinb(1+abs(nnbtop),l),corep,r0)
 c$$$         enddo 
 c$$$      endif 
+
       nch = 0
       call getchinfo(nch,nchp,0,temp,maxpsi,enpsi,la,na,lp)
       do n = 1, nent
@@ -1559,7 +1558,7 @@ c$$$            print*,'SECOND part,mylstart,mylstop,myid,ntasks',
 c$$$     >         mylstart,mylstop,myid,ntasks
 c$$$         endif
 c$$$      endif
-      if (slowe(1)/ry.gt.etot) then
+      if (ne2e.ne.0.and.slowe(1)/ry.gt.etot) then
          print*,'Setting NE2E = 0'
          ne2e = 0
       endif 
@@ -1662,7 +1661,7 @@ C     I. COMPUTE Ubb(r1,r2,ll) - spher. harm. expansion for all ll
          
          if (.not.allocated(ubb_res)) stop 'ubb_res is not allocated'
          
-         print*; print*,'calculate Ubb:'; print*
+         print*,'calculate Ubb:'; print*
          
          if (interpolate_ubb.eq.2) then            
             do irho = 1, ubb_max2
@@ -1726,7 +1725,7 @@ c     given parameters
          allocate(ql_res(maxql1, maxql2, minql3:maxql3))
          if (.not.allocated(ql_res)) stop 'Ql_res is not allocated'
          
-         print*; print*,'calculate Ql: ', maxql3-minql3 ; print*;
+         print*,'calculate Ql: ', maxql3-minql3 ; print*;
          
 c     qlgmax = log10(qcut);         
          do ll = minql3, maxql3 
@@ -2328,9 +2327,11 @@ C  plane waves were always generated for Born subtraction
 c$$$     >      npkb,minchil,chil,phasel,nchtop,etot,nbnd0,abnd,npsbnd,         
      >      albnd,sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
-         print '(/,i4,": nodeid exited first MAKECHIL at: ",a10,
+         print '(i4,": nodeid exited first MAKECHIL at: ",a10,
      >   ", diff (secs):",i5)',nodeid,time,
-     >   idiff(valuesin,valuesout)
+     >      idiff(valuesin,valuesout)
+         call MPI_Barrier(  MPI_COMM_WORLD, ierr) ! wait for all prints to complete
+
          do nchi = 1, nchtop
             natomps(nchi) = 0
             do nchf = nchi, nchtop
@@ -2339,7 +2340,7 @@ c$$$     >           +(2*lnch(nchi,1))*(2*lnch(nchi,2))
 c$$$     >           +2**lnch(nchi,1)
 c$$$               const = 1.0 + 0.025*nchi*nchi/(nchtop-nchi+1)/nchtop
                const = 1.0 !+0.025*(float(nchi)/float(nchtop-nchi+1))**1.5
-               if (pos(nchf).eqv.pos(nchi)) const = 0.0
+c$$$               if (pos(nchf).eqv.pos(nchi)) const = 0.0
                natomps(nchi)=natomps(nchi) + const * !+ 1
 !     >              2.0**max(1,lnch(nchf,1))*2.0**max(1,lnch(nchi,1))*
      >              1.2**lnch(nchf,1)*1.2**lnch(nchi,1)*
@@ -2454,10 +2455,19 @@ C     Determine which, if any, timing data to read
             nodetfile = adjustl(nodetfile)
             inquire(file=nodetfile,exist=exists)
             if (exists) then
+               nchtmp = 1
                open(43,file=nodetfile,action='read')
                read(43,*) nchtopold
  44            read(43,'(2i5,a4,i6)',end=45) nch,lf,chstateold(nch),
-     >            nchtimeold(nch)
+     >              nchtimeold(nch)
+c$$$               if (nchtmp.ne.nch) then
+c$$$                  lgold(ipar)=lgold(ipar)-1
+c$$$                  print*,'unexpectedly exited:',nodetfile, nchtmp, nch
+c$$$                  goto 41
+c$$$               else
+c$$$                  nchtmp = nchtmp + 1
+c$$$               endif
+
 c$$$               print*,'chstate,nchtimeold:',chstate(nch),nchtimeold(nch)
 c$$$               nchtimetot = nchtimetot + nchtimeold(nch)
                goto 44
@@ -2537,11 +2547,11 @@ c$$$               write(42,*) nch, nchtime(nch)
                   nch = nch - 1
                endif
                if (nodet(n).gt.nodet(ntm)) ntm = n
-               nchistop(n)=nch-1
+               nchistop(n)=max(nch-1,nchistart(n))
                if (myid.le.0) print"(
      >            'LG,IPAR,n,nchistart,nchistop,nodet:',6i6)",
      >            lg,ipar,n,nchistart(n),nchistop(n),nodet(n)
-               nchistart(n+1)=nch
+               nchistart(n+1)=nchistop(n)+1
             enddo
             n = nodes
             nodet(n) = nchtimetot - nttot !time for last node
@@ -2579,6 +2589,7 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
          else
             LGold(ipar) = -1
          endif
+         call MPI_Barrier(  MPI_COMM_WORLD, ierr)
          
 #ifdef _single
 #define nbytes 4
@@ -2705,9 +2716,11 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
          call clock(s2)
 c$$$         print*,'Time to make the partial Born matrix elements:',s2-s1
          call date_and_time(date,time,zone,valuesout)
-         print '(/,i4,": nodeid exited first VMAT routines at: ",a10,
+         print '(i4,": nodeid exited first VMAT routines at: ",a10,
      >      ", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
          call update(6)
+         call MPI_Barrier(  MPI_COMM_WORLD, ierr) !for clean prints
+
          
 C  Define the plane (or distorted by ui + vdcore) waves
 c$$$         if (dbyexists) then
@@ -2929,7 +2942,7 @@ c$$$         reconstruct_psi = .false.
             deallocate(chil,stat=istat)
             deallocate(minchil,stat=istat)
             allocate(chil(1,1,2)) !stop errors when passing as argument
-            print*,'Deallocated CHIL',istat ! comment out this statement to use CHIL in tmatcco.f
+c$$$            print*,'Deallocated CHIL',istat ! comment out this statement to use CHIL in tmatcco.f
          endif 
          endif ! mod(myid,nomp).eq.0 
 #define TAG0 1
@@ -2948,7 +2961,7 @@ c$$$            call sleepy_barrier(MPI_COMM_WORLD)
             call MPI_Barrier(  MPI_COMM_WORLD, ierr)
             if (mod(myid,nomp).eq.0) then
                call date_and_time(date,time,zone,valuesout)
-               print '(/,i4,": nodeid exiting MPI_Barrier at: ",a10,
+               print '(i4,": nodeid exiting MPI_Barrier at: ",a10,
      >            ", diff (secs):",i5)',nodeid,
      >            time,idiff(valuesin,valuesout)
                valuesin = valuesout

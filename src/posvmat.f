@@ -2894,8 +2894,6 @@ c$$$      print*,' Forming tables of Ql and Pl'
 *        end do
       enddo
       call polleg(2*lstopm+1,igz,igp)
-      
-      print*
       return
       end subroutine Qltable
 
