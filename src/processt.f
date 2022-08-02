@@ -8,7 +8,7 @@
       parameter (ntype=2*(lamax+1),npoints=ncmax+10)
       character projectile*8,target*6,chunit(3)*8,chun*8,tfile*(*)
       dimension lea(nchan),onshellk(nchan),onshold(nchan),temp(maxr),
-     >   psii(maxr),psif(maxr),ff(0:200,0:lamax),chi(maxr),ovlpn(knm),
+     >   psii(maxr),psif(maxr),ff(0:200,0:2*lamax),chi(maxr),ovlpn(knm),
      >   sweight(0:200,10),bornICS(knm,knm),ovlp(ncmax,0:lamax),
      >   ucentr(maxr),units(3),BornPCS(nchan,nchan),esum(0:1),
      >   partcs(nchan,nchan,0:1),sigtop(nchan,0:1),rcond(0:1),
@@ -2126,7 +2126,7 @@ C  and phi angles
       logical hlike
       dimension psif(maxr), psii(maxr), vdcore(maxr,0:lamax), 
      >   temp(maxr), ucentr(maxr), q(0:200), qth(0:200), vc(0:200),
-     >   ff(0:200,0:lamax)
+     >   ff(0:200,0:2*lamax)
       common/meshrr/ meshr,rmesh(maxr,3)
       real*8 rylm,dtheta,thrad,pi,dki,dkf,tmp
       common /double/njdouble,jdouble(22)
@@ -2161,7 +2161,7 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
       do i = 1, maxr
          temp(i) = 0.0
       enddo
-      if (lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax) then
+      if (lf.gt.lexit.or.li.gt.lentr) then !.or.li+lf.gt.lamax) then
          print*,lf,lexit,li,lentr,li+lf,lamax
          stop 'lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax'
       endif

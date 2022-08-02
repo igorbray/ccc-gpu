@@ -2947,7 +2947,8 @@ C  Need to make SIGTOLD from the info above
      >      chan(nchip),ticssum(nchip,0) + ticssum(nchip,1), 
      >      sigion(nchip,0) + sigion(nchip,1),
      >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip), 
-     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
+     >      asym(sigion(nchip,0)+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) + ticsextra(nchip)*fac/(fac+1.0),fac)
          do ic = 1, nicm
             write(42,'(1p,e9.3,"eV on ",a3," TIECS(",i2,
      >         "), +extrap, and asym:",1p,3e11.3)')
@@ -2968,8 +2969,10 @@ C  Need to make SIGTOLD from the info above
      >      '' TICS, +extra, spin asym:'',
      >      1p,4e11.3)')lg, ry * ein,
      >      chan(nchip),sigion(nchip,0) + sigion(nchip,1),
-     >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
-     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
+     >      asym(sigion(nchip,0)+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) + ticsextra(nchip)*fac/(fac+1.0),fac)
+c$$$     >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
+c$$$     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
          
 c$$$         write(42,'(1p,e9.3,''eV on '',a3,
 c$$$     >      " TICS: ",1p,e9.3,19(a3,e8.2))') 
@@ -4307,7 +4310,7 @@ c$$$            endif
 
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP& SCHEDULE(dynamic)
-C$OMP& PRIVATE(w)
+C$OMP& PRIVATE(w,kpp,kp)
                do kpp=2,npk(nch+1)-npk(nch)
                   do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
 c$$$                     w = 1.0

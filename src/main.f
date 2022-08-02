@@ -2376,7 +2376,7 @@ C Determine nchistart and nchistop for each node
             ! made nodes.ge.1 below due to inefficiency with many Ps-states
 !            if (natompstot.eq.0.or.nodes.ge.1.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
 c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
-         if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
+         if (natompstot.eq.0.or.lg.gt.lstoppos.or.lg.eq.0) then ! no Ps states in the calculation or 1 node
             do nn = 1, nodes-1
                print*,'nn,nchprspernode:',nn,nchprspernode
                nchistop(nn) = nchistart(nn)
