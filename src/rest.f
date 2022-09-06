@@ -3435,6 +3435,8 @@ c$$$      dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
       common /chanen/ enchan(knm)
       common /debye/dbyexists, dblp, rmudeb, zdby
       logical::dbyexists,exists
+C     cray compiler bug workaround 
+      character ch2
 C     Added by Alex
 c$$$      logical analytic
       dimension vnucl(maxr)
@@ -4390,8 +4392,12 @@ c$$$               enddo
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)
+C     cray compiler bug workaround
+      ch2=ch(nch)
       if (exists) then
-         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
+C        cray compiler bug workaround
+!         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
+         write(stringtemp,'(i3,"_chil_",a)') lg,ch2
          open(42,FILE=stringtemp) !'chil'//ch(lg)//'_'//ch(nch))
          write(42,'("#",11x,1000F6.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
@@ -4403,7 +4409,9 @@ c$$$               enddo
          enddo
          close(42)
          if (itail.lt.0) then
-            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)
+C           cray compiler bug workaround
+!            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)
+            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch2
             open(42,FILE=stringtemp) !'chiltail'//ch(lg)//'_'//ch(nch))
             write(42,'("#",11x,1000F6.3)')
      >         (phasel(k,nch),k=1,npk(nch+1)-npk(nch))

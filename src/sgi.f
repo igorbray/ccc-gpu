@@ -40,19 +40,19 @@ c$$$      end
       return
       end
 
-      subroutine gettime(utime,stime)
-c     changing to allow gcc build
-c      real tarray(2)
-      real*4 tarray(2)
-      tt = dtime(tarray)
-      utime = tarray(1)
-      stime = tarray(2)
-      end
+c$$$      subroutine gettime(utime,stime)
+c$$$c     changing to allow gcc build
+c$$$c      real tarray(2)
+c$$$      real*4 tarray(2)
+c$$$      tt = dtime(tarray)
+c$$$      utime = tarray(1)
+c$$$      stime = tarray(2)
+c$$$      end
       
 C  This routine returns the CPU time in seconds since last call to CLOCK
       subroutine clock( ctime )
       real*4 tarray(2), etime
-      ctime=etime(tarray)
+      ctime=0.0 !etime(tarray)
       end
 
       subroutine update(n)

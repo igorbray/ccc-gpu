@@ -1347,7 +1347,11 @@ c$$$        WRITE(6,1029) N,EBOUND(N),EBOUND(N)*27.21D0
       PARAMETER (ZERO=0.0D0,HALF=0.5D0,ONE=1.0D0,TWO=2.0D0,SIX=6.0D0)
 *
       COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+C     fix for cray compiler 
+c$omp threadprivate(/PATH/)
       COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
+C     fix for cray compiler
+c$omp threadprivate(/POT/)
 *
       DIMENSION VSTART(NVAR),V(NDIM1),DV(NDIM1)
 *
@@ -1470,7 +1474,11 @@ c$$$        WRITE(6,1029) N,EBOUND(N),EBOUND(N)*27.21D0
       PARAMETER (HUGE=1.0D30,SMALL=1.0D-20)
 *
       COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+C     fix for cray compiler
+c$omp threadprivate(/PATH/)
       COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
+C     fix for cray compiler
+c$omp threadprivate(/POT/)
 *
       DIMENSION YRK(NDIM1),F(NDIM1)
 *

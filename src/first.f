@@ -86,6 +86,7 @@ C      allocatable :: chitemp(:,:)
       integer childim
       integer, external :: omp_get_max_threads
       integer, external :: omp_get_thread_num
+      integer, external :: omp_get_num_devices
 
 C      integer nchistart(:),nchistop(:)
 C      real vmat01(npk(nchistart(nodeid)):npk(nchistop(nodeid)+1)-1,
@@ -150,7 +151,13 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
         childim=1
       endif
 
-!      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
+#ifdef OMPOFFLOAD
+      ngpus=max(1,omp_get_num_devices())
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+!$omp target enter data map(to:chil(1:meshr,1:(npk(nchtop+1)-1),1),
+!$omp& nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1))
+#endif
 
 #ifdef GPU
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
@@ -469,7 +476,9 @@ C  them.
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxi2,temp2,ifirst)
+C     fix for cray openacc
+!     >     maxi2,temp2,ifirst)
+     >     maxi2,temp2(1:maxi2,1:nqmi,nchi:nchtop),ifirst)
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime
@@ -543,7 +552,7 @@ C Define exchange terms if IFIRST = 1
             te1 = te1 + s3 - s2
 
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
-!$omp& schedule(dynamic)
+!$omp& schedule(dynamic) num_threads(nnt)
 !$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li)
 !$omp& shared(chil,minchil,npk,gk,etot,theta,ld,rnorm)
 !$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,nqmfmax,vmatt)
@@ -568,7 +577,7 @@ C  Define energy dependent exchange terms
 !$omp end parallel do
       end if ! End of exchange
 
-!$omp parallel do default(shared)
+!$omp parallel do default(shared) num_threads(nnt)
 !$omp& private(nchf,nqmf,ki,kii,kf,kff)
 !$omp& schedule(dynamic) 
       do 200 nchf = nchi, nchtop 
@@ -633,6 +642,13 @@ c$$$     >         idiff(valuesin,valuesout)
          endif
       end do
 
+#ifdef OMPOFFLOAD
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+!$omp target exit data map(delete:chil(1:meshr,1:(npk(nchtop+1)-1),1),
+!$omp& nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1))
+#endif
+
 #ifdef GPU
 c$$$      do gpunum=0,ngpus-1
       gpunum = mod(myid,ngpus)
@@ -641,11 +657,8 @@ c$$$!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
 c$$$!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 !$acc exit data delete(chil(1:meshr,npkstart:npkstop,1:1))
 !$acc& delete(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
-
-!$acc& finalize
-
-c$$$      enddo
 #endif
+
       if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)
       return

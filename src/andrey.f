@@ -3885,7 +3885,7 @@ C     inquire(file='ps/info.par', exist=exists)
          
                      
 !     save nabot(l) and natop(l) ---------------------------------- 
-      open(99,file=dir//'n.f', ACCESS = 'APPEND')      
+      open(99,file=dir//'n.f', POSITION = 'APPEND')      
       write (99,12) LL, nabot(LL), LL, natop(LL)                 
  12   format (6x, 'nabot(',I2,') = ',I3,'; natop(',I2,') = ',I3,';') 
       close(99)
@@ -3914,7 +3914,7 @@ C 100  format('_l',I1.1,'_n',I2.2,'.dat')
       close(99)
       
 !     save coefficients cknd -------------------------------------
-      open(98,file=dir//'cknd', ACCESS = 'APPEND')
+      open(98,file=dir//'cknd', POSITION = 'APPEND')
 C     write(98,*) istoppsinb(n,l)               
       nmax1 = npsstates(1,LL)   ! for target 
       nmax2 = npsstates(2,LL)   ! for positronium
@@ -3998,7 +3998,7 @@ c$$$      end do                    ! i
 !     save pseudofunctions      
       l = LL
 
-      open(70,file=dir//'istoppsinb', access ='append')     
+      open(70,file=dir//'istoppsinb', position ='append')     
       do n = nabot(l), natop(l)
          if (positron(n,l,npos)) cycle         
          write(70,*) l, n, istoppsinb(n,l)

@@ -380,7 +380,8 @@ c
       end
       subroutine seteru (messg, nmessg, nerr, iopt)
       common /cseter/ iunflo
-      integer messg(1)
+      character messg*40
+c$$$      integer messg(1)
       iunflo= 0
 c
       if (iopt.ne.0) call seterr (messg, nmessg, nerr, iopt)
@@ -989,7 +990,8 @@ c  symbolic dump. to complete the package, a dummy version of fdump
 c  is supplied, but it should be replaced by a locally written version
 c  which at least gives a trace-back.
 c
-      integer messg(1)
+      character messg*40
+c$$$      integer messg(1)
       external i1mach, i8save
 c
 c  the unit for error messages.
@@ -1067,7 +1069,8 @@ c
 c  this routine stores the current error message or prints the old one,
 c  if any, depending on whether or not save = .true. .
 c
-      integer messg(nw)
+      character messg*40
+c$$$      integer messg(nw)
       logical save
       external i1mach, i8save
 c
@@ -1076,11 +1079,12 @@ c  message. its length is machine dependent and must be at least
 c
 c       1 + 71/(the number of characters stored per integer word).
 c
-      integer messgp(36),fmt(14),ccplus
+      character messgp*40,fmt*40,ccplus*40
+c$$$      integer messgp(36),fmt(14),ccplus
 c
 c  start with no previous message.
 c
-      data messgp(1)/1h1/, nwp/0/, nerrp/0/
+      data messgp/1h1/, nwp/0/, nerrp/0/
 c
 c  set up the format for printing the error message.
 c  the format is simply (a1,14x,72axx) where xx=i1mach(6) is the
@@ -1088,20 +1092,20 @@ c  number of characters stored per integer word.
 c
       data ccplus  / 1h+ /
 c
-      data fmt( 1) / 1h( /
-      data fmt( 2) / 1ha /
-      data fmt( 3) / 1h1 /
-      data fmt( 4) / 1h, /
-      data fmt( 5) / 1h1 /
-      data fmt( 6) / 1h4 /
-      data fmt( 7) / 1hx /
-      data fmt( 8) / 1h, /
-      data fmt( 9) / 1h7 /
-      data fmt(10) / 1h2 /
-      data fmt(11) / 1ha /
-      data fmt(12) / 1hx /
-      data fmt(13) / 1hx /
-      data fmt(14) / 1h) /
+c$$$      data fmt( 1) / 1h( /
+c$$$      data fmt( 2) / 1ha /
+c$$$      data fmt( 3) / 1h1 /
+c$$$      data fmt( 4) / 1h, /
+c$$$      data fmt( 5) / 1h1 /
+c$$$      data fmt( 6) / 1h4 /
+c$$$      data fmt( 7) / 1hx /
+c$$$      data fmt( 8) / 1h, /
+c$$$      data fmt( 9) / 1h7 /
+c$$$      data fmt(10) / 1h2 /
+c$$$      data fmt(11) / 1ha /
+c$$$      data fmt(12) / 1hx /
+c$$$      data fmt(13) / 1hx /
+c$$$      data fmt(14) / 1h) /
 c
       if (.not.save) go to 20
 c
@@ -1109,8 +1113,9 @@ c  save the message.
 c
         nwp=nw
         nerrp=nerr
-        do 10 i=1,nw
- 10     messgp(i)=messg(i)
+        messgp = messg
+c$$$  do 10 i=1,nw
+c$$$ 10     messgp(i)=messg(i)
 c
         go to 30
 c
@@ -1122,8 +1127,8 @@ c
         write(iwunit,9000) nerrp
  9000   format(' error ' ,i4,' in ')
 c
-        call s88fmt(2,i1mach(6),fmt(12))
-        write(iwunit,fmt) ccplus,(messgp(i),i=1,nwp)
+c$$$        call s88fmt(2,i1mach(6),fmt(12))
+c$$$        write(iwunit,fmt) ccplus,(messgp(i),i=1,nwp)
 c
  30   return
 c

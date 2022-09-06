@@ -40,7 +40,7 @@ c$$$      real, allocatable ::Rpl(:),Rpg(:)
       integer :: rpp,rp,rstop,i,j,n,m
       logical closed, box
       real v(ichi,nchtop)
-      character :: ch
+      character :: ch,ch2
       real psi(maxr),renorm,chil(meshr,ichi),ucentr(maxr),Rpl(maxr),
      >   Rpg(maxr),B(kmax,kmax),A(kmax,kmax),vphoto(kmax,nchan)
       complex phase
@@ -56,12 +56,13 @@ C      ucentr(:) = 0d0
       print*, "Entering alexanalytic"
 
       do nch=1,nchtop
+         ch2 = ch(nch)
 
          rstop=meshr
 
          call getchinfo( nch, nt, lg, psi, maxpsi, e, la, na, l)
 
-         print*, "nch: ", ch(nch)," l = ", l," gk(1,"//ch(nch)//"): "
+         print*, "nch: ", ch2," l = ", l," gk(1,"//ch2//"): "
      >      ,gk(1,nch) 
 
 c$$$         allocate(!Rpl(maxr),Rpg(maxr),
@@ -276,7 +277,7 @@ C     intended
       real kernel(npk(nchtop+1)-1,npk(nchtop+1)-1),Vsum(npk(nchtop+1)-1
      >                                                 ,npk(nchtop+1)-1)
       logical box
-      character ch*1
+      character ch*1,ch2
 
       ch(n) = char(n + ichar('0'))
       pi= acos(-1.)
@@ -287,12 +288,13 @@ C     intended
 
       do nch=1,nchtop
 
-      print*, "gk(1,"//ch(nch)//")= ",gk(1,nch)
+         ch2=ch(nch)
+      print*, "gk(1,"//ch2//")= ",gk(1,nch)
 
               if (ns.eq.0) then
-               open(42,file="statestestsingletnch"//ch(nch))
+               open(42,file="statestestsingletnch"//ch2)
               else
-               open(42,file="statestesttripletnch"//ch(nch))
+               open(42,file="statestesttripletnch"//ch2)
               endif
 
 C           Calculates the complete set of states integrals and writes
@@ -313,7 +315,7 @@ C           the results to see if it is working well
 C     >                       *2/pi !only for non box basis
                                  enddo
                            enddo
-                           write(42,*),gk(kf,nch),gk(k,nch)
+                           write(42,*) gk(kf,nch),gk(k,nch)
      >                              ,kernel(kf+npk(nch)-1,k+npk(nch)-1)!/real(wk(j))
      >                              ,Vsum(kf,k)
                         enddo
@@ -334,7 +336,7 @@ C     >                       *2/pi !only for non box basis
      >                       *2/pi !only for non box basis
                                  enddo
                            enddo
-                           write(42,*),gk(kf,nch),gk(k,nch)
+                           write(42,*) gk(kf,nch),gk(k,nch)
      >                              ,kernel(kf+npk(nch)-1,k+npk(nch)-1)!/real(wk(j))
      >                              ,Vsum(kf,k)
                         enddo
