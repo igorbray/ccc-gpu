@@ -31,7 +31,7 @@ c     enionry - in
 c     eproj   - in
 c     vdcore  - in
 c     slowe   - in
-      
+      use vmat_module ! only for nodeid
       include 'par.f'
       character atom*20
       character string*40
@@ -291,7 +291,7 @@ c     here  Nmax  is determined (number of helium states).
       end do
       Nmax=isum
       write(4,'("Nmax =",I3)') Nmax
-      print*, 'Nmax =', Nmax
+      if (nodeid.eq.1) print*, 'Nmax =', Nmax
       if (Nmax.gt.KNM) then
          print*,'Have too many target states, need to increse KNM to',
      >      ' at least',Nmax
@@ -319,7 +319,7 @@ c     or optimized orbitals are used to perform diagonalization.
          write(4,'("igorfunctions=1, Laguere functions are not made")') 
          do n =1, 8
             read(3,'(a40)') string
-            print '(''Skipping line: '',a40)', string
+            if (nodeid.eq.1) print '(''Skipping line: '',a40)', string
          enddo
       end if
 
@@ -358,6 +358,7 @@ c
      >     enionry,eproj,Nmax,nspmW,namax,E,
      >   imake_summed_state,vdcore,slowe,i_stmix)
 
+      use vmat_module ! only for nodeid
       include 'par.f'
       dimension lmaxhe(0:1,2), nextsym(0:lamax)
       logical filled(0:3,0:lamax)
@@ -592,7 +593,8 @@ c     here helium cofiguration interaction program is called
 c     this programm is in the file  hel-3.f
       ry = 13.6058
       slowery = slowe/ry
-      print*,'Calling configuration interaction routines'
+      if (nodeid.eq.1)
+     >   print*,'Calling configuration interaction routines'
       do nsll=1,nslm
          Nadd = 0
          write(4,*) nsll         
@@ -630,7 +632,8 @@ c     this programm is in the file  hel-3.f
          endif 
          ip = 1
          if((-1)**il.ne.lpar) ip = 2
-         print*,' NCM, NSTATE(il,is,ip):', ncm,nstate(il,is,ip)
+         if (nodeid.eq.1)
+     >      print*,' NCM, NSTATE(il,is,ip):', ncm,nstate(il,is,ip)
          if (ncm.lt.nstate(il,is,ip)) fewer = .true.
          equal = equal .and. ncm .eq. nstate(il,is,ip)
 c     sort the ionic core orbitals by their energies
@@ -820,9 +823,10 @@ c
       
       if (fewer) stop 'NCM < NSTATE for at least one symmetry'
       if (equal) then
-         print*, 'NCM = NSTATE for all symmetries!'
+         if (nodeid.eq.1) print*, 'NCM = NSTATE for all symmetries!'
       else 
-         print*, 'NCM > NSTATE for some symmetries, theta must be zero.'
+         if (nodeid.eq.1)
+     >      print*,'NCM>NSTATE for some symmetries, theta must be zero.'
       endif 
 c     make optimized s.p.orbitals for each symmetry
       if(inc.eq.2.and.nswitch.eq.1) then
@@ -850,9 +854,9 @@ c     this subroutine must be called before all others subroutine if inc=0.
      >     call  CItmp(Nmax,nspm,nspmW,C)
 
 c     
-      print*, 'Calling printcoreparts'
+      if (nodeid.eq.1) print*, 'Calling printcoreparts'
       call printcoreparts(partN,Nmax,nspmW,C,E,Nofgfcst_total,partstN)
-      print*, 'Finish printcoreparts'
+      if (nodeid.eq.1) print*, 'Finish printcoreparts'
 c-------------------------------------------------------------------
       if(i_ort.eq.1.and.inc.eq.0)
      >     call orthe(Nmax,nspmW,C)
@@ -921,9 +925,10 @@ c     here s.p. states are rearranged in case of frozen core treatment of HE.
 
             endif
             call subset(fl,minf,maxf,los,i_orb_subset)
-            print*
-            print*,'F.C. orbitals for singlet states are used as',
-     >           'single particle basis to perform diagonalization'
+
+            if (nodeid.eq.1)
+     >         print*,'F.C. orbitals for singlet states are used as',
+     >         'single particle basis to perform diagonalization'
             igorfunctions=1  
             nswitch=0
 
@@ -952,13 +957,13 @@ c     F5 that are used)
 c-------------------------------------------------------------------      
 c     resolve sign of target states - might change the sign of a target state
 c     only in the case when nonorthogonal basis was used for diagonalization.
-      print*, 'Calling resolve_sign_final'
+      if (nodeid.eq.1) print*, 'Calling resolve_sign_final'
       call resolve_sign_final(Nmax,nspmW,C)
-      print*, 'Finish resolve_sign_final'
+      if (nodeid.eq.1) print*, 'Finish resolve_sign_final'
 c      
-      print*, 'Calling find_major_config'
+      if (nodeid.eq.1) print*, 'Calling find_major_config'
       call find_major_config(Nmax,nspmW,C)
-      print*, 'Calling printCcoef'
+      if (nodeid.eq.1) print*, 'Calling printCcoef'
       call  printCcoef(Nmax,nspmW,C,E)
 c     
       if(i_dipmom.eq.0) then
@@ -979,7 +984,7 @@ c
          end if
       end if
 
-      print*, 'Calling print_energy'
+      if (nodeid.eq.1) print*, 'Calling print_energy'
       call print_energy(Nmax,E,enionry,atom)
 
 c-------------------------------------------------------------------

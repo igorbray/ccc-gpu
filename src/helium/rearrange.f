@@ -86,6 +86,7 @@ c-------- This part of the code is to find the number of   -------------
 c--------   frozen core func. N_fr_core = ionic core + frozen core orbitals ----------
 c     Assume that core orbitals are orthogonal.
       subroutine find_nsp_tot(Nmax,nspmW,nspm,C,lo,nsp_tot)
+      use vmat_module !nodeid only
       include 'par.f'
       double precision  C(Nmax+1,nspmW,nspmW)
       common /corearray/ nicm, ncore(nspmCI)
@@ -141,7 +142,8 @@ c     >                       (ltmp(i), i=1,nlct)
       end if
       write(4,'("Number of frozen core functions is  nsp_tot =",I6)') 
      >      nsp_tot
-      write(*,'("Number of frozen core functions is  nsp_tot =",I6)') 
+      if (nodeid.eq.1)
+     >   write(*,'("Number of frozen core functions is  nsp_tot =",I6)') 
      >      nsp_tot
 
       return 
@@ -892,6 +894,7 @@ c               print*, inum,N,la,partstN(N), Nadd, Nofgfcst_add
       end
 c************************************************************************   
       subroutine printcoreparts(partN,Nmax,nspmW,C,E,Nofgfcst,partstN)
+      use vmat_module !nodeid only
       include 'par.f'
       common /corepartarray/ corepart(KNM,nicmax),ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
@@ -911,11 +914,13 @@ c************************************************************************
 c     
       write(10,'("start printcoreparts(...)")')
 
-      write(*,'("core orbitals:   n   l(n)   ko(n)")')
-      do nic=1,nicm
-         ic = ncore(nic)
-         write(*,'("             ",3I5)') ic, lo(ic), ko(ic)
-      end do
+      if (nodeid.eq.1) then
+         write(*,'("core orbitals:   n   l(n)   ko(n)")')
+         do nic=1,nicm
+            ic = ncore(nic)
+            write(*,'("             ",3I5)') ic, lo(ic), ko(ic)
+         end do
+      endif
       
       write(10,'("corepart(N,nic) is the probability ",
      >   " to find state N")')

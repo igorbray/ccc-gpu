@@ -103,21 +103,21 @@ C  make sure that we are not near a point where DX doubles
             s1=appf1(ln,ecmn,gridx(jstart-1),acc)
 c$$$            if (eta.lt.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
             if (eta.ne.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
-            if (s1.eq.0.0) then
-               print*,
-     >       "STOP: S1=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
-     >       ln,jstartorig,jstart,rho,acc
-               stop "STOP: cannot have S1=0.0 in numerov.f"
-            endif
+c$$$            if (s1.eq.0.0) then
+c$$$               print*,
+c$$$     >       "STOP: S1=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
+c$$$     >       ln,jstartorig,jstart,rho,acc
+c$$$               stop "STOP: cannot have S1=0.0 in numerov.f"
+c$$$            endif
          end if 
          s2=appf1(ln,ecmn,gridx(jstart),acc)
          if (eta.ne.0.0) s2=coulrho(ln,eta,ecmn,gridx(jstart),acc)
-         if (s2.eq.0.0) then
-            print*,
-     >       "STOP: S2=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
-     >       ln,jstartorig,jstart,rho,acc
-            stop "STOP: cannot have S2=0.0 in numerov.f"
-         endif
+c$$$         if (s2.eq.0.0) then
+c$$$            print*,
+c$$$     >       "S2=0.0 in numerov.f; ln,jstartorig,jstart,eta,ecmn,acc:",
+c$$$     >       ln,jstartorig,jstart,eta,ecmn,acc
+c$$$            stop "STOP: cannot have S2=0.0 in numerov.f"
+c$$$         endif
 c$$$         print*,'jstart,S1,S2:',jstart,s1,s2 !was used to check the importance of jstart=2 above
 c$$$  if (eta.lt.0.0) then
 c$$$            s2 = coulrho(ln,eta,ecmn,gridx(jstart),acc)

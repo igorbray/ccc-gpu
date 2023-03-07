@@ -339,9 +339,11 @@ C  from the 'tcs' file.
      >      recl=irecl)
          print*,'POTL and IRECL:',tfile,irecl
          call update(6)
-c         open(88,file=tfile)
+c     open(88,file=tfile)
+         j = jstart
          read(88,*,err=20,end=20) ! At 20 will append to potl
          read(88,*,err=20,end=20) enold, zasymold,nold
+         print*,'enold,energy:', enold,energy
          if (abs(enold-energy)/energy.gt.1e-4) then
 c$$$            print*,'Stopping: incident energy is not same in potl'
 c$$$            call update(6)
@@ -1159,6 +1161,7 @@ c$$$         endif
          j = j + 1
          go to 15
  20      print*  ! end of J loop
+         print*,'j,jstop:',j,jstop
          if (j.le.jstop) then
             close(88)
             open (88,file=tfile,position='append',status='old',

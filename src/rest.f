@@ -280,7 +280,10 @@ C  Note that eigenphases ere defined only modulo pi due to the 2i factor
                esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
                esum2 = esum2 +
      >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
-c$$$            esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+c$$$  esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+c$$$               print*,'nch,eigenphase:',nch,
+c$$$     >            real(log(eigv(nch))/2.0/(0.0,1.0)),
+c$$$     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
             endif
          enddo
          esum(ns) = esum2
@@ -907,6 +910,13 @@ c$$$      if (projectile.eq.'photon') n = n + 1
          if (nzasym.eq.0) then ! He I
             enlevel = 198305.0
             enion  = 24.580
+         elseif  (nzasym.eq.1) then !Li II
+            enlevel = 610078.526
+            enion = 75.64
+         elseif  (nzasym.eq.3) then !B IV
+c$$$            print*,'energies for B IV'
+            enlevel = 2091972.0
+            enion = 259.3715
          elseif (nzasym.eq.8) then ! Ne IX
             enlevel = 9644957  ! cm-1
             enion = 1195.822   ! eV
@@ -918,7 +928,7 @@ c$$$      if (projectile.eq.'photon') n = n + 1
             target = 'U90+'
          endif 
       else if (n.eq.3) then ! Li-like atoms and ions
-         if (nzasym.eq.7) then ! Ne VIII
+         if (nzasym.eq.7) then  ! Ne VIII
             enlevel = 1928462.0
             enion = 239.0989
          elseif (nzasym.eq.23) then !FeXXIV
@@ -1596,6 +1606,7 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
          CLOSE(nin-1+is)
       enddo
 
+c$$$      print*,'exiting readin with with enion,enlevel:',enion,enlevel
 
       if (lttop.gt.ltmax) then
          if (myid.le.0)
@@ -2407,7 +2418,7 @@ C  This is for very large incident energies
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
       integer lgold(0:1)
-      save ext,oldpjp,oldpj,lgold
+      save ext,oldpjp,oldpj,lgold,ticsextra,tnbBextra
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       
       data pi,ry,chunit/3.1415927,13.6058,
@@ -2542,8 +2553,8 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
       do incount = 1, nchipmax
          nchip = instate(incount)
          tbextra(nchip) = 0.0
-         tnbBextra(nchip) = 0.0
-         ticsextra(nchip) = 0.0
+         if (ipar.eq.0) tnbBextra(nchip) = 0.0
+         if (ipar.eq.0) ticsextra(nchip) = 0.0 !for ipar=1 keep ticsextra from the save statement
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
@@ -2575,7 +2586,14 @@ c$$$                  if (nchip.eq.2) print*,lg,ipar,nchp
                extra = BornICS(nchp,nchip) -
      >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
             else
-               extra = ext(nchp,nchip) ! this is from the "save" statement (was 0.0)
+               if (partcs(nchp,nchip,0).ne.0) then
+                  extrapcs = extrap((partcs(nchp,nchip,0)+
+     >            partcs(nchp,nchip,1))*unit,
+     >               oldpjp(nchp,nchip,ipar), 0.0)
+               else
+                  extrapcs = 0.0
+               endif
+               extra = extrapcs !+ ext(nchp,nchip) ! this is from the "save" statement (was 0.0)
             endif 
             tbextra(nchip) = tbextra(nchip) + extra
             if (enchan(nchp).lt.0.and.chan(nchp)(1:1).ne.'p') then
@@ -2947,8 +2965,8 @@ C  Need to make SIGTOLD from the info above
      >      chan(nchip),ticssum(nchip,0) + ticssum(nchip,1), 
      >      sigion(nchip,0) + sigion(nchip,1),
      >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip), 
-     >      asym(sigion(nchip,0)+ticsextra(nchip)/(fac+1.0),
-     >      sigion(nchip,1) + ticsextra(nchip)*fac/(fac+1.0),fac)
+     >      asym(sigion(nchip,0) ,!+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) ,fac)!+ ticsextra(nchip)*fac/(fac+1.0),fac)
          do ic = 1, nicm
             write(42,'(1p,e9.3,"eV on ",a3," TIECS(",i2,
      >         "), +extrap, and asym:",1p,3e11.3)')
@@ -2969,8 +2987,9 @@ C  Need to make SIGTOLD from the info above
      >      '' TICS, +extra, spin asym:'',
      >      1p,4e11.3)')lg, ry * ein,
      >      chan(nchip),sigion(nchip,0) + sigion(nchip,1),
-     >      asym(sigion(nchip,0)+ticsextra(nchip)/(fac+1.0),
-     >      sigion(nchip,1) + ticsextra(nchip)*fac/(fac+1.0),fac)
+     >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
+     >      asym(sigion(nchip,0),!+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) ,fac)!+ ticsextra(nchip)*fac/(fac+1.0),fac)
 c$$$     >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
 c$$$     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
          
@@ -3086,10 +3105,8 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.999) then
-c$$$      else
-         r = x/(xp+1e-20)
-c$$$         if (r.gt.0.995) r = 0.995
+      else if (0.0.lt.x.and.x.lt.xp*0.99) then
+         r = x/xp
          extrap = x / (1.0 - r)
       endif
       end

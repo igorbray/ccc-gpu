@@ -1,20 +1,23 @@
-      subroutine dMATR(gk,npk,minchil,chil,nchtop)
+      subroutine dMATR(gk,npk,minchilx,chilx,nchtop)
 
 * Calculate dipole matrix elements
+      use photo_module
+      use vmat_module
+      use chil_module
 
       include 'par.f'
 
       common/meshrr/ meshr,rmesh(maxr,3)
 
-      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
-      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
+c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
+c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       COMMON/channel/ iopen(nchan)    !Indicates open channels (=1) 
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
            
       dimension npk(nchtop+1),psi(maxr)
       dimension gk(kmax,nchan)
-      dimension chil(meshr,npk(nchtop+1)-1), minchil(npk(nchtop+1)-1)
+c$$$      dimension chil(meshr,npk(nchtop+1)-1), minchil(npk(nchtop+1)-1)
 
       character*1 h(0:3)         !Spectroscopic labels
       data h /'s','p','d','f'/
@@ -29,6 +32,7 @@ C  The following are experimental energies
       if(nznuc.eq.3 .and. zasym.eq.0)GS  = 6.03/Ry !Li-  ion GS energy in Ry
       if(nznuc.eq.11 .and. zasym.eq.0)GS  = 5.492/Ry !Na-  ion GS energy in Ry
       if(nznuc.eq.4) GS = 2.0236 !BeIII-BeI   energy in Ry Radzig, Smirnov
+      if(nznuc.eq.5  .and. zasym.eq.4) GS =44.07 !B^3+
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
       if(nznuc.eq.1)GS  =1.05544 !H-   ion GS energy in Ry
       if(nznuc.eq.12)GS =1.6670  !MgIII-MgI   energy in Ry Radzig, Smirnov
@@ -37,12 +41,18 @@ C  The following are experimental energies
       pi = dacos(-1d0)
       const=8.067
             
-* Dipole channels only
-
+*     Dipole channels only
+      do nch = 1, nchtop
+         if (gk(1,nch).ge.0.0) then
+            iopen(nch) = 1
+         else
+            iopen(nch) = 0
+         endif
+      enddo
       lg = 1
       write(6,1000)  
 
-      print '(i3,":",$)', nchtop
+c$$$      print '(i3,":",$)', nchtop
 C  The following directives are for the SGI
 ! c$doacross local(nch,nt,psi,maxpsi,ea,la,na,l,nqm,EI)
 c$& local(r1,v1,x1,r,v,x,kp,q,k,a)
@@ -55,16 +65,17 @@ C$par& PRIVATE(nch,nt,psi,maxpsi,ea,la,na,l,nqm,EI) SCHEDTYPE(SELF(1))
 C  The following directives are for the IBM
 C$OMP PARALLEL DO
 C$OMP& SCHEDULE(dynamic)
-C$OMP& SHARED(lg,nchtop,dr,dv,dx,dr1,dv1,dx1,GS,ntype,iopen,pi)
+C$OMP& SHARED(lg,nchtop,dr,dv,dx,GS,ntype,iopen,pi) !,dr1,dv1,dx1
 C$OMP& SHARED(const,npk,chil,gk)
+C$OMP& SHARED(nchistart,nchistop,nodeid)      
 C$OMP& PRIVATE(r1,v1,x1,r,v,x,kp,q,k,a,omega,cl,cv,cx,c)
 C$OMP& PRIVATE(nch,nt,psi,maxpsi,ea,la,na,l,nqm,EI)
-      do nch = 1, nchtop
+      do nch = nchistart(nodeid), nchistop(nodeid) !nchtop !nch = 1, nchtop
 C$OMP critical(print)
-         print '(i3,$)', nch
+c$$$         print '(i3,$)', nch
 C$OMP end critical(print)
-         call update(6)
-         IOPEN(nch)=1
+c$$$         call update(6)
+c$$$         IOPEN(nch)=1
          call  getchinfo (nch, nt, lg, psi, maxpsi, ea, la, na, l)
          nqm = npk(nch+1) - npk(nch)
          EI = GS + ea
@@ -85,31 +96,33 @@ c$$         end do
             dr (k,nch)=0.0
             dv (k,nch)=0.0
             dx (k,nch)=0.0
-            dr1(k,nch)=0.0
-            dv1(k,nch)=0.0     
-            dx1(k,nch)=0.0     
+c$$$            dr1(k,nch)=0.0
+c$$$            dv1(k,nch)=0.0     
+c$$$            dx1(k,nch)=0.0     
             kp = npk(nch) + k - 1
             q=gk(k,nch)
 c$$$            if (q.eq.0.0) cycle
 !            if (q.eq.0.0) PRINT*,'CAUTION: Q=0'
             if (ntype.eq.0) then
 c$$$               call pdipole(psi,chil(1,kp),la,l,r1,v1,x1,r,v,x) ! for Lesech
-               call xdipole(psi,chil(1,kp),la,l,r1,v1,x1,r,v,x)
+               call xdipole(psi,chil(1,kp,1),la,l,r1,v1,x1,r,v,x)
             else if (ntype.eq.-1) then 
-               call hDIPOLE(psi,chil(1,kp),la,l,lg,r,v,x)
+               call hDIPOLE(psi,chil(1,kp,1),la,l,lg,r,v,x)
                r1 = 0.0
                v1 = 0.0
                a1 = 0.0
             else if (ntype.eq.1 .and. lithium.eq.1) then 
-               call LiDIPOLEc(nt,chil(1,kp),la,L,lg,r,v,x)
+               call LiDIPOLEc(nt,chil(1,kp,1),la,L,lg,r,v,x)
+c$$$               print*,'nodeid,nt,chil,la,L,lg',nodeid,
+c$$$     >            nt,chil(1,kp),la,L,lg,r
             else if (ntype.eq.1 .and. lithium.ne.1) then 
-               call multiDIPOLE(psi,chil(1,kp),la,l,r1,v1,x1,r,v,x)
+               call multiDIPOLE(psi,chil(1,kp,1),la,l,r1,v1,x1,r,v,x)
             endif 
 * Restore normalization
 
             a=sqrt(pi/2d0) !Bound states
             if (q.gt.0d0) a=sqrt(pi*q)
-            if(k.eq.1 .and. q. lt. 0.0) IOPEN(nch)=0 !Channel closed
+c$$$            if(k.eq.1 .and. q. lt. 0.0) IOPEN(nch)=0 !Channel closed
             r  = r/a
             v  = v/a
             x  = x/a
@@ -120,9 +133,9 @@ c$$$               call pdipole(psi,chil(1,kp),la,l,r1,v1,x1,r,v,x) ! for Lesech
             dr (k,nch)=r 
             dv (k,nch)=v 
             dx (k,nch)=x 
-            dr1(k,nch)=r1
-            dv1(k,nch)=v1      
-            dx1(k,nch)=x1      
+c$$$            dr1(k,nch)=r1
+c$$$            dv1(k,nch)=v1      
+c$$$            dx1(k,nch)=x1      
 
 c$$$            energy = q**2
 c$$$            if (q.lt.0d0) energy=-q**2 !Bound states

@@ -1,6 +1,7 @@
       subroutine mainhe(Nmax,namax,pnewC,eproj,etot,
      >     lastop,nnbtop,ovlp,phasen,regcut,expcut,ry,enion,enlevel,
      >     enionry,nchanmax,ovlpnl,slowe,ne2e,vdcore)
+      use vmat_module
       include 'par.f'
       integer la, sa, lpar
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
@@ -90,7 +91,8 @@ c
             e1r(n,n) = enpsinb(k,l) / 2.0  !a.u.
             minf(n) = 1
             maxf(n) = istoppsinb(k,l)
-            write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
+            if (nodeid.eq.1)
+     >         write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
             do i = minf(n), maxf(n)
                fl(i,n) = psinb(i,k,l)
             enddo 
@@ -288,13 +290,15 @@ c$$$               endif ! ne2e.ne.0
      >      elevel, opcl, onshellk, ovlp(na,latom)
          nchanmax = nchanmax + latom + 1
       enddo 
-      write(*,'("finish structure calculation")')
-      write(*,'("**********************************************")')
 c
 C  EDELTA is used to shift the energy levels
       edelta = - enion - enpsinb(ninc,linc) * ry
-      print*,'Error in ground state energy and ',
-     >   'effective incident energy (eV):', edelta, etot * ry + enion
+      if (nodeid.eq.1) then
+         print*,'Error in ground state energy and ',
+     >      'effective incident energy (eV):', edelta, etot * ry + enion
+         write(*,'("finish structure calculation")')
+         write(*,'("**********************************************")')
+      endif
 c      close(4)
 c      close(136)
       end

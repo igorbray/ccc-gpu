@@ -6,7 +6,7 @@ C INPUT:   rmax   - maximal value of 'r'(the radial cut-off)
 C          nr     - the number of points in r-grid
 C          grid   - r-grid to calculate wavefunctions on it.
 
-      
+      use vmat_module !only for nodeid to minimize writes
       include 'par.f'
       include 'paratom.f'
       PARAMETER (Ncf = 20)
@@ -89,7 +89,7 @@ c  Read information about the ground state
 c  ---------------------------------------
        open(5,file='mchf',STATUS='UNKNOWN')
        read (5,*)   IZ, iSpin, Nc, Etot
-       write(6,101) IZ, iSpin, Nc, Etot
+       if (nodeid.eq.1) write(6,101) IZ, iSpin, Nc, Etot
  101   FORMAT (////12x,' MULTICONFIGURATION GROUND STATE   ',
      :           /12x,' -------------------------------   '/,
      :           /,   ' Nucleus charge           ',I3,
@@ -124,7 +124,7 @@ c  Initialize CI variables
        meta = 0 !Ground state is assumed
        do i = 1, Nc
           read (5, 11) a4, x
-          write(6, 11) a4, x
+          if (nodeid.eq.1) write(6, 11) a4, x
           call label(a4(1:2), n, l )
           call label(a4(3:4), n1,l1)
 !          if(l.ne.l1) STOP 'NON-S MCHF is not implemented'
@@ -156,14 +156,14 @@ C Lithium 2s/2p
 
 
        
-       write(6, 11) 'Total', S
+       if (nodeid.eq.1) write(6, 11) 'Total', S
  11    FORMAT(A4, E20.4)
                           
       OPEN(2,FILE=filnam,FORM='UNFORMATTED',STATUS='OLD')
       IZCH=2
 
       read(2) (a(jj1),jj1=1,15) 
-      write(6,1954) (a(jj1),jj1=1,15)
+      if (nodeid.eq.1) write(6,1954) (a(jj1),jj1=1,15)
 
       RM=a(2)
       NE=a(3)
@@ -200,7 +200,8 @@ C Significant number of radial points
                goto 111
             end if
          end do
- 111     write(6,'(A1,I1,2A1,F9.4,A,I4)')'E',n,hh(l),'=',E(l, n),
+ 111     if (nodeid.eq.1)
+     >      write(6,'(A1,I1,2A1,F9.4,A,I4)')'E',n,hh(l),'=',E(l, n),
      :      ' Max NR=', maxNR(l,n)
 
       end do
@@ -210,7 +211,8 @@ c$$$      print*,'Unit 2 opened'
 c$$$      close(2)
 
 !      write(6,'(/A,I1,A/)') ' Overlap with ',nmin(0),'s orbital'
-      write(6,'(/A,I1,A1,A/)')'Overlap with ',nmin(lin),hh(lin),
+      if (nodeid.eq.1)
+     >   write(6,'(/A,I1,A1,A/)')'Overlap with ',nmin(lin),hh(lin),
      >   ' orbital'
 
       call OVER(wa(1,lin,nmin(lin)),wa(1,lin,nmin(lin)), overlap)
@@ -242,7 +244,7 @@ c Updated for calcium 17.05.2000
 c Updated for neon     6.05.2003
  
       if(meta.eq.0 .and. lin.eq.0) then
-      write(6,'(/A/)') ' Perturbation theory for CI'
+      if (nodeid.eq.1) write(6,'(/A/)')'Perturbation theory for CI'
       do L=0,jmax
 !         do n=l+1, nmax(l)
          do n=nmin(l), nmax(l)
@@ -250,10 +252,12 @@ c Updated for neon     6.05.2003
      :                              wa(1,0,nmin(0)),L,res)
 !            if(l.eq.0 .and. n.eq.1) then
             if(l.eq.0 .and. n.eq.nmin(0)) then
-               write(6,'(I1,A1,F10.4,F9.4)') n, hh(l), CI(L,n,n), E(L,n)
+               if (nodeid.eq.1)
+     >            write(6,'(I1,A1,F10.4,F9.4)')n,hh(l),CI(L,n,n),E(L,n)
                goto 112
             end if
-            write(6,'(I1,A1,F10.4,F9.4,2F10.4)') n, hh(l), CI(L, n,n),
+            if (nodeid.eq.1)
+     >         write(6,'(I1,A1,F10.4,F9.4,2F10.4)') n,hh(l),CI(L, n,n),
      :   E(L,n),res,(-1)**l*res/(E(L,n)-E(0,nmin(0)))/dsqrt(dble(2*l+1))
  112        continue
          end do

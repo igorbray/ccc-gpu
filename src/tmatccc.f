@@ -25,6 +25,7 @@ C  The required K(f,i) is recovered by the same equation as before.
      >   second,uba,ovlpn,theta,ichi,csfile,projectile,slowery,det,
      >   rcond,vmatp,packed,phaseq,scalapack,chil)
       use gf_module
+      use photo_module
       include 'par.f'
       parameter (nmax=kmax*nchan)
       integer npk(nchtop+1), iwork(nmax*5),ifail(nmax),valuesin(8),
@@ -65,7 +66,7 @@ c$$$      complex cv(nchan,ichi), cv2(ichi,nchtop)
       common /chanen/ enchan(knm)
       COMMON /gstspin/   iSpin, meta
       common/meshrr/ meshr,rmesh(maxr,3)
-      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
+c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
 
       ch(i)=char(i+ichar('0'))
       data pi/3.1415927/
@@ -1069,13 +1070,13 @@ c$$$     >            * gk(1,nchi)/(gk(1,nchi)+1e-10)
 
 C  Solve the linear equations
       if (projectile.eq.'photon') then
-         mcv = 8 * (ichi) * nchan
-         mcv2 = 8 * (ichi) * nchtop
+         rmcv = 1e-6*8 * (ichi) * nchan
+         rmcv2 = 1e-6*8 * (ichi) * nchtop
 c$$$         call memalloc(ptrcv,mcv)
 c$$$         call memalloc(ptrcv2,mcv2)
 
-         print'(''Requested memory (Mb) for CV and CV2:'',f5.1)',
-     >      (mcv+mcv2)*1e-6
+         print'(''Requested memory (Mb) for CV and CV2:'',f10.1)',
+     >      (rmcv+rmcv2)
 c$$$         if (ptrcv.eq.0) stop 'Not enough memory for CV'
 c$$$         if (ptrcv2.eq.0) stop 'Not enough memory for CV2'
          allocate(cv(nchan,ichi))

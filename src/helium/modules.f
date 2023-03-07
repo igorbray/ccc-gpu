@@ -24,6 +24,11 @@
       
       end module VDCORE_MODULE
 
+      module photo_module
+      real, allocatable  :: dr(:,:),dv(:,:),dx(:,:)
+c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
+      end module photo_module
+
       module vmat_module
       real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
       integer, allocatable :: nchistart(:), nchistop(:)

@@ -294,8 +294,8 @@ c     get overlap for projectile and s.p. functions
          call ortchilnsp(KJ,npk,nchm,fl,maxf,
      >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
          call date_and_time(date,time,zone,valuesout)
-         print '(" ortchilnsp call complete at: ",a10,
-     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
+         print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
+     >      ", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
          valuesin = valuesout
          if(theta .ne. 0.0) then
             if(inc .eq. 0) then
@@ -303,13 +303,12 @@ c     get overlap for projectile and s.p. functions
             else
                call ortchilnsp_po(nr,KJ,npk,nchm,fl_po,
      >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
+               call date_and_time(date,time,zone,valuesout)
+               print '(i4,": nodeid, ortchilnsp_po call complete at: ",
+     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
             endif
          endif
          call clock(s2)
-          
-         call date_and_time(date,time,zone,valuesout)
-         print '("ortchilnsp_po call complete at: ",a10,
-     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
          call update(6)
       endif 
 
@@ -412,9 +411,9 @@ c$$$         print*,'OMP thread:',nch,omp_get_thread_num()
          nchi1=nchat(nchi)
          nchf1=nchat(nchf)
 
-         if(MOD(nch*10,nchansmax).eq.0)
-     >    print '(i4,"-",i3,"%",$)',nodeid,NINT(nch*100./nchansmax)
-          call update(6)
+c$$$         if(MOD(nch*10,nchansmax).eq.0)
+c$$$     >    print '(i4,"-",i3,"%",$)',nodeid,NINT(nch*100./nchansmax)
+c$$$          call update(6)
 
          nqmi = npk(nchi+1) - npk(nchi)
        call getchinfo (nchi, Ni, KJ, psii, maxpsii, ei, lia, nia, Li)

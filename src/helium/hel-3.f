@@ -177,7 +177,7 @@ c     make factorials call factorials, and then return
 c     to call subroutine config(ll,ls,lparity,l1max,l2max,nk1,nk2) 
 
       subroutine inputdata(ll,ls,lparity,l1max,l2max,nk1,nk2)
-
+      use vmat_module ! for nodeid only
       include 'par.f'
       dimension  nk1(0:lomax), nk2(0:lomax)  
       common /nstatearray/ nstate(0:lomax,0:1,2)
@@ -205,7 +205,7 @@ c 20   en_max = global_en_max
       if(nstate(ll,ls,ip).le.0) go to 1
 
       write(4,'(a20)') newsym
-      print*, 'Calculating target symmetry: ', newsym
+      if (nodeid.eq.1) print*, 'Calculating target symmetry: ', newsym
       write(4,'("l =",I3,",  s =",I3,",  parity =",I3)')
      >   ll,ls,lparity
       write(4,'("l1max =",I5)') l1max

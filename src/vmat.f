@@ -1766,7 +1766,7 @@ c$$$      midnp = abs(nkor(4,lset,ispeed))
 c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
 c$$$      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
-      usetrapz = nkor(4,lset,ispeed).lt.0
+c$$$      usetrapz = nkor(4,lset,ispeed).lt.0
 c$$$      if (width.lt.0.0) then
 c$$$         dstart = 0d0
 c$$$         nt = midnp
@@ -1886,8 +1886,18 @@ c$$$            dstop  = dble(sk(j))**2
 c$$$            print*,'j,dstart,dstop:',j,dstart,dstop
 c$$$            call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
 c$$$     >         0,nwf,wf,niwf,iwf,ier)
-            npts = nt
-            if (nkor(j,lset,ispeed).lt.0) npts = 2
+            if (nkor(j,lset,ispeed).gt.0) then
+               npts = nt
+c$$$               if (lprint) print*,'Using n-point quadratures',
+c$$$     >            nt,nkor(j,lset,ispeed)
+            else
+               if (mod(nkor(j,lset,ispeed),2).eq.0) then
+                  npts = 2
+                  if (lprint) print*,'Using 2-point quadratures'
+               else
+                  npts = nt
+               endif
+            endif
             d = (dstop-dstart)/nt*npts
             do n = 1, nt/npts
                call cgqf(npts,xx((n-1)*npts+1),ww((n-1)*npts+1),1,
@@ -2016,9 +2026,15 @@ C  Here we have the last interval
          end if  
          nqk=nqk+nt
          p=dble(sk(mint))
-         dstart=0d0
-         dstopp = dstop
-         dstop=dstop**(1d0-p)
+         if (p.gt.0.0) then
+            dstart=0d0
+            dstopp = dstop
+            dstop=dstop**(1d0-p)
+         else
+            dstart = dstop
+            dstopp = dstop
+            dstop = -p
+         endif
          nwf=2*nt
          niwf=2*nt
          call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,0,nwf,wf,niwf,iwf,
@@ -2028,10 +2044,17 @@ C  Here we have the last interval
      >        nt, dstart, dstop
             error stop "KGRID IER not zero"
          endif
+         jj = nqk - nt
          do j=nt,1,-1
-            jj=nqk-j+1
-            gridk(jj)=xx(j)**(1d0/(1d0-p))
-            weightk(jj)=ww(j)/(p-1d0)*dble(gridk(jj))**p
+            if (p.gt.0.0) then
+               jj=nqk-j+1
+               gridk(jj)=xx(j)**(1d0/(1d0-p))
+               weightk(jj)=ww(j)/(p-1d0)*dble(gridk(jj))**p
+            else
+               jj = jj + 1
+               gridk(jj)=xx(nt+1-j)
+               weightk(jj)=ww(nt+1-j)
+            endif
             ecmn = gridk(jj) ** 2
             if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1) then
                eta = 0.0
@@ -2053,12 +2076,19 @@ c$$$            enk = min(endkt + 0.2, 6.0)
 c$$$            go to 30
 c$$$         endif
          if (lprint) then
-            print '(i5,i10,f12.6,''       oo'',f16.5)', mint,nk(mint),
-     >         dstopp, sumi - sumip
-            print'(''fall off power:'',f5.1,23x,''= '',f7.5)',sk(mint),
-     >         sumi
+            if (p.gt.0.0) then
+               print '(i5,i10,f12.6,''       oo'',f16.5)',mint,nk(mint),
+     >            dstopp, sumi - sumip
+               print'(''fall off power:'',f5.1,23x,''= '',f7.5)',
+     >            sk(mint),sumi
+            else
+               print '(i5,i10,2f12.6,f13.5)', mint,nt,dstart,dstop,
+     >            sumi - sumip
+               print'(''fall off power:'',f5.1,23x,''= '',f7.5)',
+     >            sk(mint),sumi
+            endif
             print*,'last n, k:',jj,gridk(jj)
-         endif 
+         endif   
 
 c$$$         if (abs(sumi - 1.0).gt.1e-2.and.la.eq.li) nbad = nbad + 1
          if (abs(sumi - 1.0).gt.1e-2) nbad = nbad + 1

@@ -556,13 +556,13 @@ c$$$                       print*,i-gidx(1)+1,j-gidx(2)+1,idx,j,i
       integer, dimension(:), allocatable :: ipiv
       allocate(ipiv(dima(1)+desca(4)))
 #ifdef _double
-      print*,'Entering PDGESV'
+!      print*,'Entering PDGESV'
       call pdgesv(desca(4),descb(4),a,1,1,desca,ipiv,b,1,1,descb,ierr)
-      print*,'Exiting PDGESV'
+!      print*,'Exiting PDGESV'
 #elif defined _single
-      print*,'Entering PSGESV'
+!      print*,'Entering PSGESV'
       call psgesv(desca(4),descb(4),a,1,1,desca,ipiv,b,1,1,descb,ierr)
-      print*,'Exiting PSGESV'
+!      print*,'Exiting PSGESV'
 #endif
       if (ierr.ne.0) then
         print*,'p*gesv failed with error value',ierr

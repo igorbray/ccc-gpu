@@ -2,10 +2,11 @@
      >   phaseq)
                                                              
 C Integral form of the photoionization cross section                           
+      use photo_module
       include 'par.f'
       parameter (knm6 = knm * 6, ncs = (lamax+1)*6)
                                                              
-      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
+c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
       COMMON/channel/ iopen(nchan)    !Indicates open channels (=1) 
       COMMON/even/ ieven(nchan)    !Indicates even bound state channels (=0)
       COMMON /gstspin/   iSpin, meta
@@ -50,6 +51,7 @@ c DPI of Lithium
 !      if(nznuc.eq.10)GS = 4.596  !NeIII-NeI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.18)GS = 5.464  !ArIII ^1S   energy in Ry by Saloman
       if(nznuc.eq.4  .and. Zasym.eq.3) GS =27.308 !Be^2+
+      if(nznuc.eq.5  .and. Zasym.eq.4) GS =44.07 !B^3+
       if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
       if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+ 
       if(nznuc.eq.14 .and. Zasym.eq.13)GS =376.28 !Si^12+ 
@@ -69,7 +71,8 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
      >               GS  =  3.77 !H2  molecule
 
       if(lithium.eq.1) GS =  14.955 !Li  atom GS energy in Ry
-              
+      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
+      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
       pi = acos(-1.0)                                       
       ci = cmplx(0.0, 1.0)
       do n = 1, knm
