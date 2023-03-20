@@ -49,7 +49,7 @@ c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       COMMON/CONT/ CE(ncmax),CINT(ncmax),NCSTATES,ENERGY
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
-     >   npbot(0:lamax),nptop(0:lamax),itail
+     >   npbot(0:lamax),nptop(0:lamax),itail,iborn
       integer nptopin(0:lamax),lnch(nchan,2)
       real nchtimeold(nchan),nchtime(nchan)
       common /worksp/

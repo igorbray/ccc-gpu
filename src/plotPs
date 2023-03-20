@@ -19,7 +19,7 @@ p 'cfile' u 1:2:3:4 t 'CCC(n)','cfile' u 1:5 t '$E$' w l lt 3#,'cfile' u 1:7 not
 pause -1
 #set nolog y
 #set yr [-6:0]
-set yr [*:*] reverse
+set yr [20:0.01] reverse
 set nokey
 set format y "-%g"
 p 'dfile' u 1:(-$2):3:4 t 'energy level '#, 'dfile' u 1:(-$5) t '$E$' w l 0

@@ -2406,7 +2406,7 @@ C  This is for very large incident energies
       integer iwf(2*ncmax), nt(0:lamax), nlast(5,0:lmax), instate(100)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ip,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
-     >   npbot(0:lamax),nptop(0:lamax)
+     >   npbot(0:lamax),nptop(0:lamax),itail,iborn
       common /MPI_info/myid, ntasks, cnode, ench
       logical canstop,exists,assigned
       character*8 chunit(3), chun
@@ -2553,8 +2553,10 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
       do incount = 1, nchipmax
          nchip = instate(incount)
          tbextra(nchip) = 0.0
-         if (ipar.eq.0) tnbBextra(nchip) = 0.0
-         if (ipar.eq.0) ticsextra(nchip) = 0.0 !for ipar=1 keep ticsextra from the save statement
+         if (ipar.eq.0.or.iborn.ne.0) then
+            tnbBextra(nchip) = 0.0
+            ticsextra(nchip) = 0.0 !for ipar=1 keep ticsextra from the save statement
+         endif
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
