@@ -880,23 +880,22 @@ c$$$               print*,'imax,igz,Nl1,Nl2:',imax,igz,Nl1,Nl2
                      pa = sqrt(pa2)
 !     calculates w.f.                                         
                      pb = sqrt(pb2)                        
-!                     if (numericalv) then                           
-!                        call gnlp(bohr1,la,pa2,na,res0sk0,sk1) 
-!                        call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
-!
-!                     else
-!                        if(interpol.or.alkali) then ! target
-!                           call getftps(pa, na, la, sk1, res0sk0)                           
+                     if (numericalv) then                           
+                        call gnlp(bohr1,la,pa2,na,res0sk0,sk1) 
+                        call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
+                     else
+                        if(interpol.or.alkali) then ! target
+                           call getftps(pa, na, la, sk1, res0sk0)                           
 c                          call getftps(pb,nbi,lb,sk2,res0sk0) 
 !                        elseif (abs(zasym).gt.0.d0) then ! Charged target
 !                        call f0zpart(Nl1,rlam1,bohr1,na,la,na,
 !     $                            pa2,sk11,sk1,pc0,pc1)
-!                        else    ! only for hydrogen
+                        else    ! only for hydrogen
 !                          call f0zpart(Nl1,rlam1,bohr1,na,la,na,
 !     $                            pa2,res0sk0,sk1,pc0,pc1)                  
-!                           if(Nl1.eq.0) then
-!                              call geigen(bohr1,na,la,pa2,sk1)               
-!                           else
+                           if(Nl1.eq.0) then
+                              call geigen(bohr1,na,la,pa2,sk1)               
+                           else
                               brap1=brp1*pa2+1.d0
                               x1=(brap1-2.d0)/brap1
                               sk1=pc1(Nl1-1,na,la)
@@ -907,16 +906,16 @@ c$$$                              if (abs(brap1).gt.1d10) print*,
 c$$$     >                           sk1,bsp1,brap1,la
                               sk1=sk1*bsp1/brap1**(la+2)
 !                              sk1=sk1*exp(log(bsp1)-log(brap1)*(la+2))
-!                           end if ! Nl1                         
-!                        end if  ! interpol.or.alkali                          
+                           end if ! Nl1                         
+                        end if  ! interpol.or.alkali                          
 c     this is for positronium
 !                        if (abs(zasym).gt.0.d0) then !Charged target
 !                       call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,sk22,
 !     $                    sk2, pc0,pc1)
 !                        else
-!                        if(Nl2.eq.0) then
-!                           call geigen(bohr2,nb,lb, pb2,sk2)
-!                        else
+                        if(Nl2.eq.0) then
+                           call geigen(bohr2,nb,lb, pb2,sk2)
+                        else
                            brap2=brp2*pb2+1.d0
                            x2=(brap2-2.d0)/brap2
                            sk2=pc1(Nl2-1,nbi,lb)
@@ -924,9 +923,9 @@ c     this is for positronium
                               sk2=sk2*x2+pc1(k,nbi,lb)
                            end do
                            sk2=sk2*bsp2/brap2**(lb+2)
-!                        end if  ! Nl2
+                        end if  ! Nl2
 !                        endif !Charge
-!                     end if     !numericalv                                                
+                     end if     !numericalv                                                
 !                     if (abs(zasym).gt.0.d0) then !Charged target
 !                     f1zC(iz,i)=sk2*sk1*efactorC
 !     >          -dble(zasym+1d0)*sk2*sk11-sk22*sk1
