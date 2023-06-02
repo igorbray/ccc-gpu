@@ -277,6 +277,7 @@ c$$$         if (info.ne.0) print*,'INFO from CGEES:',info
 C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
             if (abs(eigv(nch)).gt.0.0) then
+c$$$               esum1 = esum1 + eigv(nch)
                esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
                esum2 = esum2 +
      >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
@@ -854,7 +855,7 @@ C  Read positronium information
          read(nin,*) (npsp(l),alphap(l), l = lpbot, lptop)
          if (myid.le.0)
      >        print '(''npsp(l), alphap(l):                  '',
-     >   99(i3,f5.2))',(npsp(l), alphap(l), l = lpbot, lptop)
+     >   99(i3,f7.2))',(npsp(l), alphap(l), l = lpbot, lptop)
          read(nin,*) igz, igp, analyticd, numericalv,lstoppos,
      1        interpol, maxp, ubb_max1, maxql1
          if (myid.le.0)
@@ -3323,14 +3324,15 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
 #elif defined _double
       err = 1d-14
 #endif
-      do while (dk/startk.gt.err)
+      do while (dk/startk.gt.err.or.abs(test).lt.err)
          startkold = startk
          if (test.gt.0.0) then
             startk = startk - dk
          else
             startk = startk + dk
          endif
-c$$$         print*,test,dk,startk,stopk,nmin
+c$$$         print'(1p,4e20.6,i3," test,dk,startk,stopk,nmin")',
+c$$$     >      test,dk,startk,stopk,nmin
          do n = 1, nt
             xx(n) = (xx(n)-startkold)*(stopk-startk)/
      >         (stopk-startkold) + startk
@@ -3351,18 +3353,19 @@ c$$$         print*,test,dk,startk,stopk,nmin
       subroutine getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-7
+      err = 1d-6
 #elif defined _double
-      err = 1d-14
+      err = 1d-12
 #endif
-      do while (dk/stopk.gt.err)
+      do while (dk/stopk.gt.err.or.abs(test).lt.err)
          stopkold = stopk
          if (test.gt.0.0) then
             stopk = stopk - dk
          else
             stopk = stopk + dk
          endif
-c$$$         print*,test,dk,startk,stopk,nmin
+c$$$         print'(1p,4e20.6,i3," test,dk,startk,stopk,nmin")',
+c$$$     >      test,dk,startk,stopk,nmin
          do n = 1, nt
             xx(n) = (xx(n)-startk)*(stopk-startk)/
      >         (stopkold-startk) + startk

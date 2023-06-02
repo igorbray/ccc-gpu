@@ -1,6 +1,6 @@
 * igz is the size of the Gauss mesh for integral over z
 * igp2 is the size of the Gauss mesh for integral over p
-	parameter (igzm=128,igpm=8,igp2m=2*igpm)
+	parameter (igzm=128,igpm=20,igp2m=2*igpm)
 c	parameter (igz=36,igp=64,igp2=2*igp)
 
 * ich is the size of the Chebyshev mesh for the integral over p 

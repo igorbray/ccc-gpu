@@ -139,8 +139,8 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
          enddo
       enddo
       nchansmax = nch
-      print'("nodeid, nchii, nchif, nchansmax, and allocation:",5i8)',
-     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
+c$$$      print'("nodeid, nchii, nchif, nchansmax, and allocation:",5i8)',
+c$$$     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
 
       nch = 0
 

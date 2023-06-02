@@ -1815,12 +1815,14 @@ c$$$            if (mod(nt,2).ne.0) stop 'expect nt to be even'
             dstop  = dble(sk(j))
             if (dstart.lt.rk.and.rk.lt.dstop) then
                if (rk.gt.dstop*0.9) then
-                  print*,'Int: increasing dstop:',j,dstop,dstop*1.1
+                  if (lprint)
+     >               print*,'rk, new dstop:',rk,dstop*1.1
                   dstop = dstop * 1.1
                   sk(j) = dstop
                endif 
                if (rk.lt.dstart*1.1) then
-                  print*,'Int: decreasing dstart:',j,dstart,dstart*0.9
+                  if (lprint)
+     >               print*,'new dstart, rk:',dstart*0.9,rk
                   dstart = dstart*0.9
                   sk(j-1) = dstart
                endif 

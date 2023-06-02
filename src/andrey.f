@@ -2367,6 +2367,9 @@ C     implicit real*8 (a-h,o-z)
 
       !real, intent(in) :: qcut, pmax
       logical numericalv
+      common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
+     >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
+      common /double/njdouble,jdouble(22)
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
@@ -2396,8 +2399,10 @@ C
       real*8 res0, res1, term, r, arg, besj, xmax, tail
 
       dimension pc0(0:ncmax-1,ncmax,0:6), pc1(0:ncmax-1,ncmax,0:6)
-      dimension a(ncmax),f0(0:ncmax-1),f1(0:ncmax-1)
-
+      dimension a(ncmax),f0(0:ncmax-1),f1(0:ncmax-1),reg(maxr),
+     >   ucentr(maxr)
+      complex phase,sigc
+      ucentr(:) = 0.0
       
 *     define pmesh: equidistant mesh for interpolation
       
@@ -2424,25 +2429,37 @@ c$$$      end do
          do i = 1,meshr
             vpot(i) = vpot(i) - vaint(rmesh(i,1)) 
          end do
-      end if     
+      end if
+      eta = 0.0
+      ldw = -1
       
-*     ATOM: calculate ftps and ftpsv      
+*     ATOM and Ps: calculate ftps and ftpsv      
       do la =  labot, latop
          Nl1=npsstates(1,la); rlam1=rlambda(1,la)
-         do na = nabot(la), natop(la)            
-            pos = positron(na,la,npos) ! npos = n - natop(l) + nptop(l)
-            if (pos) cycle
-            if (alkali.or.(.not.analyticd.and.nznuc.eq.1)) then
-!$omp parallel do default(shared)
-!$omp& private (ip,p,res0,res1,i,r,arg,besj,term,pl)                                   
-               do ip = 0, maxp
-                  p = pmesh(ip)               
+c$$$            pos = positron(na,la,npos) ! npos = n - natop(l) + nptop(l)
+c$$$            if (pos) cycle
+         if (alkali.or.interpol) then !(.not.analyticd.and.nznuc.eq.1)) then
+            jlarge = 1
+            reglarge = 0.0
+            plarge = 0.0
+C$omp parallel do default(shared)
+C$omp& private (ip,p,res0,res1,i,r,arg,besj,term,pl,reg,phase,sigc)
+C$omp& private (jstart,jstop,na,j)
+            do ip = 1, maxp+1
+               p = pmesh(ip)               
+               call regular(la,p*p,eta,ucentr,cntfug(1,la),ldw,rmesh,
+     >            meshr,jdouble,njdouble,regcut,expcut,
+     >            reg,jstart,jstop,phase,sigc)
+c$$$               do j = 1, meshr ! can check against above
+c$$$                  call sbessel(rmesh(j,1)*p,la,besj)
+c$$$                  reg(j) = besj * rmesh(j,1)*p
+c$$$               enddo
+               do na = nabot(la), natop(la)            
                   res0=0.0d0; res1=0.d0;                                    
                   do i = 1, istoppsinb(na, la)                     
-                     r = dble(rmesh(i,1))
+                     r = rmesh(i,1)
                      arg = r*p                     
-                     call sbessel(arg,la,besj) 
-                     term = dble(psinb(i,na,la))*besj*dble(rmesh(i,3)) 
+                     term = psinb(i,na,la)*reg(i)*rmesh(i,3)/arg
                      res0 = res0 + term * vpot(i)
                      res1 = res1 + term * r             
                   end do        ! i                        
@@ -2451,11 +2468,29 @@ C                 --------------------------
                   ftpsv(ip,na,la) = res0/pl
                   ftps(ip,na,la) = res1/pl
 C                 --------------------------              
-               end do           ! ip
-!$omp end parallel do
-            end if              ! alkali
+               enddo            !na
+            end do              ! ip
+C$omp end parallel do
+            
+            p = 0.0
+            call regular(la,p*p,eta,ucentr,cntfug(1,la),ldw,rmesh,
+     >         meshr,jdouble,njdouble,regcut,expcut,
+     >         reg,jstart,jstop,phase,sigc)
+            do na = nabot(la), natop(la)
+               res0=0.0d0; res1=0.d0;
+               do i = jstart, istoppsinb(na, la)
+                  r = rmesh(i,1)
+                  term = psinb(i,na,la)*reg(i)*rmesh(i,3)
+                  res0 = res0 + term * vpot(i) / r
+                  res1 = res1 + term 
+               end do           ! i
+               ftpsv(-1:0,na,la) = res0
+               ftps(-1:0,na,la) = res1
+            enddo               !na
+         end if                 ! alkali.or.interpol
 C     analytical calculations for Hydrogen only
-            if ((nznuc.eq.1).and.analyticd) then
+         if ((nznuc.eq.1).and.analyticd) then
+            do na = nabot(la), natop(la)
                do k=1,Nl1
                   a(k)=cknd(k,na,la)                        
                end do                     
@@ -2517,13 +2552,13 @@ C     analytical calculations for Hydrogen only
                   ftpsv(ip,na,la) = resH0
                   ftps(ip,na,la) = resH1                  
                end do           ! ip               
-            end if
-         end do                 ! n         
-      end do                    ! l                      
-      print*,'makeftps: target states: done'
-      !return
+            end do              ! na
+         end if                 !analyticd
+      end do                    ! la
+c$$$      print*,'makeftps: target states: done'
+      return
 
- 100  continue
+! below is no-longer used because incorporated above, Igor 29/04/2023
       
 C     POSITRONIUM FTPS : FOR COMPARISON SINSE FOR THIS CASE
 C              & FTPSV : THERE IS ANALYTIC EXPRESSION                   
@@ -2535,11 +2570,16 @@ C
          do np = nabot(lp), natop(lp)  
             pos = positron(np,lp,npos)
             if (.not.pos) cycle
-            print*,'lp, npos, n: ', lp, npos, np 
-            if (numericalv) then ! direct numerical integration
-c$$$!$omp parallel do default(shared)
-c$$$!$omp& private (ip,p,res0,res1,i,r,arg,besj,term,pl)             
-               do ip = 0, maxp
+c$$$            print*,'lp, npos, n: ', lp, npos, np 
+            if (alkali.or.interpol) then!numericalv) then ! direct numerical integration
+               if (lp.eq.0) then
+                  ipstart = 0
+               else
+                  ipstart = 1
+               endif
+!$omp parallel do default(shared)
+!$omp& private (ip,p,res0,res1,i,r,arg,besj,term,pl)             
+               do ip = ipstart, maxp
                   p = pmesh(ip)   
                   res0=0.0d0; res1=0.d0;                              
                   do i = 1, istoppsinb(np, lp)
@@ -2556,7 +2596,40 @@ C                 --------------------------
                   ftps(ip,np,lp) = res1/pl
 C                 --------------------------
                end do           ! ip
-c$$$!$omp end parallel do                  
+!$omp end parallel do                  
+               if (ipstart.eq.1) then
+                  ftpsv(0,np,lp) = (pmesh(2)*ftpsv(1,np,lp)-
+     >               pmesh(1)*ftpsv(2,np,lp))/(pmesh(2)-pmesh(1))
+                  ftps(0,np,lp) = (pmesh(2)*ftps(1,np,lp)-
+     >               pmesh(1)*ftps(2,np,lp))/(pmesh(2)-pmesh(1))
+               endif
+
+               ip = 0
+               do while(pmesh(ip).lt.qcut.and.ip.lt.maxp)
+                  ip = ip + 1
+               enddo
+               ipq = ip
+               lp2 = 2*lp+2
+               if (ip.lt.maxp) then
+                  do while ((pmesh(ip-1)**(lp2)*ftpsv(ip-1,np,lp)-
+     >               pmesh(ip)**(lp2)*ftpsv(ip,np,lp))*
+     >               (pmesh(ip)**(lp2)*ftpsv(ip,np,lp)-
+     >               pmesh(ip+1)**(lp2)*ftpsv(ip+1,np,lp)).gt.0.0
+     >               .and.ip.lt.maxp)
+                     ip = ip + 1
+                  end do
+               endif
+c$$$               print*,'redefine ftpsv for p:',pmesh(ipq),pmesh(ip)
+               do i = ip+1, maxp
+                  ftpsv(i,np,lp) = ftpsv(ip,np,lp)
+     >               *pmesh(ip)**(lp2)/pmesh(i)**(lp2)
+                  ftps(i,np,lp) = ftps(ip,np,lp)
+     >               *pmesh(ip)**(lp2)/pmesh(i)**(lp2)
+               enddo
+c$$$               do ip = 0, maxp
+c$$$                  p = pmesh(ip)
+c$$$                  write(np*10+lp,*) p,ftpsv(ip,np,lp),ftps(ip,np,lp)
+c$$$               enddo 
             else                ! analytical calculations
                do k=1,Nl2
                   a(k)=cknd(k,np,lp)                        
@@ -2611,10 +2684,10 @@ c$$$!$omp end parallel do
                   pc0(k,np,lp)=f0(k)
                   pc1(k,np,lp)=f1(k)
                end do           ! k                  
-!$omp critical  
-               print*," Nl2, rlam2: ", Nl2, rlam2
-               print*," npos,lp,np: ", npos, lp, np
-!$omp end critical
+c$$$!$omp critical  
+c$$$               print*," Nl2, rlam2: ", Nl2, rlam2
+c$$$               print*," npos,lp,np: ", npos, lp, np
+c$$$!$omp end critical
                
                do ip = 0, maxp
                   p = pmesh(ip)                                   
@@ -2628,7 +2701,8 @@ c$$$!$omp end parallel do
          end do                 ! np
       end do                    ! lp
       
-      if(Nl2.le.0) print*,'makeftps: positronium states: done'
+c$$$      print*,'makeftps: positronium states: done'
+c$$$      if(Nl2.le.0) print*,'makeftps: positronium states: done'
       return      
       end subroutine makeftps
                 
@@ -2664,10 +2738,68 @@ C---------------------------------------------------------------
 !     pmesh(0)=0 < p < pmesh(1)
 
       !if (error) print*,'getftps: 1'
-      
+      if (p.lt.qcut) then
+         i = int(p/pmesh(1))
+         pm1 =p - pmesh(i-1)
+         p0 = p - pmesh(i)
+         p1 = p - pmesh(i+1)
+         p2 = p - pmesh(i+2)
+!     dp2i = 1.0/(pmesh(1)*pmesh(1)) !in module as is dp3i
+! below is two-point interpolation
+c$$$         FT0o = (ftps(i,n,l)*(pmesh(i+1)-p)+ftps(i+1,n,l)*(p-pmesh(i)))/
+c$$$     >      pmesh(1) ! this is just dp
+c$$$         FT1o=(ftpsv(i,n,l)*(pmesh(i+1)-p)+ftpsv(i+1,n,l)*(p-pmesh(i)))/
+c$$$     >      pmesh(1)            ! this is just dp
+! below is three-point interpolation
+c$$$         c0 = p1*p2*0.5
+c$$$         c1 = p0*p2
+c$$$         c2 = p0*p1*0.5
+c$$$         FT0o = (ftps(i,n,l)*c0
+c$$$     >      -ftps(i+1,n,l)*c1
+c$$$     >      +ftps(i+2,n,l)*c2)*dp2i
+c$$$         FT1o = (ftpsv(i,n,l)*c0
+c$$$     >      -ftpsv(i+1,n,l)*c1
+c$$$     >      +ftpsv(i+2,n,l)*c2)*dp2i
+! below is four-point interpolation
+         cm1 = p0*p1*p2*0.16666666666
+         c0 = pm1*p1*p2*0.5
+         c1 = pm1*p0*p2*0.5
+         c2 = pm1*p0*p1*0.16666666666
+         FT0 = dp3i * (
+     >      -ftps(i-1,n,l)*cm1
+     >      +ftps(i,n,l)*c0
+     >      -ftps(i+1,n,l)*c1
+     >      +ftps(i+2,n,l)*c2)
+         FT1 = dp3i * (
+     >      -ftpsv(i-1,n,l)*cm1
+     >      +ftpsv(i,n,l)*c0
+     >      -ftpsv(i+1,n,l)*c1
+     >      +ftpsv(i+2,n,l)*c2)
+c$$$!$omp critical 
+c$$$         if (abs((FT1o-FT1)/(FT1o+FT1)).gt.0.1.and.
+c$$$     >      ftpsv(i,n,l)*ftpsv(i+1,n,l).gt.0.0) then
+c$$$            print*,'l,n,p(i):',l,n,i,pmesh(i),p,pmesh(i+1)
+c$$$            print*,'FTPSV:',ftpsv(i-1,n,l),ftpsv(i,n,l),ftpsv(i+1,n,l),
+c$$$     >         ftpsv(i+2,n,l)
+c$$$            print*,'FT1:',FT1o,FT1
+c$$$         endif
+c$$$!$omp end critical 
+      else
+         FT0 = ftps(maxp,n,l)*(pmesh(maxp)/p)**(2*l+4)
+         FT1 = ftpsv(maxp,n,l)*(pmesh(maxp)/p)**(2*l+2)
+      endif
+c$$$      write(n*10+l,*) p,ft0,ft1
+      return
+         
       if (p.le.pmesh(1)) then         
          FT0 = ftps(0,n,l)+(ftps(1,n,l)-ftps(0,n,l))*(p/pmesh(1))
-         FT1 = ftpsv(0,n,l)+(ftpsv(1,n,l)-ftpsv(0,n,l))*(p/pmesh(1))         
+         FT1 = ftpsv(0,n,l)+(ftpsv(1,n,l)-ftpsv(0,n,l))*(p/pmesh(1))
+         write(n*10+l,*) p,ft0,ft1
+         return
+      elseif (p.gt.qcut) then
+         FT0 = ftps(maxp,n,l)*(pmesh(maxp)/p)**(2*l+2)
+         FT1 = ftpsv(maxp,n,l)*(pmesh(maxp)/p)**(2*l+2)
+         write(n*10+l,*) p,ft0,ft1
          return
       end if
             
@@ -2712,6 +2844,7 @@ c$$$      end select
       FT0 = res
       call intrpl(io,xa,y1,1,p,res)
       FT1 = res
+      write(n*10+l,*) p,ft0,ft1
       return
       end subroutine getftps
       
@@ -4061,7 +4194,7 @@ c$$$      close(70)
 
 C     SOME ROUTINE TO CALCULATE SPHERICAL BESSEL FUNCTIONS
       SUBROUTINE SF32D(X,N,Y,IERR)
-      DIMENSION Y(N+1),A(100)
+      DIMENSION Y(N+2),A(100)
       INTEGER N,IERR,NMAX,J,NM1,NP1,NP2,NNP1,NPP,I,NU,NU2,
      1NU1,NP,LAM,MU,LAMP2,IRET,INT,MIN0
       DOUBLE PRECISION X,Y,A,SYS087,AA,B,ALOG2E,ALPHA,U,

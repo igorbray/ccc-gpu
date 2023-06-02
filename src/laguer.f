@@ -911,6 +911,7 @@ c$$$      end
 *                                                                      *
 ************************************************************************
 *
+      use vmat_module
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 *
 *
@@ -1004,7 +1005,7 @@ c$omp threadprivate(/POT/)
 *
       oworst = zero
       znuc = zas + 1   ! restored "+1" for box-based target, but breaks DW
-      print*,'ZNUC in PSEUDO:',znuc
+      if (nodeid.eq.1) print*,'ZNUC in PSEUDO:',znuc
       itout = 0
       ibug = 0
       ipot = 1
@@ -1050,11 +1051,11 @@ c$omp threadprivate(/POT/)
       if (j.eq.nstep+1) then
          ra = rfull(nstep)
          j = nstep
-         print*,'CAUTION: reset R0 to:',ra
+c$$$         print*,'CAUTION: reset R0 to:',ra
       endif 
  36   irx(nix) = j/2*2
       nstep = irx(nix)+1
-      print *,'mesh reset to npts,ra = ',nstep-1,rfull(nstep)
+!      print *,'mesh reset to npts,ra = ',nstep-1,rfull(nstep)
       lastpt = nstep - 1
       error = 1.0d-12
       nitmax = 100
@@ -1073,6 +1074,7 @@ c$$$      WRITE(6,1009) (IRX(I),I=1,NIX)
       IF (IPOT.EQ.1) THEN
          CORE(1) = -HUGE
          DO 40 I=2,2*NSTEP-1
+c$$$            print*,'i,rhalf(i),',i,rhalf(i)
             CORE(I) = -ZNUC/RHALF(I) 
  40      CONTINUE
 c$$$       do i = 2, 2*NSTEP-1, 2*NSTEP-3
@@ -1234,8 +1236,11 @@ c$$$         print*,niter,elow,ehigh
 70       CONTINUE
          DO 80 I=NEND-1,1,-1
           IF (FVALUE(I).GT.FVALUE(I+1)) GOTO 90
-80       CONTINUE
-         print*,'i,fvalue(i),fvalue(i+1):',i,fvalue(i),fvalue(i+1)
+ 80    CONTINUE
+       print*,'elow,ehigh,inode:',elow,ehigh,inode
+         do i = 1, 10
+            print*,'i,fvalue(i):',i,fvalue(i)
+         enddo
          WRITE(6,1011) NEND
          STOP
 90       NINTEG = I
@@ -1299,7 +1304,7 @@ c$$$       WRITE(6,1019) la
 c$$$       DO 150 NNN=NMIN,NMAX
 c$$$        WRITE(6,1013) (OVRLAP(N,NNN),N=NMIN,NNN)
 c$$$150    CONTINUE
-       WRITE(6,2019) OWORST
+       if (nodeid.eq.1) WRITE(6,2019) OWORST
        if (oworst.gt.1e-3) stop 'Box-basis orthonormality failed'
 *
 *  WRITE THE ORBITALS TO A FILE (ONE UNIT PER L) IF ITOUT.NE.0
@@ -1347,7 +1352,11 @@ c$$$        WRITE(6,1029) N,EBOUND(N),EBOUND(N)*27.21D0
       PARAMETER (ZERO=0.0D0,HALF=0.5D0,ONE=1.0D0,TWO=2.0D0,SIX=6.0D0)
 *
       COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+c$omp threadprivate(/PATH/)
       COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
+c$omp threadprivate(/POT/)
+c$$$      COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+c$$$      COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
 *
       DIMENSION VSTART(NVAR),V(NDIM1),DV(NDIM1)
 *
@@ -1470,7 +1479,11 @@ c$$$        WRITE(6,1029) N,EBOUND(N),EBOUND(N)*27.21D0
       PARAMETER (HUGE=1.0D30,SMALL=1.0D-20)
 *
       COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+c$omp threadprivate(/PATH/)
       COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
+c$omp threadprivate(/POT/)
+c$$$      COMMON / PATH / RFULL(NDIM2),RHALF(2*NDIM2),Y(NDIM1,NDIM2)
+c$$$      COMMON / POT  / EGUESS,CORE(2*NDIM2),RDMASS
 *
       DIMENSION YRK(NDIM1),F(NDIM1)
 *

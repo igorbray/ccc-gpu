@@ -79,11 +79,14 @@ c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
       module ftps_module
       integer :: maxp
       logical :: interpol, error  
-      real,   allocatable :: pmesh(:)
-      real*8, allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
+c$$$      real pmesh(-1:20001)!  allocatable :: pmesh(:)
+c$$$      real*8 ftps(-1:20001,1:50,0:10) , ftpsv(-1:20001,1:50,0:10) !allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
+      real, allocatable :: pmesh(:)
+      real, allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
       integer, parameter :: nexp = 8, nr = 2**nexp 
       real, dimension (nr) :: kk
       real dkk
+      real qcut,dp2i,dp3i
 c      logical, parameter :: oldftps = .false.
       logical, parameter :: oldftps = .true.
       end module ftps_module

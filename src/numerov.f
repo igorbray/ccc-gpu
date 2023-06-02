@@ -72,6 +72,7 @@ c$$$            jstart = nx + 1
 c$$$         endif 
          jstartorig = jstart
 
+c$$$         print*,'ln,ecmn:',ln,ecmn
          if (ucentr(1) .eq. 0.0.and.jstart.ge.1) then
 c$$$         if (ucentr(1) .eq. 0.0 .and. wnn .gt. 2.0) then
             rho = wnn * gridx(jstart)
@@ -79,12 +80,15 @@ c$$$         if (ucentr(1) .eq. 0.0 .and. wnn .gt. 2.0) then
             reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
 c$$$C  Need to take care that jstart stays less than jstop. For this reason
 c$$$C  the wnn > 2 condition was added above.
-            do while (rho.lt.ln.and.acc.gt.1e-6.and.jstart.lt.jstop)
+            do while (rho.lt.ln.and.acc.gt.1e-5.and.jstart.lt.jstop)
+c$$$               do while (rho.lt.ln.and.acc.gt.1e-5.and.jstart.lt.jstop)
 c$$$            do while (abs(reg(jstart)).lt.regcut.and.jstart.lt.jstop)
 c$$$               if (ln.eq.2.and.jstart.gt.2) return
                jstart = jstart + 1
                rho = wnn * gridx(jstart)
                reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
+c$$$               if (mod(jstart,100).eq.0) print*,jstart,reg(jstart),
+c$$$     >            acc
 c$$$               print*,'increased jstart:',
 c$$$     >            ln,rho,reg(jstart),acc,jstart 
             enddo
@@ -141,11 +145,33 @@ c$$$     >         jstart
 c$$$         endif 
 
          if (s1.eq.s2.and.s2.eq.0.0) then
-            print*,'S1=S2=0 for ln,ecmn:',ln,ecmn
+            print*,'S1=S2=0 for jor,j,jstop,ln,ecmn,regs:',
+     >         jstartorig,jstart,jstop,ln,ecmn,reg(jstartorig),
+     >         reg(jstart-3),reg(jstart-2),reg(jstart-1),
+     >         reg(jstart)
             jstart = jstop+1
          endif 
+C     numerovf used to fail for ECMN=0 for l=1, but restoring the - sign (see comment inside) fixes it. Workaround below no-longer necessary.
+c$$$         if (ecmn.eq.0.0.and.ucentr(1).eq.0.0) then
+c$$$            jstart = 1
+c$$$            jstop = nx
+c$$$            l = 1
+c$$$            const = 1.0
+c$$$            do while (l.le.ln)
+c$$$               const = const * (2*l+1)
+c$$$               l = l + 1
+c$$$            enddo
+c$$$            do j = jstart, jstop
+c$$$               reg(j) = gridx(j)**(ln+1)/const
+c$$$            enddo
+c$$$c$$$            print*,'ln,reg(10),appf:',
+c$$$c$$$     >         ln,reg(10),appf1(ln,ecmn,gridx(10),acc)
+c$$$            return
+c$$$         endif
+
          call numerovf(ln,ecmn,ucentr,cntfug,gridx,nx,
      >      jdouble,njdouble,s1,s2,reg,jstart,jstop)
+
          if (eta.ne.0.0.and.jstart.eq.2.and.ln.eq.1) then
             jstart = 1
             reg(1) = s1
@@ -583,6 +609,7 @@ c$$$      ricbessel = cfc(1)
      >   appf1, acc
       dimension jdouble(njdouble)
 
+c$$$      if (en.eq.0.0) print*,'en zero for l:',ln
       if (jstart.ge.jstop) return
       ecmn = en
       x = gridx(jstart)
@@ -604,7 +631,8 @@ C  S2 is the solution at the first X point.
          s1=0d0
          t1=0d0
 C  LN = 1 is a special case
-         if (ln.eq.1) t1 = h1/18d0     !there was a - sign here until 11/04/2016.
+! Put the - sign back on 5/05/2023. It is necessary for zero energy.
+         if (ln.eq.1) t1 = -h1/18d0 !there was a - sign here until 11/04/2016.
 c$$$  if (ln.eq.1) t1=-h1/18d0 !seems to affect only -ve energies
          if (ecmn.ne.0d0) t1=t1*ecmn
       else
@@ -633,12 +661,14 @@ C    integration loop
             f3 = ucentr(j)+cntfug(j)-ecmn
             t3 = 2.*t2-t1+h1*f2*s2
             s3 = t3/(1d0-h2*f3)
-c$$$            if (j.lt.jstart+10) then
+c$$$            if (en.lt.0.01.and.j.lt.jstart+5) then
 c$$$               test=appf1(ln,en,gridx(j),acc)
-c$$$               print*,j,test/s3,f3,t3
+c$$$               print*,ln,en,j,test/s3!,f3,t3
 c$$$c$$$               s3 = test
 c$$$            endif 
-            reg(j)=s3      
+            reg(j)=s3
+c$$$            if (ln.eq.4.and.abs(ecmn-1e-2).lt.4e-5) print*,
+c$$$     >         j,gridx(j),reg(j),appf1(ln,en,gridx(j),acc)
 
             t1=t2
             t2=t3
@@ -787,10 +817,10 @@ c$$$            print '(2f9.3,i4,4e24.14)', w,x,k,sump,-s*summ, sum
             if (abs(s*summ/sump-1d0).lt.1d-12.and.(k.ge.kmax
      >           .or.abs(sum).lt.1d-300)) then
 c$$$               k = kmax
+               print'("Precision loss in APPF1 for ln, k, rho:",
+     >            2i5,1p,e11.3,3e18.10)',ln,k,rho,-s*summ,sump,sum
                acc = 0.0
                appf1 = 0.0
-c$$$               print'("Precision loss in APPF1 for ln, k, ecmn:",
-c$$$     >            2i5,1p,e11.3,3e18.10)',ln,k,ecmn,-s*summ,sump,sum
                return
             endif 
          enddo

@@ -250,7 +250,8 @@ c            call coef1(la,Nl1,a,f1)
          end do
 c     call coef0(lb,Nl2,a,f0)
 c     call coef1(lb,Nl2,a,f1)
-         if (.not.numericalv) then
+c$$$         if (.not.numericalv) then !.and..not.interpol) then
+         if (.not.numericalv.and..not.interpol) then
          select case(lb)
          case(0)
             call coefsS(lb,Nl2,a,f0,f1)
@@ -465,7 +466,11 @@ c$$$               if (xp(i)*qa.ne.0.0) then
 c$$$               else
 c$$$                  print*,'xp(i)*qa=0.0:',i,xp(i),qa
 c$$$               endif
-            enddo
+
+c$$$                  if(nchi.eq.1.and.nchf.eq.2.and.iqa.eq.1) 
+c$$$     >               write(60+Lla,'(1p,4e12.3)') arg, xp(i),Qlp1
+
+               enddo
          endif
       enddo                     ! iqa
 
@@ -795,7 +800,7 @@ c              if (alkali) then
                   
 c     - target states:              
                if (numericalv) then                 
-                  call gnlp(bohr1,la,pa2,na,resH0,resH1)                                    
+                  call gnlp(bohr1,la,pa2,na,resH0,resH1)   
                else                                    
                   if ((.not.interpol).and.(.not.alkali)) then
                      !pause ' direct calculations'                   
@@ -815,16 +820,24 @@ c                    call getftps(pb, nbi,lb, resP1, resP0)
                
 c     - Ps states:
                if (numericalv) then                              
-                  call gnlp(bohr2,lb,pb2,nbi,resP0,resP1)                     
+                  call gnlp(bohr2,lb,pb2,nbi,resP0,resP1)
+c$$$                  print*,'gnlp; pb, resP1, resP0:',pb, resP1, resP0
                else             ! analytic formula
-                  !if (interpol) then
-                  call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,resP0,
-     $                    resP1, pc0,pc1)
-                  !else         !interpolation
-                  !   call getftps(pb, nbi,lb, resP1, resP0)
-                  !end if       ! analytics 
+c$$$                  !if (interpol) then
+c$$$                  call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,resP0,
+c$$$     $                    resP1, pc0,pc1)
+c$$$                  !else         !interpolation
+c$$$                  !   call getftps(pb, nbi,lb, resP1, resP0)
+c$$$                  !end if       ! analytics 
+                  if ((.not.interpol).and.(.not.alkali)) then
+                     call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,resP0,
+     $                  resP1, pc0,pc1)
+c$$$                     print*,'f0zpart; pb, resP1, resP0:',pb, resP1,resP0
+                  else          !interpolation
+                     call getftps(pb, nbi,lb, resP1, resP0)
+c$$$                     print*,'ftps; pb, resP1, resP0:',pb, resP1, resP0
+                  end if        ! analytics 
                endif            !  numericalv
-           
 
 C-----ANDREY: mitroy simplification ---------------------------------                           
                if (Mitroy) then ! check if it works
@@ -885,7 +898,8 @@ c$$$               print*,'imax,igz,Nl1,Nl2:',imax,igz,Nl1,Nl2
                         call gnlp(bohr2,lb,pb2,nbi,res0sk0,sk2)
                      else
                         if(interpol.or.alkali) then ! target
-                           call getftps(pa, na, la, sk1, res0sk0)                           
+                           call getftps(pa, na, la, sk1, res0sk0)
+                           call getftps(pb, nbi, lb, sk2, res0sk0)
 c                          call getftps(pb,nbi,lb,sk2,res0sk0) 
 !                        elseif (abs(zasym).gt.0.d0) then ! Charged target
 !                        call f0zpart(Nl1,rlam1,bohr1,na,la,na,
@@ -907,7 +921,7 @@ c$$$     >                           sk1,bsp1,brap1,la
                               sk1=sk1*bsp1/brap1**(la+2)
 !                              sk1=sk1*exp(log(bsp1)-log(brap1)*(la+2))
                            end if ! Nl1                         
-                        end if  ! interpol.or.alkali                          
+c$$$                        end if  ! interpol.or.alkali                          
 c     this is for positronium
 !                        if (abs(zasym).gt.0.d0) then !Charged target
 !                       call f0zpart(Nl2,rlam2,bohr2,nb,lb,nbi,pb2,sk22,
@@ -924,7 +938,8 @@ c     this is for positronium
                            end do
                            sk2=sk2*bsp2/brap2**(lb+2)
                         end if  ! Nl2
-!                        endif !Charge
+!     endif !Charge
+                     end if     ! interpol.or.alkali                          
                      end if     !numericalv                                                
 !                     if (abs(zasym).gt.0.d0) then !Charged target
 !                     f1zC(iz,i)=sk2*sk1*efactorC
@@ -1237,7 +1252,17 @@ C----------------------------end old---------------------------------
 
                         res1test = dot_product(fpqb(1:2*ising1*igp,lam),
      $                                temp1(1:2*ising1*igp))
+c$$$      if(nchf.eq.70.and.nchi.eq.8.and.iqb.eq.1.and.iqa.eq.1.and.lb1.eq.7
+c$$$     >     ) print'(4i3,1p,1e12.3,
+c$$$     >  " lg,l1,l2,lam,res1test")',
+c$$$     >        lg,l1,l2,lam,res1test
 
+c$$$      if(nchf.eq.70.and.nchi.eq.8.and.iqb.eq.1.and.iqa.eq.1.and.lb1.eq.7
+c$$$     >                     ) then
+c$$$         do i = 1,2*ising1*igp
+c$$$            write(40+lg,*) xp(i),fpqb(i,lam),temp1(i)
+c$$$         enddo
+c$$$      endif
 !                if ((abs(res1-res1test)).gt.(1E-6*abs(res1))) then
 !                                print*,'res1diff:',res1,res1test,
 !     $                             abs(res1-res1test)
@@ -1314,7 +1339,8 @@ C----------------------------end old----------------------------------
 !                                print*,'res4diff:',res4,res4test,
 !     $                             abs(res4-res4test)
 !                end if
-                             res1=res1test+res2+res3+res4test
+                  res1=res1test+res2+res3+res4test
+                  
 !                             res1=res1+res2+res3+res4
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1672,7 +1698,7 @@ c$$$               close (90)
 c$$$            end if
 c$$$!$omp end critical 
 c$$$c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                           
-      end do
+      end do !lam
                         
       suml2=suml2+(2*l2+1)*reslam*w3j2
                         
@@ -1690,7 +1716,10 @@ c$$$!$omp end critical
 c$$$c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                   
                       
                         
-                     end do
+                     end do !l2
+c$$$      if(nchf.eq.70.and.nchi.eq.8.and.iqb.eq.1.and.iqa.eq.1.and.lb1.eq.7
+c$$$     >                  ) print'(2i2,1p,e12.3," lg,l1,suml2")',
+c$$$     >                  lg,l1,suml2
                      suml1=suml1+(2*l1+1)*suml2*w3j1
 c$$$                     print"('nchf,nchi,suml1,suml2,w3j1,cla,clb,c0,qb:',
 c$$$     >                  2i2,1p,7e10.2)",
@@ -1709,8 +1738,11 @@ c$$$            end if
 c$$$!$omp end critical 
 c$$$c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                   
                       
-                  end do
-                  sumla1=sumla1+suml1*cla
+                  end do !l1
+c$$$      if(nchf.eq.70.and.nchi.eq.8.and.iqb.eq.1.and.iqa.eq.1.and.lb1.eq.7
+c$$$     >               ) print'(3i2,1p,e12.3," lg,la1,lb1,suml1")',
+c$$$     >               lg,la1,lb1,suml1
+      sumla1=sumla1+suml1*cla
 
 c$$$C_TEST________________________________________________________________
 c$$$!$omp critical 
@@ -1725,7 +1757,7 @@ c$$$!$omp end critical
 c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                   
  
                   
-               end do
+               end do !la1
                sumlb1=sumlb1+sumla1/clb
 
 c$$$C_TEST________________________________________________________________
@@ -1739,11 +1771,13 @@ c$$$               close (90)
 c$$$            end if
 c$$$!$omp end critical          
 c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                   
-            end do
+            end do !lb1
 
 c            close (90)
 c            stop
             result=sumlb1*c0*qb*sqrt(2.0d0)
+c$$$            if (nchf.eq.70.and.nchi.eq.8.and.iqb.eq.1.and.iqa.eq.1)
+c$$$     >         print'(i2,1p,3e12.3," lg,sumlb1,c0,qb")',lg,sumlb1,c0,qb
 c     print*,'posv',result
 
 c$$$C_TEST________________________________________________________________
@@ -1819,6 +1853,7 @@ c$$$C_TEST^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
       dimension pc0(0:ncmax-1,ncmax,0:lamax),
      >     pc1(0:ncmax-1,ncmax,0:lamax)
 
+c$$$      print*,'in f0zpart'
       if(Nl.eq.0) then
          call geigen(bohr,nn,ll,pp2,res1)
          res0=res1*((bohr*nn)**2*pp2+1.d0)/2.d0/bohr/nn/nn
@@ -2448,7 +2483,7 @@ C
       res0=0.0d0
       res1=0.d0
       
-      if (alkali.and.(bohr.eq.1)) then         
+      if (alkali.and.(bohr.eq.1.0)) then         
          do i = 1, istoppsinb(nopt, ll)
             rr = dble(rmesh(i,1))
             arg = rr * pp                                               
@@ -2478,6 +2513,7 @@ c         res3 = res3 + psir * rr * chi0 * dble(rmesh(i,3))
       ppll = pp ** ll
       res0 = res0 / ppll
       res1 = res1 / ppll
+c$$$      write(nint(82+bohr),*) pp,res0, res1
       return
       end subroutine gnlp
       
@@ -2578,8 +2614,16 @@ C     inacurate for small X and L > 10
          return                                
       end if      
       if (X .eq. 0d0) then
-         BES = 0d0 
-         if (L .eq. 0)  BES = 1d0          
+c$$$         BES = 0d0 
+c$$$         if (L .eq. 0)  BES = 1d0
+! Here for limit k->0 in rho=kr leaving the division by r, so BES=1 for L=0
+         lp = 1
+         const = 1.0
+         do while (lp.le.l)
+            const = const * (2*lp+1)
+            lp = lp + 1
+         enddo
+         bes = x**l/const
          return
       end if      
       select case(L)
@@ -2698,7 +2742,7 @@ C     inacurate for small X and L > 10
       integer, parameter :: qp = selected_real_kind(15, 307)
       !integer, parameter :: qp = selected_real_kind(33, 4931)
       real (kind = qp) ::  X, BES,arg,pp,c,X2,d,qq,a1
-C     modifyed spherical Bessel function 
+C     modified spherical Bessel function 
       if (L .lt. 0) then                       
          BES = 0d0                           
          return                                
@@ -2919,14 +2963,32 @@ C     relation
       Q0 = 0.5d0 * log((z+1d0)/(z-1d0+1d-10))
 c$$$  Q0sp = real(Q0)      
       
-      select case (Lla)
+c$$$      select case (Lla)
+c$$$      case (0:4)
+c$$$         zc = 4.0d0
+c$$$      case (5)
+c$$$         zc = 3.0d0
+c$$$      case (6:7)
+c$$$         zc = 2.5d0
+c$$$      case (8:20)
+c$$$         zc = 2.0d0 !results in a big mismatch for Lla=16
+c$$$      case (21:)
+c$$$         zc = 1d20
+c$$$      end select
+      select case (Lla) !Igor,  May, 2023
       case (0:4)
          zc = 4.0d0
       case (5)
          zc = 3.0d0
       case (6:7)
-         zc = 2.5d0
-      case (8:20)
+         zc = 2.0d0
+      case (8:12)
+         zc = 1.5d0
+      case (13:14)
+         zc = 1.3d0
+      case (15:16)
+         zc = 1.25d0
+      case (17:20)
          zc = 2.0d0
       case (21:)
          zc = 1d20

@@ -18,7 +18,8 @@ c$$$      use chil_module
 
 C      use date_time_module can't do this as time gets overwritten
 c MPI Fortran header file
-      include 'mpif.h'
+      use mpi_f08 !avoids MPI argument missmatch warnings
+!      include 'mpif.h'
       include 'par.f'
 c MPI declarations
       integer ntasks, myid, ierr
@@ -91,8 +92,15 @@ c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       real, allocatable :: kon(:,:) !,chil(:,:,:)
       complex, allocatable :: ct(:,:), ckern(:,:), cwork(:), ct2(:),
      $     psi12(:,:)
-      integer, allocatable :: sendHandle(:), statusesR(:,:),
-     >   statusesS(:,:), receiveHandle(:,:), receiveType(:,:)
+      type(MPI_Status), allocatable :: statusesR(:),
+     >   statusesS(:)
+      type(MPI_Request), allocatable :: receiveHandle(:,:),
+     >   receiveType(:,:),sendHandle(:)      
+      type(MPI_Status) :: my_status
+      type(MPI_Datatype) :: MY_MPI_REAL, MY_MPI_COMPLEX,
+     >   MY_MPI_REAL_NEW
+!      integer, allocatable :: sendHandle(:), statusesR(:,:),
+!     >   statusesS(:,:), receiveHandle(:,:), receiveType(:,:)
       integer ,allocatable :: nrange(:) !,minchil(:,:)
       real ,allocatable :: tscale(:)
 c$$$      pointer (ptrchi,chil)
@@ -300,10 +308,13 @@ C define the following here to stop "used without being defined" errors in do 77
       if (mod(myid,nomp).eq.0) then
          nodeid = myid/nomp + 1
       allocate(receiveType(nodes,3))!These calls are for LAPACK with many nodes
+!         allocate(receiveType(3)) !These calls are for LAPACK with many nodes
       allocate(receiveHandle(nodes,3))
-      allocate(statusesR(MPI_STATUS_SIZE,nodes))
+      allocate(statusesR(nodes))
+!      allocate(statusesR(MPI_STATUS_SIZE,nodes))
       allocate(sendHandle(3))
-      allocate(statusesS(MPI_STATUS_SIZE,3))
+!     allocate(statusesS(MPI_STATUS_SIZE,3))
+      allocate(statusesS(3))
 
       
       do n = 1, knm
@@ -568,7 +579,7 @@ C  For two-electron targets get the one-electron functions for the ion
       if (nznuc-nint(zasym).gt.2) then
 C MYID=0 writes the core states to disk, and the rest read.
          if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
-     >      0, MPI_COMM_WORLD, mpi_status, ierr )
+     >      0, MPI_COMM_WORLD, my_status, ierr )
          call makecorepsi(nznuc,zasym,ry,corep(0),r0(0))
          if (myid.eq.0) then
             do nmpi = 1, nodes-1
@@ -999,7 +1010,7 @@ c$$$         nnbin = max(abs(nnbtop),nold)
      >         corep(l),r0(l),nnbin
 C  MYID=0 goes first so that fchf discrete functions are written to disk 
             if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
-     >         0, MPI_COMM_WORLD, mpi_status, ierr )
+     >         0, MPI_COMM_WORLD, my_status, ierr )
             if (nint(nznuc-zasym).eq.1) then
                eniontmp = 13.6058 * nznuc ** 2
                enleveltmp = enion * 8067.8
@@ -1041,7 +1052,7 @@ c$$$            print*,'myid completed makeeigenpsi:',myid
             endif
 C  MYID=0 goes first so that fchf continuum functions are written to disk
             if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
-     >         0, MPI_COMM_WORLD, mpi_status, ierr )
+     >         0, MPI_COMM_WORLD, my_status, ierr )
             call makepspsi(nold,nznuc,zasym,npstat,nnbin,l,corep(l),
      >         r0(l),al,vdcore_st(1,l),ovlp,phasen,ery,ry,eniontmp,
      >         enleveltmp,slowe,ine2e,ovlpnl,hlike,orzasym)
@@ -1206,8 +1217,7 @@ C  Define positronium states
             if (myid.le.0) print*,'Using Box-based states'
                boxps = .true.
                hmax = rmesh(meshr,2)
-               zas = 1.0/sqrt(2.0)
-               zas = 0.5
+               zas = -0.5 ! 1.0 gets added in PSEUDO
                ra = alphap(lp)
                nbmax = npsp(lp)
                call pseudo(jdouble,id,hmax,zas,lp,ra,nbmax,maxr,vnucl,
@@ -1263,11 +1273,19 @@ c$$$            endif
             if (nptop(lp).eq.0) then
                nptop(lp) = npsp(lp)
             elseif (nptop(lp).lt.0) then
+               energystop = etot
+               if (nptop(lp).eq.-100) energystop = 0.0
+c$$$               if (-nptop(lp).eq.npsp(lp)) energystop = 0.0
                n = 1
-               do while(n.le.npsp(lp).and.psen2(n).lt.etot)
+               do while(n.le.npsp(lp).and.psen2(n).lt.energystop)
                   n = n + 1
                enddo
-               nptop(lp) = min(npsp(lp),n-nptop(lp)+lp-2) !-nptop(lp)
+!               if (-nptop(lp).eq.npsp(lp)) then
+               if (nptop(lp).eq.-100) then
+                  nptop(lp) = n - 1 + lp
+               else
+                  nptop(lp) = min(npsp(lp),n-nptop(lp)+lp-2) !-nptop(lp)
+               endif
             endif
             n = nstart
             if (myid.le.0)
@@ -2037,19 +2055,45 @@ C---- ANDREY ---- make Fourier transforms of psinb and psinb*v -------
          if (nze.eq.1) then            
             !maxgk = npk(2)-npk(1) ! number of kgrid points of the 1st channel
             !pmax = 1.0d3          !      gk(maxgk,1)                        
-            if (alkali.or.(interpol.and.nznuc.eq.1)) then              
-               if (.not.allocated(pmesh)) allocate(pmesh(0:maxp))
-               pmesh(0) = 0.0
-               do ip = 1,maxp                            
-                  pmesh(ip) = 10d0 ** (-3.0 + dble(ip)*6.0/dble(maxp))
-               end do               
-               if (.not.allocated(ftps)) allocate(ftps(0:maxp,nnmax
-     $              ,0:lnabmax))
-               if (.not.allocated(ftpsv)) allocate(ftpsv(0:maxp,nnmax
-     $              ,0:lnabmax))
-               !error = .false.
-               call makeftps()  ! (qcut,pmax);  
-               print*, ' makeftps: done ' 
+            if (alkali.or.(interpol.and.nznuc.eq.1)) then
+               valuesin = valuesout
+! Increase range at both ends by 1 so that four point interpolation could always be applied
+               if (.not.allocated(pmesh)) allocate(pmesh(-1:maxp+1))
+               dpp = qcut / maxp
+               dp2i = 1.0/(dpp*dpp) ! goes into the ftps module
+               dp3i = 1.0/(dpp*dpp*dpp) ! goes into the ftps module
+               do ip = -1,maxp+1
+c$$$                  pmesh(ip) = 10d0 ** (-3.0 + dble(ip)*6.0/dble(maxp))
+                  pmesh(ip) = float(ip) * dpp ! linear scale make it fast to find interpolation points
+               end do
+               nx = maxval(natop(labot:latop))
+               if (.not.allocated(ftps)) allocate(ftps(-1:maxp+1,1:nx,
+     $            labot:latop),STAT=ierr)
+               if (ierr.ne.0) stop 'ftps allocation failed'
+               if (.not.allocated(ftpsv)) allocate(ftpsv(-1:maxp+1,1:nx,
+     $            labot:latop),STAT=ierr)
+               if (ierr.ne.0) stop 'ftpsv allocation failed'
+               call makeftps()  ! (qcut,pmax);
+               inquire(file='pmesh',exist=exists)
+               if (exists) then
+                  do la = labot, latop
+                     do na = nabot(la), natop(la)
+                        do i = 0, maxp+1
+                           write(10*na+la,*) pmesh(i),ftps(i,na,la),
+     >                        ftpsv(i,na,la)
+                        enddo
+                        call getftps(qcut*2.0, na, la, FT0, FT1)
+                        write(10*na+la,*) qcut*2.0,FT0,FT1
+                        print*,"ftps written to disk for na, la:",na,la
+                     enddo
+                  enddo
+               endif
+               call date_and_time(date,time,zone,valuesout)
+               print'(/,i4,": nodeid allocated",i5," Mb,",
+     >            " and exited MAKEFTPS at: "
+     >            a10,", diff (secs):",i5)',nodeid,
+     >            (maxp+2)*2*nx*(latop-labot+1)/1000000,time,
+     >            idiff(valuesin,valuesout)
             end if            
 
 c$$$C test ftps ============================================================
@@ -2496,6 +2540,8 @@ c$$$            enddo
 c$$$         endif
 C     Determine which, if any, timing data to read
          call MPI_Barrier(  MPI_COMM_WORLD, ierr)
+         print*,'n,nchistart,nchistop:',nodeid,nchistart(nodeid),
+     >      nchistop(nodeid)
          lgold(ipar) = lg
          nchtimetot = 0
  41      exists = .false.
@@ -2540,34 +2586,39 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
                open(42,file=nodetfile,action='read')
  34            read(42,*,end=35) lgold(ipar),iparold,nodeidold,ntimeold,
      >          n1, n2
-               nchistartold(nodeidold,ipar) = n1
-               nchistopold(nodeidold,ipar) = n2
-               tnodetsum = 0.0
-               do n = n1, n2
-                  nchtimeold(n) = (float(nchtop+1-n)/float(nchtop))**2
-                  tnodetsum = tnodetsum + nchtimeold(n)
-               enddo
-               tnodetsumnew = 0.0
-               do n = n1, n2
+               if (nodeidold.le.nodeid) then !allocations above are for NODES
+                  nchistartold(nodeidold,ipar) = n1
+                  nchistopold(nodeidold,ipar) = n2
+                  tnodetsum = 0.0
+                  do n = n1, n2
+                     nchtimeold(n)=(float(nchtop+1-n)/float(nchtop))**2
+                     tnodetsum = tnodetsum + nchtimeold(n)
+                  enddo
+                  tnodetsumnew = 0.0
+                  do n = n1, n2
 c$$$                  nchtimeold(n) =
 c$$$     >               max(nint(tnchtimeold(n)*ntimeold/tnodetsum),1)
-                  nchtimeold(n) = nchtimeold(n)*ntimeold/tnodetsum
-                  tnodetsumnew = tnodetsumnew + nchtimeold(n)
-               enddo
+                     nchtimeold(n) = nchtimeold(n)*ntimeold/tnodetsum
+                     tnodetsumnew = tnodetsumnew + nchtimeold(n)
+                  enddo
 c$$$               if (nodeid.eq.1) print*,nodeidold,nint(tnodetsumnew),
 c$$$     >            ntimeold,' nodeid,newtime,oldtime' 
-               goto 34
+                  goto 34
+               else
+                  exists = .false.
+               endif
  35            close(42)
                nchtopold = n2
                if (nchtop.ne.nchtopold.or.ipar.ne.iparold)exists=.false. 
                do nch = 1, nchtop
                   call getchinfo(nch,nchp,lg,temp,maxpsi,enpsi,la,na,lp)
                   chstateold(nch)=chan(nchp)
-                  if (nodeid.eq.1)
-     >               print*,'nch,time:',nch,nchtimeold(nch)
+c$$$                  if (nodeid.eq.1)
+c$$$     >               print*,'nch,time:',nch,nchtimeold(nch)
                enddo
             endif
          endif
+
          if (exists.and.nchtop.gt.nodes) then
             if (nodeid.eq.1) print*,'Using:',nodetfile,nchtopold,nchtop
             do nch = 1, nchtop
@@ -2629,7 +2680,7 @@ c$$$               write(42,*) nch, nchtime(nch)
             ntm = 1
             nch=1
             do n = 1, nodes-1
-               nodet(n) = 0
+               nodet(n) = 1 !to potentially avoid divs by zero
                tnodet = 0.0
                do while (tnttot.lt.tave(ipar)*n)
 !                  nodet(n) = nodet(n) + nchtime(nch)
@@ -2637,6 +2688,7 @@ c$$$               write(42,*) nch, nchtime(nch)
                   tnttot = tnttot + nchtime(nch)
                   nch = nch + 1
                enddo
+               if (nch.eq.1) cycle
                nodet(n) = nint(tnodet)
                if (tave(ipar)*n-(tnttot-nchtime(nch-1)).lt.
      >            tnttot-tave(ipar)*n.and.nch.gt.nchistart(n)) then
@@ -2907,13 +2959,13 @@ c$$$               print*,'time for bMATR:',s2-s1
                do n = 2, nodes !receive on process 0 dr,dv,dx from processes n-1
                   call MPI_RECV(dr(1,nchistart(n)),
      >               nqm*(nchistop(n)-nchistart(n)+1), MY_MPI_REAL,
-     >               n-1,ntag,MPI_COMM_WORLD,mpi_status,ierr)
+     >               n-1,ntag,MPI_COMM_WORLD,my_status,ierr)
                   call MPI_RECV(dv(1,nchistart(n)),
      >               nqm*(nchistop(n)-nchistart(n)+1), MY_MPI_REAL,
-     >               n-1,ntag,MPI_COMM_WORLD,mpi_status,ierr)
+     >               n-1,ntag,MPI_COMM_WORLD,my_status,ierr)
                   call MPI_RECV(dx(1,nchistart(n)),
      >               nqm*(nchistop(n)-nchistart(n)+1), MY_MPI_REAL,
-     >               n-1,ntag,MPI_COMM_WORLD,mpi_status,ierr)
+     >               n-1,ntag,MPI_COMM_WORLD,my_status,ierr)
                enddo
             else !send dr,dv,dx from nodeid to process 0 (nodeid=1)
                call MPI_SEND(dr(1,nchistart(nodeid)),
@@ -2934,19 +2986,21 @@ C  Initialise the first order V matrix.
 c$$$         if (packed) then
 c$$$            vmatp(:,:) = 0.0
 c$$$         else 
-            call update(6)
-            vmat(:,:) = 0.0
+         call update(6)
+         vmat(:,:) = 0.0
 C The following code can be commented out to yield previously working results
 C Note that it does not touch on-shell wk (needed in ScaLAPACK). Initialise V
-C with the Green's Function.
-           if (scalapack) then
+C     with the Green's Function.
+         if (npk(2).gt.2) then !avoid the UBA case
+            if (scalapack) then
                call vmatfromgf(gf,kmaxgf,npk,vmat01,
      >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
      >            nchtop,wk)
-           else
-              call vmatfromgf(gf,kmaxgf,npk,vmat,
+            else
+               call vmatfromgf(gf,kmaxgf,npk,vmat,
      >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
-           endif
+            endif
+         endif
 c$$$            if (scalapack) then
 c$$$               do nch = nchistart(nodeid), nchistop(nodeid)
 c$$$                  do k = npk(nch)+1,npk(nch+1)-1
@@ -3039,9 +3093,10 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
          end if 
          call date_and_time(date,time,zone,valuesout)
 c$$$cDIR$ SUPPRESS
-         print '(/,i4,": nodeid exiting  VMAT routines at: ",a10,
-     >      ", J=",i3,", nchprs:",i7,", diff (secs):",i5)',nodeid,time,
-     >      lg,nchprs(nchistart(nodeid),nchistop(nodeid),nchtop),
+         print'(/,i4,": nodeid exiting  VMAT routines at: ",a10,", LG ="
+     >      ,i3,", IPAR = ",i1", nchprs:",i7,", diff (secs):",i5)',
+     >      nodeid,time,lg,ipar,
+     >      nchprs(nchistart(nodeid),nchistop(nodeid),nchtop),
      >      idiff(valuesin,valuesout)
 
          if (.not.firstrun.or.projectile.eq.'photon') then
@@ -3063,7 +3118,7 @@ c$$$            enddo
 c$$$         enddo
          call update(6)
          ntime(:,ipar) = 0
-         ntime(nodeid,ipar) = idiff(valuesinLG,valuesout)
+         ntime(nodeid,ipar) = idiff(valuesin,valuesout)
          valuesin = valuesout
 
 c     
@@ -3170,28 +3225,38 @@ C Reconstruct full VMAT on the first node to use with LAPACK
                ni = npk(nchistart(nn))
                nf = npk(nchistop(nn)+1)-1
                call mpi_type_vector(nf-ni+2,nf-ni+1,nd,
-     >         MY_MPI_REAL,
-     >            receiveType(nn,3), ierr) ! Defines the strided memory access to receive vmat01
-                  call mpi_type_commit(receiveType(nn,3),ierr)
-                  call mpi_irecv(vmat(ni,ni), 1, receiveType(nn,3),
+     >            MY_MPI_REAL,
+     >            MY_MPI_REAL_NEW,ierr)
+!     >            receiveType(nn,3), ierr) ! Defines the strided memory access to receive vmat01               
+!     call mpi_type_commit(receiveType(nn,3),ierr)
+               call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
+!               call mpi_type_commit(receiveType(nn,3),ierr)               
+!               call mpi_irecv(vmat(ni,ni), 1, receiveType(nn,3),
+               call mpi_irecv(vmat(ni,ni), 1, MY_MPI_REAL_NEW,
      >               (nn-1)*nomp, TAG01, MPI_COMM_WORLD,
      >               receiveHandle(nn,3),ierr)
                
                if (nf.lt.nd) then
                   call mpi_type_vector(nf-ni+1,nd-nf,nd,
      >            MY_MPI_REAL,
-     >               receiveType(nn,1), ierr) ! Defines the strided memory access to receive vmat0
-                  call mpi_type_commit(receiveType(nn,1),ierr)
-                  call mpi_irecv(vmat(nf+1,ni), 1, receiveType(nn,1),
+     >               MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat0
+!     >               receiveType(nn,1), ierr) ! Defines the strided memory access to receive vmat0                  
+                  call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
+!                  call mpi_type_commit(receiveType(nn,1),ierr)
+!                  call mpi_irecv(vmat(nf+1,ni), 1, receiveType(nn,1),
+                  call mpi_irecv(vmat(nf+1,ni), 1, MY_MPI_REAL_NEW,
      >               (nn-1)*nomp, TAG0, MPI_COMM_WORLD,
      >               receiveHandle(nn,1),ierr)
                   if (nsmax.eq.1) then ! second spin
                      call mpi_type_vector(nd-nf,nf-ni+1,nd,
      >               MY_MPI_REAL,
-     >                  receiveType(nn,2), ierr) ! Defines the strided memory access to receive vmat1
-                     call mpi_type_commit(receiveType(nn,2),ierr)
+     >                  MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat1
+!     >                  receiveType(nn,2), ierr) ! Defines the strided memory access to receive vmat1                     
+!     call mpi_type_commit(receiveType(nn,2),ierr)
+                     call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
                      call mpi_irecv(vmat(ni,nf+1+1), 1, 
-     >                  receiveType(nn,2),(nn-1)*nomp, TAG1, 
+     >                  MY_MPI_REAL_NEW,(nn-1)*nomp, TAG1,
+!     >                  receiveType(nn,2),(nn-1)*nomp, TAG1,                      
      >                  MPI_COMM_WORLD,receiveHandle(nn,2),ierr)
                   endif 
                else
@@ -3200,16 +3265,20 @@ C Reconstruct full VMAT on the first node to use with LAPACK
             enddo
             do i = 1, 3
                call mpi_waitall(nodes,receiveHandle(:,i),
-     >            statusesR(:,:),ierr)
+     >            statusesR(:),ierr)
+!     >            statusesR(:,:),ierr)               
             end do
             do nn=2,nodes
                ni = npk(nchistart(nn))
                nf = npk(nchistop(nn)+1)-1
-               call mpi_type_free(receiveType(nn,3),ierr)
+               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+!               call mpi_type_free(receiveType(nn,3),ierr)               
                if (nf.lt.nd) then
-                  call mpi_type_free(receiveType(nn,1),ierr)
+                  call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+!                  call mpi_type_free(receiveType(nn,1),ierr)                  
                   if (nsmax.eq.1)
-     >               call mpi_type_free(receiveType(nn,2),ierr)
+     >               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+!     >               call mpi_type_free(receiveType(nn,2),ierr)                  
                end if
             end do
          else if (mod(myid,nomp).eq.0) then
@@ -3234,7 +3303,8 @@ c$$$            enddo
      >            call mpi_isend(vmat1,(nf-ni+1)*(nd-nf),MY_MPI_REAL,
      >            0,TAG1,MPI_COMM_WORLD,sendHandle(2),ierr)
             endif 
-            call mpi_waitall(3,sendHandle,statusesS(:,:))
+!     call mpi_waitall(3,sendHandle,statusesS(:,:))
+            call mpi_waitall(3,sendHandle,statusesS(:))
          endif
          endif ! if scalapack
          if (allocated(vmat01)) deallocate(vmat01)
@@ -3543,14 +3613,15 @@ c$$$         if (canstop(0).and.canstop(abs(npar)).and.ntype.ge.0.and.
 c$$$     >      ntasks.eq.-1) go to 780
  770  continue ! LG loop      
           
-      if (alkali) then
-         if (lptop.ne.-1) then
+      if (alkali.or.interpol) then
+         if (lptop.ne.-1.and.alkali) then
             deallocate(ubb_res)
             deallocate(ql_res)
          end if
          !if (.not.oldftps) then
-            deallocate(ftps)
-            deallocate(ftpsv)
+         deallocate(pmesh)
+         deallocate(ftps)
+         deallocate(ftpsv)
          !end if
       end if
       deallocate(nchistart,nchistop)
@@ -4281,7 +4352,7 @@ c$$$         print*,'not found'
             n = n - 1
          enddo
          natop(l) = n + l
-      else if (natop(l).lt.-90) then
+      else if (natop(l).lt.-90.and.natop(l).ne.-100) then
 C  The following assumes that the number of summed states is -90-natop(l),
 C  starting with the last
          n = nps
@@ -4526,6 +4597,8 @@ c$$$            endif
          endif
 C  If natop(l) is -N, then open channels plus following N - 1 closed ones
 C  will be included.
+         if (natop(l).eq.-100.and.enpsinb(n,l).ge.0.0) 
+     >      natop(l) = min(ntop, n-1)
          if (natop(l).eq.-98.and.enpsinb(n,l).ge.etot/2.0) 
      >      natop(l) = min(ntop, n)
          if (natop(l).eq.-99.and.enpsinb(n,l).ge.etot/2.0) 
@@ -5322,18 +5395,25 @@ c      close(57)
 
       
 #define SLEEPY_BARRIER_TAG 678
-
+! not used any more
       subroutine sleepy_barrier(comm)
+!      use mpi_f08 !avoids MPI argument missmatch warnings
       implicit none
       include 'mpif.h'
       integer :: comm
+!      type(MPI_Comm) :: comm
       integer, dimension(:), allocatable :: recvhandle,sendhandle,dataa
+!      type(MPI_Request), dimension(:), allocatable :: recvhandle,
+!     >   sendhandle,dataa
       integer, dimension(:,:), allocatable :: statuses
+!      type(MPI_Status), dimension(:,:), allocatable :: statuses
+!      type(MPI_Status) :: stat
       integer :: n,me
       logical :: done
       integer :: i,ierr
 #ifdef NEW_SLEEPY_BARRIER
-      integer buf,req,n1,n2,nomp,OMP_GET_MAX_THREADS
+      integer buf,n1,n2,nomp,OMP_GET_MAX_THREADS,req
+!      type(MPI_Request) :: req
 #endif
 c$$$      return
       call mpi_comm_size(comm,n,ierr)
@@ -5352,6 +5432,7 @@ c$$$      return
      >            sendhandle(i),ierr)
          end do
          call mpi_waitall(n,sendhandle,MPI_STATUSES_IGNORE,ierr)
+!         call mpi_waitall(n,sendhandle,stat,ierr)
          call mpi_wait(req,MPI_STATUSES_IGNORE,ierr)
       else
          call mpi_irecv(buf,1,MPI_INTEGER,n1,SLEEPY_BARRIER_TAG,

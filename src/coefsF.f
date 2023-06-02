@@ -4594,7 +4594,7 @@
          f0(29)=2662879723520.*a(30)
          f1(29)=87875030876160.*a(30)
       case default ! Nl
-       stop 'coefs: stmt. missing for Nl>30 at l=3'
+       stop 'not coded for Nl>30 at l=3'
       end select ! Nl
             
       return
