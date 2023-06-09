@@ -1,6 +1,6 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >   mintemp3,maxtemp3,temp3,ltmin,minchilx,chilx,ctemp,itail,trat,
-     >   nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
+     >   nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii_dummy,second,
      >   maxi2,temp2,ifirst)
       use chil_module
 #ifdef GPU
@@ -49,7 +49,7 @@ c$$$      gpunum=mod(tnum,ngpus)
 c$$$      call acc_set_device_num(gpunum,acc_device_nvidia)
 c$$$#endif
 
-!$acc data 
+!$acc data if(nqmi>100) 
 !$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
 !$acc& present(npk(1:nchtop+1))
 c$$$!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
@@ -67,7 +67,7 @@ c$$$!$omp do schedule(dynamic)
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = min(maxtemp3(nchf),meshr)
 !!$acc update device(temp2(1:maxi2,1:nqmi,nchf)) async(nchf)
-!$acc kernels 
+!$acc kernels if(nqmi>100)
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
             do i = 1, maxi !minchil(ki+npk(nchi)-1), maxi !minki, maxi
