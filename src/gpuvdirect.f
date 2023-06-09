@@ -50,7 +50,7 @@ c$$$      call acc_set_device_num(gpunum,acc_device_nvidia)
 c$$$#endif
 
 !$acc data if(nqmi>100) 
-!$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
+!$acc& copy(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
 !$acc& present(npk(1:nchtop+1))
 c$$$!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
 c$$$!$acc& present(minchil(1:npk(nchtop+1)-1))
@@ -60,7 +60,7 @@ c$$$!$acc& present(minchil(1:npk(nchtop+1)-1))
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
 !!$acc& create(temp2)
-!$acc& copyin(temp2(1:maxi2,1:nqmi,nchi:nchtop))
+!$acc& copyin(temp2(1:meshr,1:nqmi,nchi:nchtop))
 !$acc& create(tmp)
 c$$$!$omp do schedule(dynamic)
       do nchf = nchi, nchtop
@@ -106,7 +106,7 @@ c$$$               endif
          end do
 !$acc end kernels
 
-!$acc update self(vmatt(1:nqmf,1:nqmi,nchf,0:1)) async(2)
+!!$acc update self(vmatt(1:nqmf,1:nqmi,nchf,0:1)) async(2)
 
        end do
 #ifndef GPU
