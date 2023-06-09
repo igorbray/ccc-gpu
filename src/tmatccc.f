@@ -56,10 +56,11 @@ c$$$      complex cv(nchan,ichi), cv2(ichi,nchtop)
      >   phaseq(knm)
       dimension det(2), gk(kmax,nchan), temp(maxr),err(nchan,nchan)
       character ud(0:1), date*8,time*10,zone*5
+!    fix for cray compiler
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
-     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lastns
+     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       logical sprint,lprint,uba(nchan),second,packed,exists,scalapack,
-     >   converged,photon
+     >   converged,photon,lastns
       character chan(knm)*3, ch, csfile*(*), projectile*(*), pfile*80
       common /uniquev/unv(kmax*nchan)
       common /charchan/ chan
