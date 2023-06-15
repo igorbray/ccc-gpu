@@ -501,19 +501,20 @@ c$$$      print*,'maxpot:',maxpot
 
       if (projectile.eq.'photon') then
          if (ntype.eq.0) then
-            print*,'Will be using Hylleraas-20 helium ground state'
+            if (nodeid.eq.1)
+     >         print*,'Will be using Hylleraas-20 helium ground state'
          else 
-            print*,'Will be using an MCHF ground state'
+            if (nodeid.eq.1) print*,'Will be using an MCHF ground state'
          endif
          if(NZNUC.eq.3.and.ZASYM.eq.1.0) then
             lithium = 1
-            print'(A)', 'DPI of lithium'
+            if (nodeid.eq.1) print'(A)', 'DPI of lithium'
          else if (NZNUC.eq.5.and.ZASYM.eq.3.0) then
             lithium = 1
-            print'(A)', 'DPI of B++'
+            if (nodeid.eq.1) print'(A)', 'DPI of B++'
          else if (NZNUC.eq.10.and.ZASYM.eq.8.0) then
             lithium = 1
-            print'(A)', 'DPI of Ne7+'
+            if (nodeid.eq.1) print'(A)', 'DPI of Ne7+'
          else
             lithium = 0
          end if         
@@ -1071,10 +1072,10 @@ c$$$         else
 c$$$            nchanmax = nchanmax + (natop(l) - nabot(l) + 1) * l
 c$$$            if (l.gt.0) nstmax = nstmax + natop(l) - nabot(l) + 1
 c$$$         endif 
-         if (nchanmax.gt.nchan.and.l.eq.lstop.and.hlike) then
-            print*,'NCHAN should be at least NCHANMAX',nchan,nchanmax
-            stop 'NCHAN should be at least NCHANMAX'
-         endif
+c$$$         if (nchanmax.gt.nchan.and.l.eq.lstop.and.hlike) then
+c$$$            print*,'NCHAN should be at least NCHANMAX',nchan,nchanmax
+c$$$            stop 'NCHAN should be at least NCHANMAX'
+c$$$         endif
             
 c$$$         do n = nabot(l), min(natop(l),9)
 c$$$            do i = 1, istoppsinb(n,l)
@@ -1452,10 +1453,10 @@ c
       endif
       nent = min(nent,nstmax+nposstmax)
       nchanmax = nchanmax + nposchmax
-      if (nchanmax.gt.nchan) then
-         print*,'NCHAN should be at least NCHANMAX',nchan,nchanmax
-         stop 'NCHAN should be at least NCHANMAX'
-      endif
+c$$$      if (nchanmax.gt.nchan) then
+c$$$         print*,'NCHAN should be at least NCHANMAX',nchan,nchanmax
+c$$$         stop 'NCHAN should be at least NCHANMAX'
+c$$$      endif
 
 C  For testing purposes it may be useful to run a calculation without
 C  any distorting potential
@@ -2046,6 +2047,10 @@ c$$$     >      nodeid,time
          call kgrid(ispeed,nk,sk,etot,gk,wk,weightk,nbnd,nqm,lg,
      >      nchtop,nchopt,npk,nold,ndumm,luba,ifirst,npsbnd,abs(nnbtop),
      >      hlike,uba,theta,nodes,nodeid)
+         if (nchtop.gt.nchan) then
+            print*,'increase NCHAN to at least NCHTOP:',nchan, nchtop
+            stop 'increase NCHAN to at least NCHTOP'
+         endif 
          call date_and_time(date,time,zone,valuesout)
 c$$$         print '(/,i4,": nodeid exited KGRID at: ",a10,
 c$$$     >   ", diff (secs):",i5)',nodeid,time,
@@ -2540,8 +2545,8 @@ c$$$            enddo
 c$$$         endif
 C     Determine which, if any, timing data to read
          call MPI_Barrier(  MPI_COMM_WORLD, ierr)
-         print*,'n,nchistart,nchistop:',nodeid,nchistart(nodeid),
-     >      nchistop(nodeid)
+c$$$         print*,'n,nchistart,nchistop:',nodeid,nchistart(nodeid),
+c$$$     >      nchistop(nodeid)
          lgold(ipar) = lg
          nchtimetot = 0
  41      exists = .false.
@@ -2584,9 +2589,10 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
             endif
             if (exists) then
                open(42,file=nodetfile,action='read')
+               print*,'Nodeid, reading: ',nodeid,nodetfile
  34            read(42,*,end=35) lgold(ipar),iparold,nodeidold,ntimeold,
      >          n1, n2
-               if (nodeidold.le.nodeid) then !allocations above are for NODES
+               if (nodeidold.le.nodes) then !allocations above are for NODES
                   nchistartold(nodeidold,ipar) = n1
                   nchistopold(nodeidold,ipar) = n2
                   tnodetsum = 0.0
@@ -2735,17 +2741,19 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
                if (nodet(ntm)*1.1.gt.limitt) 
      >            print"('WARNING: nodet(ntm)/limit_time:',i4,'%')",
      >            nodet(ntm)*100/limitt
-            endif               
+            endif
          else
             LGold(ipar) = -1
+            print*,'nodeid:,nchistart(nodes):',
+     >         nodeid,nchistart(nodes)
          endif
          call MPI_Barrier(  MPI_COMM_WORLD, ierr)
          
-#ifdef _single
-#define nbytes 4
-#elif defined _double
-#define nbytes 8
-#endif
+c$$$#ifdef _single
+c$$$#define nbytes 4
+c$$$#elif defined _double
+c$$$#define nbytes 8
+c$$$#endif
 
 C Allocate the node-dependent VMAT arrays
             ni = npk(nchistart(nodeid))
@@ -2790,14 +2798,13 @@ c$$$                     vmat1(:,:) = 0.0
                endif
             else
                allocate(vmat01(1,2),vmat0(1,1),vmat1(1,1)) !as above
-            endif 
+            endif
             print"('nodeid,nchistart,nchistop,nchprs,mchi,mv01,mv0,mv1:'
      >         ,i4,':',2i5,i7,5(i7,'Mb'),'(tot)')",
      >         nodeid,nchistart(nodeid),
      >         nchistop(nodeid),nchprs(nchistart(nodeid),
      >         nchistop(nodeid),nchtop),mchi,mv01,mv0,mv1,
      >         mchi+mv01+mv0+mv1
-
             if (scalapack.or.nodeid.gt.1) then
                allocate(vmat(nchtop,nchtop+1))
             else
@@ -2955,6 +2962,7 @@ c$$$               print*,'time for bMATR:',s2-s1
      >         ", diff (secs):",i5)',nodeid,time,
      >         idiff(valuesin,valuesout)
             ntag = 10
+            call MPI_Barrier(  MPI_COMM_WORLD, ierr) 
             if (nodeid.eq.1) then
                do n = 2, nodes !receive on process 0 dr,dv,dx from processes n-1
                   call MPI_RECV(dr(1,nchistart(n)),
@@ -2967,7 +2975,8 @@ c$$$               print*,'time for bMATR:',s2-s1
      >               nqm*(nchistop(n)-nchistart(n)+1), MY_MPI_REAL,
      >               n-1,ntag,MPI_COMM_WORLD,my_status,ierr)
                enddo
-            else !send dr,dv,dx from nodeid to process 0 (nodeid=1)
+            else                !send dr,dv,dx from nodeid to process 0 (nodeid=1)
+               n = nodeid
                call MPI_SEND(dr(1,nchistart(nodeid)),
      >            nqm*(nchistop(nodeid)-nchistart(nodeid)+1),
      >            MY_MPI_REAL, 0, ntag, MPI_COMM_WORLD, ierr )
@@ -2979,6 +2988,8 @@ c$$$               print*,'time for bMATR:',s2-s1
      >            MY_MPI_REAL, 0, ntag, MPI_COMM_WORLD, ierr )
                deallocate(dr,dv,dx)
             endif
+            call MPI_Barrier(  MPI_COMM_WORLD, ierr) 
+            if (nodeid.eq.1) print*,' DMATR calculations complete'
          endif 
          
 C  Initialise the first order V matrix.

@@ -2486,6 +2486,11 @@ C$omp end parallel do
                end do           ! i
                ftpsv(-1:0,na,la) = res0
                ftps(-1:0,na,la) = res1
+c$$$               do ip = -1, maxp
+c$$$                  p = pmesh(ip)
+c$$$                  write(na*10+la,'(1p,3e15.5)') p,ftpsv(ip,na,la),
+c$$$     >               ftps(ip,na,la)
+c$$$               enddo
             enddo               !na
          end if                 ! alkali.or.interpol
 C     analytical calculations for Hydrogen only
@@ -2744,6 +2749,11 @@ C---------------------------------------------------------------
          p0 = p - pmesh(i)
          p1 = p - pmesh(i+1)
          p2 = p - pmesh(i+2)
+c$$$         do j = -1,2 ! just for testing
+c$$$            ftps(i+j,n,l) = pmesh(i+j)**3+pmesh(i+j)**2+pmesh(i+j)+1.0
+c$$$     >         + pmesh(i+j)**4 + pmesh(i+j)**5
+c$$$         enddo
+c$$$         fout = p**3+p**2+p+1.0 + p**4 +p**5
 !     dp2i = 1.0/(pmesh(1)*pmesh(1)) !in module as is dp3i
 ! below is two-point interpolation
 c$$$         FT0o = (ftps(i,n,l)*(pmesh(i+1)-p)+ftps(i+1,n,l)*(p-pmesh(i)))/
@@ -2770,6 +2780,7 @@ c$$$     >      +ftpsv(i+2,n,l)*c2)*dp2i
      >      +ftps(i,n,l)*c0
      >      -ftps(i+1,n,l)*c1
      >      +ftps(i+2,n,l)*c2)
+c$$$         print*,p,fout/ft0,fout/ft0o
          FT1 = dp3i * (
      >      -ftpsv(i-1,n,l)*cm1
      >      +ftpsv(i,n,l)*c0
@@ -4018,7 +4029,9 @@ C     inquire(file='ps/info.par', exist=exists)
          
                      
 !     save nabot(l) and natop(l) ---------------------------------- 
-      open(99,file=dir//'n.f', ACCESS = 'APPEND')      
+!     fix for cray compiler                     
+      open(99,file=dir//'n.f', POSITION = 'APPEND')      
+!     open(99,file=dir//'n.f', ACCESS = 'APPEND')      
       write (99,12) LL, nabot(LL), LL, natop(LL)                 
  12   format (6x, 'nabot(',I2,') = ',I3,'; natop(',I2,') = ',I3,';') 
       close(99)
@@ -4047,7 +4060,9 @@ C 100  format('_l',I1.1,'_n',I2.2,'.dat')
       close(99)
       
 !     save coefficients cknd -------------------------------------
-      open(98,file=dir//'cknd', ACCESS = 'APPEND')
+!     fix for cray compiler
+      open(98,file=dir//'cknd', POSITION = 'APPEND')
+!      open(98,file=dir//'cknd', ACCESS = 'APPEND')
 C     write(98,*) istoppsinb(n,l)               
       nmax1 = npsstates(1,LL)   ! for target 
       nmax2 = npsstates(2,LL)   ! for positronium
@@ -4131,7 +4146,9 @@ c$$$      end do                    ! i
 !     save pseudofunctions      
       l = LL
 
-      open(70,file=dir//'istoppsinb', access ='append')     
+!     fix for cray compiler                     
+      open(70,file=dir//'istoppsinb', position ='append')
+!      open(70,file=dir//'istoppsinb', access ='append')     
       do n = nabot(l), natop(l)
          if (positron(n,l,npos)) cycle         
          write(70,*) l, n, istoppsinb(n,l)

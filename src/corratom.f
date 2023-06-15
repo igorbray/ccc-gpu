@@ -6,7 +6,7 @@ C INPUT:   rmax   - maximal value of 'r'(the radial cut-off)
 C          nr     - the number of points in r-grid
 C          grid   - r-grid to calculate wavefunctions on it.
 
-      use vmat_module !only for nodeid to minimize writes
+      use vmat_module, only: nodeid !to minimize writes
       include 'par.f'
       include 'paratom.f'
       PARAMETER (Ncf = 20)
@@ -158,6 +158,7 @@ C Lithium 2s/2p
        
        if (nodeid.eq.1) write(6, 11) 'Total', S
  11    FORMAT(A4, E20.4)
+! 11    FORMAT(A4, E20.7)       
                           
       OPEN(2,FILE=filnam,FORM='UNFORMATTED',STATUS='OLD')
       IZCH=2
@@ -216,7 +217,7 @@ c$$$      close(2)
      >   ' orbital'
 
       call OVER(wa(1,lin,nmin(lin)),wa(1,lin,nmin(lin)), overlap)
-      print'(A,I1,A1,A,I1,A1,A,F9.4)',
+      if (nodeid.eq.1) print'(A,I1,A1,A,I1,A1,A,F9.4)',
      >   '<',nmin(lin),hh(lin),'|',nmin(lin),hh(lin),'> ', overlap
       if (abs(overlap-1.0).gt.1e-2) stop 'overlap not 1'
 
@@ -228,15 +229,15 @@ c$$$      print*, '<1s~|1s~> ', overlap
 c$$$  if (abs(overlap-1.0).gt.1e-2) stop 'overlap not 1'
       
       call OVER(wa(1,0,1),wa(1,0,2), overlap)
-      print*, '<1s~|2s~> ', overlap
+      if (nodeid.eq.1) print*, '<1s~|2s~> ', overlap
       
       call OVER(wa(1,0,1),wa(1,0,3), overlap)
-      print*, '<1s~|3s~> ', overlap
+      if (nodeid.eq.1) print*, '<1s~|3s~> ', overlap
       
 !      call LENGTH(wa(1,0,1),wa(1,1,2),0,1,resl)
 !      print*, '<1s|r|2p> ', resl
       call VELOCITY(wa(1,0,1),wa(1,1,2),0,1,resv)
-      print*, '<1s|r|2p> ', resv
+      if (nodeid.eq.1) print*, '<1s|r|2p> ', resv
 
       
 c Perturbation theory for CI
