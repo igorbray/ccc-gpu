@@ -85,21 +85,21 @@ $(OBJDIR)/hflib.a:
 
 $(OBJDIR)/main.o : main.f par.f $(OBJDIR)/modules.o
 #helium/$(OBJDIR)/modules.o
-	$(FC) $(aO1) -c main.f  -o $@
-
+#	$(FC) $(aO1) -c main.f  -o $@
+	$(FC) $(a) -c main.f  -o $@
 $(OBJDIR)/modules.o:  helium/modules.f
 	$(FC) $a -c helium/modules.f -o $@
 
 # The -O0 -C -g stops crashes in BORN ICS at high energies
-#$(OBJDIR)/processt.o : processt.f par.f
-#	$(FC) $a -O0 -c processt.f  -o $@
+$(OBJDIR)/processt.o : processt.f par.f
+	$(FC) $a -O0 -c processt.f  -o $@
 #	$(FC) $a -Mllvm -O0 -traceback -C -g -c processt.f  -o $@
 
 $(OBJDIR)/posvmat.o : posvmat.f par.f par.pos $(OBJDIR)/modules.o
 	$(FC) $a  -c posvmat.f  -o $@
 
-$(OBJDIR)/new-posvmat.o : new-posvmat.f par.f par.pos $(OBJDIR)/modules.o
-	$(FC) $a  -c new-posvmat.f  -o $@
+#$(OBJDIR)/new-posvmat.o : new-posvmat.f par.f par.pos $(OBJDIR)/modules.o
+#	$(FC) $a  -c new-posvmat.f  -o $@
 
 $(OBJDIR)/cc.o : cc.f 
 	$(FC) $a -O0 -c cc.f  -o $@

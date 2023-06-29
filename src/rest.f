@@ -542,7 +542,7 @@ c$$$            eigmod = eigmod - pi / 2.0
 c$$$         enddo 
 
          esum(ns) = eigmod
-         do nchi = 1, lent
+         do nchi = 1, 1 !lent
             print '(''N='',i6,'' Rcond:'',1p,e9.2, '', Eigphase sums:'',
      >         0p,2f9.4,i3,'' test:'',10i2)',
      >         nds,rcond(ns),eigmod,esum1,n,(nmpow(err(nchf,nchi)),

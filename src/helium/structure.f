@@ -73,10 +73,12 @@ c     the routine set_basis(...)
 c     set 2-el. angular coef. array.
       call setfang
 
-      open(15,file=cnode//'states.core_parts'//ench,action='WRITE')
-      open(4,file=cnode//'F6'//ench,action='WRITE')
-      open(10,file=cnode//'he-states'//ench,action='WRITE')
-      open(20,file=cnode//'overlap.result'//ench,action='WRITE')
+      open(15,file=adjustl(cnode//'states.core_parts'//ench),
+     >   action='WRITE')
+      open(4,file=adjustl(cnode//'F6'//ench),action='WRITE')
+      open(10,file=adjustl(cnode//'he-states'//ench),action='WRITE')
+      open(20,file=adjustl(cnode//'overlap.result'//ench),
+     >   action='WRITE')
  10   open(3,file='F5',iostat=iostatF5,action='READ')
 
       if(iostatF5.ne.0) then
@@ -2210,7 +2212,7 @@ c         print*,'***** N=',N,sign_wf
          
       end do                    ! end  N  loop
       print*,'!!!!!!'
-      open(534,file=cnode//'save.sign.wf'//ench)
+      open(534,file=adjustl(cnode//'save.sign.wf'//ench))
       write(534,'("lable         N   WaveFunc(i1,i2)        CI_sum")')
       do N=1,Nmax
          tmp1 = 0.0

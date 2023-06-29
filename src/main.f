@@ -97,7 +97,7 @@ c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       type(MPI_Request), allocatable :: receiveHandle(:,:),
      >   receiveType(:,:),sendHandle(:)      
       type(MPI_Status) :: my_status
-      type(MPI_Datatype) :: MY_MPI_REAL, MY_MPI_COMPLEX,
+      type(MPI_Datatype) :: !MY_MPI_REAL, MY_MPI_COMPLEX,
      >   MY_MPI_REAL_NEW
 !      integer, allocatable :: sendHandle(:), statusesR(:,:),
 !     >   statusesS(:,:), receiveHandle(:,:), receiveType(:,:)
@@ -265,7 +265,9 @@ C==== ANDREY ===================================================
 #define MY_MPI_COMPLEX MPI_COMPLEX
 #elif defined _double
 #define nbytes 8
-#define MY_MPI_REAL MPI_DOUBLE_PRECISION
+#define MY_MPI_REAL MPI_REAL8
+!#define MY_MPI_COMPLEX MPI_COMPLEX16
+!#define MY_MPI_REAL MPI_DOUBLE_PRECISION
 #define MY_MPI_COMPLEX MPI_DOUBLE_COMPLEX
 #endif
 
@@ -1342,7 +1344,7 @@ c$$$                     endif
                   en = psen2(npos-lp)
                   nznucpos=1
                   call hlikechi(nznucpos,0.5,en,lp,chi,phase,jstart,
-     >               jstop,meshr,rmesh,expcut,regcut,corep,r0)
+     >               jstop,meshr,rmesh,expcut,regcut,corep(lp),r0(lp))
                   proj=sum(ps2(jstart:maxps2(npos-lp),npos-lp)*
      >               rmesh(jstart:maxps2(npos-lp),3)*
      >               chi(jstart:maxps2(npos-lp)))
@@ -2844,7 +2846,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
                      
          call clock(s1)
          valuesin = valuesout
-         firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw
+         firstrun = .true. !zasym.ne.0.0.or.max(0,lg-latop).le.ldw fails for He, needs debugging
          if (firstrun.and.projectile.ne.'photon') then
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
@@ -3575,26 +3577,28 @@ c$$$         endif
          
 c$$$         call memfree(ptre2ed)
 c$$$         call memfree(ptre2ee)
-         print'(''J ='',i3,'' IP ='',i2,'' Tc:'',i5,'' Td:'',i6,
-     >      '' Te1:'',i6,'' Te2:'',i5,'' T2nd:'',i5,'' Tm:'',i7)',lg,
-     >      ipar,nint(tc),nint(td),nint(te1),nint(te2),nint(t2nd),
-     >           nint(tm)
-         if (nunder.gt.0) then
-            print *,'Number of underflows was:',nunder
-            nunder=0
-         endif 
-         if (nover.gt.0) then
-            print *,'Number of overflows was:',nover
-            nover=0
-         endif 
+c$$$         print'(''J ='',i3,'' IP ='',i2 
+c$$$     >      ,'' Tc:'',i5,'' Td:'',i6,
+c$$$     >      '' Te1:'',i6,'' Te2:'',i5,'' T2nd:'',i5,'' Tm:'',i7
+c$$$     >      )',lg,ipar
+c$$$     >      ,nint(tc),nint(td),nint(te1),nint(te2),nint(t2nd),
+c$$$     >           nint(tm)
+c$$$         if (nunder.gt.0) then
+c$$$            print *,'Number of underflows was:',nunder
+c$$$            nunder=0
+c$$$         endif 
+c$$$         if (nover.gt.0) then
+c$$$            print *,'Number of overflows was:',nover
+c$$$            nover=0
+c$$$         endif 
          call update(6)
 
 c
 c     end of energy loop
 c
-         print*,'Energy completed - energy was ',energy
-         call clock(timeenergy2)
-         print*,'Time for energy loop was: ',timeenergy2-timeenergy1
+c$$$         print*,'Energy completed - energy was ',energy
+c$$$         call clock(timeenergy2)
+c$$$         print*,'Time for energy loop was: ',timeenergy2-timeenergy1
       endif !  myid.le.0
 c$$$      print*,'LBOUNDs of VMAT:',lbound(vmat,1),lbound(vmat,2)
 c$$$      print*,'UBOUNDs of VMAT:',ubound(vmat,1),ubound(vmat,2)
@@ -3642,7 +3646,7 @@ c$$$     >      ntasks.eq.-1) go to 780
 !      call magmaf_finalize()       
      
  780  call clock(stop)
-      print*,'Total CPU time:',stop-start
+c$$$      print*,'Total CPU time:',stop-start
       call MPI_FINALIZE(ierr)
       STOP 'Job completed'
       END

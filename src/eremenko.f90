@@ -425,8 +425,8 @@ subroutine cwfnFull(p, q, l, eta, value)
     double precision, intent(in) :: q
     integer, intent(in) :: l
     double precision, intent(in) :: eta
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
 
     ! Parameters (computed later) to decide the best representation
     double precision:: pMin
@@ -483,8 +483,8 @@ subroutine cwfnfullnonpole(p, q, l, eta, value)
     double precision, intent(in) :: q
     integer, intent(in) :: l
     double precision, intent(in) :: eta
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
     ! Other variables
 !    double complex :: upsilon
 !    double complex :: omega
@@ -538,8 +538,8 @@ subroutine cwfnfullpolecached(p, q, l, eta, imxi, value)
     integer, intent(in) :: l
     double precision, intent(in) :: eta
     double precision, intent(in) :: imxi
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
     ! Other variables
 !    double complex :: theta
 !    double complex :: lambda

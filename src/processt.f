@@ -248,10 +248,10 @@ c$$$         open(44,file='dfile')
 c$$$         open(45,file='dfile1')
 c$$$      else
       if (jstart.eq.0) then
-         open(42,file=cnode//'cfile'//ench)
-         open(43,file=cnode//'cfile1'//ench)
-         open(44,file=cnode//'dfile'//ench)
-         open(45,file=cnode//'dfile1'//ench)
+         open(42,file=adjustl(cnode//'cfile'//ench))
+         open(43,file=adjustl(cnode//'cfile1'//ench))
+         open(44,file=adjustl(cnode//'dfile'//ench))
+         open(45,file=adjustl(cnode//'dfile1'//ench))
 c$$$      endif 
          do ip = 0, 1
             do nt = 1, nttop(ip)
@@ -1583,7 +1583,7 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       include 'par.f'
       parameter (lentr=10,lexit=lamax,npoints=30,ntype=20)
       character projectile*(*), target*(*), tfile*(*)
-      integer nchfi(nomax,0:1)
+      integer nchfi(nomax,0:1),nopen(0:1)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),
      >   ovlp(20,100), chi(maxr), sweight(0:200), spinw(0:1), units(3),
      >   psii(maxr), psif(maxr), vdcore(maxr,0:lamax),slowery(ne2e),
