@@ -253,8 +253,8 @@ c
          endif
 !
 
-         call date_and_time(date,time,zone,valuesin)
-         print '("Making one-electron array at:",a10)',time
+c$$$         call date_and_time(date,time,zone,valuesin)
+c$$$         print '("Making one-electron array at:",a10)',time
          call update(6)
          call clock(s1)
          
@@ -293,19 +293,19 @@ c
 c     get overlap for projectile and s.p. functions
          call ortchilnsp(KJ,npk,nchm,fl,maxf,
      >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
-         call date_and_time(date,time,zone,valuesout)
-         print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
-     >      ", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
-         valuesin = valuesout
+c$$$         call date_and_time(date,time,zone,valuesout)
+c$$$         print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
+c$$$     >      ", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
+c$$$         valuesin = valuesout
          if(theta .ne. 0.0) then
             if(inc .eq. 0) then
                ortchil_po = ortchil
             else
                call ortchilnsp_po(nr,KJ,npk,nchm,fl_po,
      >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
-               call date_and_time(date,time,zone,valuesout)
-               print '(i4,": nodeid, ortchilnsp_po call complete at: ",
-     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
+c$$$               call date_and_time(date,time,zone,valuesout)
+c$$$               print '(i4,": nodeid, ortchilnsp_po call complete at: ",
+c$$$     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
             endif
          endif
          call clock(s2)
@@ -424,6 +424,28 @@ c$$$          call update(6)
        call getchinfo (nchf,Nf,KJ,psif,maxpsif,ef,lfa,nfa,Lf)
             posf = positron(nfa,lfa,nposf)
 
+            if (.not.posi.and..not.posf) then
+               if(i_sw_ng.eq. 0) then  
+                  call vdme(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >               C,fl,maxf,minf,npk,chil,minchil,
+     >               nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >               C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
+     >               vdon,vmatt,nchf,nchi,na,nam,namax,
+     >               itail,gridk(1,nchi),phasel(1,nchi),gridk(1,nchf),
+     >               phasel(1,nchf))
+!       print*,'vdme is blocked for testing'
+               elseif(i_sw_ng .eq. 1) then
+                  call vdme_ng(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
+     >                 C,fl,maxf,minf,npk,chil,minchil,
+     >                 nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
+     >                 C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
+     >                 vdon,vmatt,nchf,nchi,na,nam,namax)
+               else
+                  print*,"Wrong value of i_sw_ng=",i_sw_ng
+                  stop
+               endif
+            endif
+
 c$$$            thetao = theta_ve 
 c$$$            if (ei.gt.etot*2.0.or.ef.gt.etot*2.0) thetao = 0.0 !Igor
 c!!        IF((posi.neqv.posf).and.ei.gt.0..and.ef.gt.0) CYCLE 
@@ -497,27 +519,6 @@ C     Store time for both two electron exchange matrix elements
             endif 
 c$$$            call clock(s1)
 
-            if (.not.posi.and..not.posf) then
-               if(i_sw_ng.eq. 0) then  
-                  call vdme(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minchil,
-     >               nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
-     >               vdon,vmatt,nchf,nchi,na,nam,namax,
-     >               itail,gridk(1,nchi),phasel(1,nchi),gridk(1,nchf),
-     >               phasel(1,nchf))
-!       print*,'vdme is blocked for testing'
-               elseif(i_sw_ng .eq. 1) then
-                  call vdme_ng(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >                 C,fl,maxf,minf,npk,chil,minchil,
-     >                 nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >                 C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
-     >                 vdon,vmatt,nchf,nchi,na,nam,namax)
-               else
-                  print*,"Wrong value of i_sw_ng=",i_sw_ng
-                  stop
-               endif
-            endif
 CRRR adds by Rav: for Ps-formation and Ps-Ps transitions
          IF(posi.and.posf.and.nqmi*nqmf.gt.1) THEN
             npsi = nchps(nchi)  
@@ -638,7 +639,7 @@ c$$$            vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
             endif 
 c$$$         enddo
 c$$$C$OMP END PARALLEL DO
-      enddo 
+         enddo 
 C$OMP end parallel do
 c     
       if(.not.scalapack.and.npk(2)-1.gt.1)then ! Do testing with LAPACK == 1 node

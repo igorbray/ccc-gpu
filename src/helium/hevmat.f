@@ -259,9 +259,10 @@ c     end ki,kf loops
  90            continue 
             end do
             deallocate(chiform)
-            vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + tmp * const
+c$$$            if (nchf*nchi.eq.1) print*,'vvd(1,1):',vvd(1,1,0)
+            vdon(nchf,nchi,0) = vvd(1,1,0) !vdon(nchf,nchi,0) + tmp * const
             vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
-            vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+tmp*const) * quart
+            vdon(nchf,nchi,1) = vvd(1,1,1) !(vdon(nchf,nchi,1)+tmp*const) * quart
             vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
 c     end nchi,nchf loops
  30      continue       

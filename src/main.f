@@ -2846,7 +2846,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
                      
          call clock(s1)
          valuesin = valuesout
-         firstrun = .true. !zasym.ne.0.0.or.max(0,lg-latop).le.ldw fails for He, needs debugging
+         firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw 
          if (firstrun.and.projectile.ne.'photon') then
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
