@@ -2586,7 +2586,8 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
             nodetfile = 'time_all'
             inquire(file=nodetfile,exist=exists)
             if (.not.exists) then
-               nodetfile = 'time'//ench
+               nodetfile = 'time0'//ench
+               if (ipar.eq.1) nodetfile = 'time1'//ench
                inquire(file=nodetfile,exist=exists)
             endif
             if (exists) then
@@ -3334,7 +3335,11 @@ c$$$     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
          if (myid.le.0) then
             call date_and_time(date,time,zone,valuesout)
-            open(42,file='time'//ench,position='append')
+            if (ipar.eq.0) then
+               open(42,file='time0'//ench,position='append')
+            else
+               open(42,file='time1'//ench,position='append')
+            endif
             ntmax = 0
             timetot = 0.0
             do n=1,nodes

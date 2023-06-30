@@ -272,12 +272,12 @@ c     check on convergence of the calculated function ff2(r)
          naccurcy = 1
          if(abs(rksi_ret) .le. accuracy/100.) then
             naccurcy = 0
-            print*,'abs(rksi_ret), accuracy:',
-     >           abs(rksi_ret),accuracy
+c$$$            print*,'abs(rksi_ret), accuracy:',
+c$$$     >           abs(rksi_ret),accuracy
          endif         
          if(naccurcy.eq.0) then
-            print*,'l=',ll, 
-     >           ', iterations are convergent on step', iter
+c$$$            print*,'l=',ll, 
+c$$$     >           ', iterations are convergent on step', iter
 c     allow for matching in regularun() routine
             if(incon .eq. -1) then 
                incon = -2

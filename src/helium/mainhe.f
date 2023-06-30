@@ -194,7 +194,7 @@ c$$$               if (ne2e.ne.0) then
      >            E,en,latom,sa(nst),psi,minc,maxc,tmp)
                ovlp(na,latom) = tmp
                phasen(na,latom) = phase * sigc
-               print*,'Overlap,phase,sigc',tmp,phase,sigc
+c$$$               print*,'Overlap,phase,sigc',tmp,phase,sigc
 c
 c$$$               do nnn = 1, Nmax
 c$$$                  if (ne2e.ne.0) then
