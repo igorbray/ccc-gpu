@@ -1586,7 +1586,7 @@ c$$$               endif
                enddo
                if (myid.le.0)
      >              print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
-     >            2i3,4(i3,f5.2))',
+     >            2i3,4(i3,f7.2))',
      >            lp,nbnd(lp),(nk(j,lp,is),sk(j,lp,is),j=1,mint)
                lp = lp + 1
             enddo
@@ -1595,7 +1595,7 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
             lp = l + 1
             if (myid.le.0)
      >           print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
-     >         2i3,4(i3,f5.2))',
+     >         2i3,4(i3,f7.2))',
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
             if (mod(nk(4,l,is),2).ne.0) then
                print*,'on-shell points will be part of the k-grid'

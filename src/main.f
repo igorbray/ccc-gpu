@@ -1647,6 +1647,10 @@ c$$$         endif
             close(138)
             stop 'bornstop found'
          endif
+         call date_and_time(date,time,zone,valuesout)
+         print '(/,i4,": nodeid BornICS completed at: ",a10,
+     >      ", diff (secs):",i5)',nodeid,time,
+     >      idiff(valuesin,valuesout)
          endif ! myid.le.0
 
       enddo
