@@ -1211,7 +1211,7 @@ C  Define positronium states
 !     if (nptop(lp).le.0) then
          rlambda(2,lp) = abs(alphap(lp) * 2.0)
          if (myid.le.0) print'("Defining Ps pseudostates; NP, LP, Al:", 
-     >      2i3,f12.6)', npsp(lp)-lp, lp, rlambda(2,lp)
+     >      2i3,f12.6)', npsp(lp)-lp, lp, alphap(lp)
          maxupl = 1
          npsstates(2,lp) = npsp(lp)-lp
          ps2(:,:) = 0.0
@@ -1245,9 +1245,10 @@ C  Define positronium states
                   if (myid.le.0)print*,test,psen2(n),pmid,psen2(n+1)
                   alphanew = - alphap(lp)
                   iter = 1
-                  do while (abs(test).gt.1e-4.and.iter.lt.100)
+                  do while (abs(test).gt.1e-5.and.iter.lt.100)
                      iter = iter + 1
-                     alphanew = alphanew - test/pmid/100.0
+c$$$                     alphanew = alphanew - test/pmid/100.0
+                     alphanew = alphanew *(1.0 - test*100.0)
                      if (myid.le.0) print*,'New alpha:',alphanew
                      ps2(:,:) = 0.0
                      psen2(:) = 0.0
@@ -1255,9 +1256,12 @@ C  Define positronium states
      >                  npsp(lp)-lp, ps2, psen2, minps2, maxps2, rmesh, 
      >                  uplane,maxupl, meshr,cknd(1,nstart+1,lp))
                      test = (psen2(n)+psen2(n+1))/2.0 - pmid
-                     if (myid.le.0) print*,test,psen2(n),pmid,
-     >                  psen2(n+1)
+                     if (myid.le.0) print*,
+     >                  'test,psen2(n),pmid,psen2(n+1):',
+     >                  test,psen2(n),pmid,psen2(n+1)
                   enddo
+                  if (myid.le.0) print*,'Alpha redefined to be:',
+     >               alphanew
                   if (iter.ge.100) stop '100 iterations failed'
                   rlambda(2,lp) = alphanew * 2.0
                endif
@@ -2665,7 +2669,7 @@ c$$$  nchtime(nch-1)=nchtime(nch-1)*1.15
                inc = inc+1
                if (nch-inc.lt.1) then
 ! Occasionally, a line is missing or some other problem, and we start again.
-                  if (nodeid.eq.1) print*,'changing nodetfile:'
+                  if (nodeid.eq.1) print*,'changing nodetfile'
                   lgold(ipar)=lgold(ipar)-1
                   goto 41
                endif
@@ -4063,6 +4067,7 @@ c$$$      stop
       alorig = al
       al = abs(al)
       slowery = abs(slowe(1)) / ry
+      if (myid.le.0) print*,'slowery(Ry):',slowery
       do n = 1, nps
          als(n) = al * 2.0
       enddo
@@ -4201,7 +4206,7 @@ c$$$               print*,'Setting one energy to:',(etot + smalle)*ry,n+l
 c$$$               slowery = etot + smalle
 c$$$            endif 
 c$$$         endif 
-         if (alorig.lt.0.0.and.etot.gt.0.0) then
+         if (alorig.lt.0.0.and.etot.ge.0.0) then
             almin = al
             almax = al
             small = 1e10
@@ -4225,11 +4230,13 @@ c$$$     >         .and.it.lt.60)
      >            nps,psinb(1,1,l),enpsinb(1,l),istoppsinb(1,l),meshr,l,
      >            nabot,vdcore,rmesh)
                if (slowe(1).ge.0.0) then
-                  if (abs(slowe(1)/ry-etot*0.5)/etot.lt.1e-3) then
+                  if(abs(slowe(1)/ry-etot*0.5)/(etot+1e-30).lt.1e-3)then
+                     if (myid.le.0)
+     >                  print*,'Setting POSITION=ETOT/2(eV)',etot/2*ry
                      position = etot / 2.0
                   else 
                      if (myid.le.0)
-     >                  print*,'Setting POSITION=ETOT'
+     >                  print*,'Setting POSITION=ETOT(eV)',etot*ry
                      position = etot
                      if (natop(l).eq.-99) position = etot / 2.0
                   endif 
@@ -4240,9 +4247,12 @@ c$$$     >         .and.it.lt.60)
                   distance = psen2(n) - psen2(n-1)
                   nf = n - 1
                   if (psen2(n).lt.position) nf = n
+                  if (myid.le.0) print*,'psen2(n-1),psen2(n):',
+     >            psen2(n-1)*ry,psen2(n)*ry
                   old = slowery
                   slowery = 
-     >               (position - distance / 2.0 + 4.0*psen2(n-1))/5.0
+c$$$  >               (position - distance / 2.0 + 4.0*psen2(n-1))/5.0 !slowery -> psen(n-1)
+     >               (position + distance / 2.0 + 4.0*psen2(n))/5.0  !slowery -> psen(n)
                   
 c$$$                  if (natop(l).ge.-90.and.
 c$$$c$$$     >               (psen2(n).lt.position))
@@ -4253,14 +4263,16 @@ c$$$     >               slowery = (position / 4.0 + psen2(nf)) / 2.0
                   if (myid.le.0)
      >               print*,it,
      >               ' slowery,alpha,almin,almax,small:',
-     >               slowery*ry, al, almin,almax,small
+     >               slowery*ry, al, almin,almax,small,
+     >               psen2(n)+psen2(n-1)-2.0*etot
                else
                   if (myid.le.0)
      >               print*, 'CAUTION: it = 60'
                endif 
                small = 1e10               
-               do n = 1, nps
+               do n = 2, nps
                   diff = (slowery-psen2(n)) / slowery
+c$$$                  diff = (psen2(n)+psen2(n-1)-2.0*etot)/distance
                   if (abs(diff).lt.small) then
                      small = abs(diff)
                      nsmall = n
@@ -4270,10 +4282,11 @@ c$$$                     print*, n, diff, almin, al, almax, psen2(n) * ry
                
                if (psen2(nps).lt.etot.and.slowe(1).ge.0.0) then
                   al = al + alstep*it
-                  if (myid.le.0)
-     >               print*,'New Lambda:', al * 2.0
+c$$$                  if (myid.le.0)
+c$$$     >               print*,'New alpha:', al
                else 
                   diff = (slowery-psen2(nsmall)) / slowery
+c$$$                  diff=(psen2(nsmall)+psen2(nsmall-1)-2.0*etot)/distance
                   if (diff.lt.0.0) then
                      almax = al
                      diffmax = diff
@@ -4297,8 +4310,10 @@ c$$$  al = (almax + almin) / 2.0
                         almax = al
                      endif 
                   endif
+                  if (myid.le.0)
+     >               print*,'New alpha:', al
                endif 
-               if (abs(almax-almin)/almax.lt.1e-6) it = 100
+c$$$               if (abs(almax-almin)/almax.lt.1e-6) it = 100
             enddo                   
             if (slowe(1).ge.0.0.and.nsmall.ne.nf) 
      >         print*,'check energies for LA and ETOT (eV):',l,etot*ry

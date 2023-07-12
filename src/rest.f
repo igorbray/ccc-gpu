@@ -2474,7 +2474,9 @@ c$$$            call datetime(3)
             enddo
          enddo
       enddo
-
+c$$$      ovlp(:) = 1.0
+c$$$      print*,'Reset bound state overlaps to 1'
+      
 C  We redefine NCHPMAX and NCHIPMAX here because on occasion NCHPMAX for
 C  the unnatural parity case comes out to be smaller than in the natural
 C  parity case
