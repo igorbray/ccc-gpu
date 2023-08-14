@@ -32,7 +32,7 @@ C  The following are experimental energies
       if(nznuc.eq.3 .and. zasym.eq.0)GS  = 6.03/Ry !Li-  ion GS energy in Ry
       if(nznuc.eq.11 .and. zasym.eq.0)GS  = 5.492/Ry !Na-  ion GS energy in Ry
       if(nznuc.eq.4) GS = 2.0236 !BeIII-BeI   energy in Ry Radzig, Smirnov
-      if(nznuc.eq.5  .and. zasym.eq.4) GS =44.07 !B^3+
+      if(nznuc.eq.5  .and. zasym.eq.4) GS =44.0574 !B^3+
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
       if(nznuc.eq.1)GS  =1.05544 !H-   ion GS energy in Ry
       if(nznuc.eq.12)GS =1.6670  !MgIII-MgI   energy in Ry Radzig, Smirnov

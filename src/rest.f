@@ -3516,6 +3516,18 @@ c$$$      print*,'Entered MAKECHIL with ZASYM:',zasym
       utemp(:) = 0.0
 
       if (npot.lt.0.and.ldw.ge.0) ui(:)=dwpot(:,-npot) ! Redefine UI
+      inquire(file='anatoli_dw',exist=exists)
+      if (exists) then
+c$$$               b = 14.7
+c$$$               a = 5.46
+         b = 9.84
+         a = 4.16
+         do i = 1, meshr
+            ui(i) = -2.0*(b*exp(-rmesh(i,1))+(53.0-b)*
+     >         exp(-a*rmesh(i,1))+1.0-zasym)/rmesh(i,1)
+         enddo
+      endif
+      
 C  First define the bound states, if any
 c$$$      do l = max(0,lg-latop), ldw
       do l = max(0,lg-latop), min(lg+latop,lamax)         
@@ -3556,7 +3568,7 @@ c$$$                  alpha = max(abnd(l),alpha*1.1)
 c$$$               endif
                torf = .false.
 !               if (alpha.lt.10.0*(zasym+1)) then !.or.zasym.eq.-1.0) then
-               niter = 20
+               niter = -20
                scale = 3.0
                if (alpha.gt.0.0) then
                   print*,"Projectile diagonalisation: N, L, al",nps,l,
@@ -3876,6 +3888,11 @@ C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail,trat,qcut)
                call regular(l,en,eta,u,cntfug(1,l),ldw,
      >            rmesh,meshr,jdouble,id,regcut,expcut,
      >            temp,jstart,jstop,phasel(k,nch),sigc)
+c$$$               print*,'ldw,u,phase,sigc:',ldw,u(1),phasel(k,nch),sigc
+c$$$               inquire(file='anatoli_dw',exist=exists)
+c$$$               if (exists) then
+c$$$                  phasel(k,nch) = phasel(k,nch)*sigc
+c$$$               endif
 c$$$  if (dbyexists) sigc = (1.0,0.0)
 c$$$               if (nbnd(lg).ne.0.and.k.gt.1) then
 c$$$               if (k.lt.1) then     !Igor
@@ -4178,8 +4195,6 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   if (.true..or.nbmax.gt.npsbndin) then
                      zas=-zeff-1.0 ! check this
                      vnucl(:)=0.0
-                     print*, "L, ndble, nbmax, zas:",l,ndble,
-     >                  nbmax+ndble,zas
                      call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l+ndble,
      >                  maxr,vnucl,erydout(2),waveout(1,2),lastpt)
                      maxps2(:)=lastpt
@@ -4425,15 +4440,26 @@ C        cray compiler bug workaround
 !         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
          write(stringtemp,'(i3,"_chil_",a)') lg,ch2              
          open(42,FILE=stringtemp) !'chil'//ch(lg)//'_'//ch(nch))
-         write(42,'("#",11x,1000F6.3)')
+         write(42,'("#",13x,1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
-         write(42,'("# en(Ry) -> ",1p,1000E12.4)')
+         write(42,'("# en(Ry) ->   ",1p,1000E14.4)')
      >      (gk(k,nch)*abs(gk(k,nch)),k=1,npk(nch+1)-npk(nch))
          do i=1,meshr,1
-            write(42,'(1p,1000E12.4)') rmesh(i,1),
+            write(42,'(1p,1000E14.4)') rmesh(i,1),
      >         (chil(i,k,1)/rmesh(i,3),k=npk(nch),npk(nch+1)-1)
          enddo
          close(42)
+         inquire(file='anatoli_dw',exist=exists)
+         if (exists) then
+            open(42,FILE='anatoli_dw')
+            write(42,*)'   e(a.u.)                 phase        l ='
+     >         ,lg
+            do k=2,npk(nch+1)-npk(nch)
+               write(42,'(1p,3E14.4)') gk(k,nch)*abs(gk(k,nch))/2.0,
+     >            phasel(k,nch)
+            enddo
+            close(42)
+         endif
          if (itail.lt.0) then
 C           cray compiler bug workaround
 !            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)                 

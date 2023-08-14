@@ -217,6 +217,7 @@ c$$$     >         print*,'WARNING: asymptotic potential must be Coulomb',
 c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
          endif
 
+c$$$         print*,'match,ln,ldw:',match,ln,ldw
          if (match.or.ln.le.ldw) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
 c$$$            print*,'JMATCH, RMATCH,U',jmatch,gridx(jmatch),
 c$$$     >         ucentr(jmatch)

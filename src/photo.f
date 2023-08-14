@@ -51,7 +51,7 @@ c DPI of Lithium
 !      if(nznuc.eq.10)GS = 4.596  !NeIII-NeI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.18)GS = 5.464  !ArIII ^1S   energy in Ry by Saloman
       if(nznuc.eq.4  .and. Zasym.eq.3) GS =27.308 !Be^2+
-      if(nznuc.eq.5  .and. Zasym.eq.4) GS =44.07 !B^3+
+      if(nznuc.eq.5  .and. Zasym.eq.4) GS =44.0574 !B^3+
       if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
       if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+ 
       if(nznuc.eq.14 .and. Zasym.eq.13)GS =376.28 !Si^12+ 
@@ -59,11 +59,13 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
       if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
       if(meta.eq.1) then
          if(iSpin.eq.0) then
-            GS   =4.283         !He atom 1s2s ^1S energy in Ry
-            print*, 'Meta Singlet'
+            if(nznuc.eq.2)GS   =4.283  !He atom 1s2s ^1S energy in Ry
+            if(nznuc.eq.5)GS   =29.154 !B3+ ion 1s2s ^1S energy in Ry
+            print*, 'Meta Singlet', GS
          else
-            GS   =4.350         !He atom 1s2s ^3S energy in Ry
-            print*, 'Meta Triplet'
+            if(nznuc.eq.2)GS   =4.350 !He atom 1s2s ^3S energy in Ry
+            if(nznuc.eq.5)GS   =29.467!B3+ ion 1s2s ^1S energy in Ry
+            print*, 'Meta Triplet', GS
          end if
       end if
       
