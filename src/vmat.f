@@ -1037,10 +1037,10 @@ c$$$                  else
                      vmat(kff,kii) = vmat(kff,kii) + rnorm * tmp 
                      vmat(kii,kff+1) = vmat(kii,kff+1) + rnorm*tmp
                   else 
-                     if (ifirst.eq.1) then !only for the second call
+c$$$                     if (ifirst.eq.1) then !only for the second call
                      vmat01(kff,kii) = vmat01(kff,kii)+rnorm*tmp
                      vmat01(kii,kff+1)=vmat01(kii,kff+1)+rnorm*tmp
-                  endif 
+c$$$                  endif 
                      endif 
 c$$$                  endif 
  5             continue 
@@ -1056,7 +1056,7 @@ c$$$            vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
 c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
 c$$$        endif
 c$$$        endif
-         if (scalapack.and.ifirst.eq.1) then
+         if (scalapack) then !.and.ifirst.eq.1) then
             vdon(nch,nch,0) = vmat01(npk(nch),npk(nch))
             vdon(nch,nch,1) = vdon(nch,nch,0)
          else

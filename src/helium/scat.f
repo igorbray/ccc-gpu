@@ -149,7 +149,10 @@ c$$$      if (npk(2)-npk(1).gt.1) open(42,file=nodetfile)
           maxflr=maxf(ni1)
           r1=gridr(maxflr-50,1); r2=gridr(maxflr,1)
           fl1=fl(maxflr-50,ni1); fl2=fl(maxflr,ni1)
-          alambda=1./(r2-r1)*Log((fl1*r2**ni1)/(fl2*r1**ni1))
+
+          alambda = 1./(r2-r1)*(Log(fl1/fl2)+ni1*Log(r2/r1))
+c$$$          alambda=1./(r2-r1)*Log((fl1*r2**ni1)/(fl2*r1**ni1))
+c$$$          print*,'alam1,alam:',alambda1,alambda
           cfl=fl1*r1**(-ni1)*exp(alambda*r1)
 !        WRITE(17,'(a1,3i8,2e20.10)')'#',ni1,maxflr,nr,alambda,cfl
 !        WRITE(17,*) 

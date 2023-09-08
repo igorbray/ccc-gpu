@@ -1429,8 +1429,8 @@ c            r0(1) = 2.5
       if (myid.le.0)
      >print '(''labot, latop, nabot(l), natop(l):    '',2i7,99(i4,i3))',
      >   labot, latop, (nabot(l), natop(l), l = labot, latop)
-
-      if (latop.lt.lptop) stop 'expect LPTOP <= LATOP'
+C Now can have lptop > latop
+c$$$      if (latop.lt.lptop) stop 'expect LPTOP <= LATOP'
       if (latop.gt.lamax) then
          if (myid.le.0)
      >        print*,'Must have LATOP <= LAMAX', latop, lamax
@@ -1470,7 +1470,7 @@ c            r0(1) = 2.5
      >     print '(''ndumm,luba,nps(l),alpha(l):         '',
      >   i4,i3,94(i3,f7.2))',
      >   ndumm,luba,(nps(l),alpha(l),l=labot,latop)
-      if (alpha(latop).eq.0.0) stop 'ALPHA(LATOP) can''t be zero'
+c$$$      if (alpha(latop).eq.0.0) stop 'ALPHA(LATOP) can''t be zero'
       
       read(nin,*) npot,lpot,ldw,npsbnd,albnd
       if (npot.eq.0) ldw = -1
@@ -1559,7 +1559,7 @@ C  if e2e is stopped before the CC calculation is completed
       do is = 1, ispeed
          lp = 0
          mint = 4
-         do while (lp.le.lstop+latop+2) !+2 is for two-electron targets  
+         do while (lp.le.lstop+max(latop,lptop)+2) !+2 is for two-electron targets  
             if (is.eq.1) then
                read(nin-1+is,*)l,nbnd(l),
      >            (nk(j,l,is),sk(j,l,is),j=1,mint)
@@ -1599,7 +1599,7 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
             if (mod(nk(4,l,is),2).ne.0) then
                print*,'on-shell points will be part of the k-grid'
-               if (lstart.le.lstoppos)
+               if (lstart.le.lstoppos.and.lptop.ge.0)
      >            stop'NK(4,L,IS) must be even for rearrangement'
             endif            
             nktot = nk(1,l,is)+nk(2,l,is)+nk(3,l,is)+max(0,nk(4,l,is))

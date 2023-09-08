@@ -998,6 +998,10 @@ C     Define the target states
       enleveltmp = enlevel
       nchanmax = 0
       nstmax = 0
+      do lp = max(0,latop+1), lptop ! Allow lptop > latop
+         natop(lp) = lp
+         if (nodeid.eq.1) print*,lp,'Setting NATOP(lp):',natop(lp)
+      enddo
       do la = 0, lastop
          if (hlike) then
             nnbin = nnbtop
@@ -1173,7 +1177,8 @@ c$$$         nabot(1)=2             !anatoli
 c$$$         print*,'putting 2p into the core'
 c$$$      endif 
 
-      
+      latop = max(latop,lptop) !Allow lptop > latop
+      lastop = latop
 C  Define positronium states
       nposchmax = 0
       nposstmax = 0
@@ -2860,7 +2865,6 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
      >         vdon,vmat,vmatp)
-         
             if (hlike) then
                ne2e1 = 0
                nchmaxe2e1 = 0
@@ -2878,6 +2882,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
      >            npkb,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >            nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
             end if
+c$$$            print*,'After First Scattering: J, vdon:',lg,vdon(1,1,0)
             call date_and_time(date,time,zone,valuesout)
             print '(i4,": nodeid exited first VMAT routines at: ",a10,
      >      ", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
@@ -3075,6 +3080,7 @@ c
      >         ldw,vdcore_pr,minvdc,maxvdc,npk,vdondum,vmat,vmatp)
             call clock(s2)
             tc = s2 - s1
+c$$$            print*,'After Second Core: J, vdon:',lg,vdondum(1,1,0)
          endif
 
 c     
@@ -3113,6 +3119,7 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
      >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
          end if 
+c$$$         print*,'After Second scattering: J, vdon:',lg,vdondum(1,1,0)
          call date_and_time(date,time,zone,valuesout)
 c$$$cDIR$ SUPPRESS
          print'(/,i4,": nodeid exiting  VMAT routines at: ",a10,", LG ="
@@ -3131,6 +3138,7 @@ c$$$cDIR$ SUPPRESS
                enddo
             enddo
          endif
+         print*,'Final: J VDON:',lg,vdon(1,1,0)
 c$$$         do nchi =1, nchtop
 c$$$            do nchf =1,nchtop
 c$$$               const=gk(1,nchf)*gk(1,nchi)
