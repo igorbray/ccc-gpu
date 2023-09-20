@@ -19,7 +19,7 @@ c$$$      real chil(1:meshr,1:(npk(nchtop+1)-1))
       integer gpunum,tnum,tmod
       integer, external :: omp_get_thread_num
       integer maxi2
-      real temp2(1:meshr,1:nqmi,1:nchtop)
+      real temp2(1:meshr,1:nqmi,nchi:nchtop)
 
       allocate(chitemp(meshr,nqmi))
       allocate(tmp(nqmi,nqmfmax))
@@ -76,14 +76,18 @@ c$$$!$omp do schedule(dynamic)
          enddo
 !!$acc wait(nchf)
 !$acc loop independent collapse(2)
-         do ki = 1, nqmi
-            do kf=1,nqmf
-               kff = npk(nchf) + kf - 1
-               mini = minchil(kff,1)
-               tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1)
-     >            ,temp2(mini:maxi2,ki,nchf))
+         if (ifirst.eq.1) then
+            do ki = 1, nqmi
+               do kf=1,nqmf
+                  kff = npk(nchf) + kf - 1
+                  mini = minchil(kff,1)
+                  tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1)
+     >               ,temp2(mini:maxi2,ki,nchf))
+               enddo
             enddo
-         enddo
+         else
+            tmp(1:nqmi,1:nqmf) = 0.0
+         endif
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
             do kf=1,nqmf
@@ -178,7 +182,7 @@ c$$$      dimension minchil(npk(nchtop+1)-1)
       dimension psii(maxr),
      >   psif(maxr,nchtop),const(-lamax:lamax,nchtop)
       dimension maxpsif(nchtop), lfa(nchtop), lf(nchtop)
-      real temp2(meshr,nqmi,nchtop)
+      real temp2(meshr,nqmi,nchi:nchtop)
       real, allocatable :: temp(:)
 !      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
       real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)

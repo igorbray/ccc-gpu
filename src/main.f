@@ -2111,7 +2111,7 @@ c$$$                  pmesh(ip) = 10d0 ** (-3.0 + dble(ip)*6.0/dble(maxp))
                call date_and_time(date,time,zone,valuesout)
                print'(/,i4,": nodeid allocated",i5," Mb,",
      >            " and exited MAKEFTPS at: "
-     >            a10,", diff (secs):",i5)',nodeid,
+     >            a10,", diff (secs):",i5)',nodeid,nbytes*
      >            (maxp+2)*2*nx*(latop-labot+1)/1000000,time,
      >            idiff(valuesin,valuesout)
             end if            
@@ -3138,7 +3138,7 @@ c$$$cDIR$ SUPPRESS
                enddo
             enddo
          endif
-         print*,'Final: J VDON:',lg,vdon(1,1,0)
+c$$$         print*,'Final: J VDON:',lg,vdon(1,1,0)
 c$$$         do nchi =1, nchtop
 c$$$            do nchf =1,nchtop
 c$$$               const=gk(1,nchf)*gk(1,nchi)

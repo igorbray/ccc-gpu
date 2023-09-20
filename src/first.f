@@ -162,10 +162,16 @@ c$$$      do gpunum=0,ngpus-1
 
 c$$$!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
-!$acc enter data copyin(chil(1:meshr,npkstart:npkstop,1:1))
+!$acc enter data copyin(chil(1:meshr,npkstart:npkstop,1:1),ifirst)
 !$acc& copyin(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
 
 c$$$       end do
+#endif
+
+#ifdef _single
+#define nbytes 4
+#elif defined _double
+#define nbytes 8
 #endif
 
 !$omp parallel do private(nchf,nt) schedule(dynamic)
@@ -188,6 +194,16 @@ c$$$      enddo
 c$$$C Put the larger l states first for OpenMP efficiency
 c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
 c$$$      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
+      if (ifirst.eq.1) then
+         rmem = 0.0
+         do nchi = nchii, nchif
+            nqmi = npk(nchi+1) - npk(nchi)
+            rmem = rmem + meshr * nqmi * nbytes * (nchtop-nchi+1)
+         enddo
+         print"('nodeid will allocate Mb to temp2:',i4,i7)", 
+     >      nodeid,nint(rmem*1e-6)
+      endif
+
       do nchtmp = nchii, nchif
          nchi = nchtmp !nchinew(nchtmp,1)
 c$$$      do nchi = nchii, nchif
@@ -224,18 +240,20 @@ C  which contains VDCORE.
          enddo
 
          if (nqmfmax.gt.1) open(42,file=nodetfile)
-         allocate(temp2(meshr,nqmi,nchtop))
-         if (ifirst.eq.1) then
-          call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
-     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
-     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
-     >      nnt,ngpus,temp2,maxi2)
-         endif
-
          maxtemp3(:) = 0
          allocate(temp3(1:meshr,nchi:nchtop),
-     >        vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
+     >      vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
          vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
+         if (ifirst.eq.1) then
+            allocate(temp2(meshr,nqmi,nchi:nchtop))
+            call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
+     >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
+     >         lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
+     >         nnt,ngpus,temp2,maxi2) !vmatt not used
+         else 
+            allocate(temp2(1,1,nchi:nchi))
+         endif
+
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
