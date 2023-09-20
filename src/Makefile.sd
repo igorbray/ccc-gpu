@@ -46,6 +46,7 @@ endif
 
 a := $(a) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
 aO1 := $(aO1) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
+aGPU := $(aGPU) -D_$(PRECISION)
 
 OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o) $(F90SOURCE:%.f90=$(OBJDIR)/%.o)
 
