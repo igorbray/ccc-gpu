@@ -75,8 +75,9 @@ c$$$!$omp do schedule(dynamic)
             enddo
          enddo
 !!$acc wait(nchf)
-!$acc loop independent collapse(2)
+         tmp(1:nqmi,1:nqmf) = 0.0
          if (ifirst.eq.1) then
+!$acc loop independent collapse(2)
             do ki = 1, nqmi
                do kf=1,nqmf
                   kff = npk(nchf) + kf - 1
@@ -85,8 +86,6 @@ c$$$!$omp do schedule(dynamic)
      >               ,temp2(mini:maxi2,ki,nchf))
                enddo
             enddo
-         else
-            tmp(1:nqmi,1:nqmf) = 0.0
          endif
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
