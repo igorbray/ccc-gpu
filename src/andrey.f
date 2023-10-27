@@ -763,12 +763,12 @@ C     input ---------------------------------------------------------
 C     output ---------------------------------------------------------
       real dx_sp
       real, dimension(maxx) :: va, ve, vaM, xmesh_sp, rmesh1_sp
-      real, dimension(maxr) :: veold, vaold      
+      real, dimension(maxr) :: vaold      
       
 C     local varibales ------------------------------------------------
       real *8  dx
       real *8, dimension(maxx) :: xmesh, rmesh1, vtmp
-      real *8, dimension (maxr) :: r, va1, ve1
+      real *8, dimension (maxr) :: r, va1, ve1, veold
 !     real *8, dimension(maxq) :: veq, qmesh
 
 C      real, dimension(nr) :: veq, qmesh
@@ -1589,7 +1589,8 @@ c     sbt method
 !     set up the r and k space meshes
       rr(1)  = exp(rhomin)
       kk(1)  = exp(kmin)
-      ver1(1) = veint(rr(1))/rr(1) 
+      r = real(rr(1))
+      ver1(1) = veint(r)/rr(1) 
       cf = exp(dr)
 
       do i = 2,nr
@@ -2928,7 +2929,8 @@ C     implicit real*8 (a-h,o-z)
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax)
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
-     >     psinb(maxr,nnmax,0:lnabmax),istoppsinb(nnmax,0:lnabmax)     
+     >   psinb(maxr,nnmax,0:lnabmax),istoppsinb(nnmax,0:lnabmax)
+      real*8 arg, besj
       
       external vaint, positron           
       logical pos, positron
@@ -3017,8 +3019,8 @@ c     [5] Schweizer etal, At. Data, Nucl. Data Tab. 72, 33, 1999
 c     [6] Klapisch, PhD Thesis 1969 (see Hanssen [4])
 
       integer, intent(in) :: icase
-      real, intent(in)  :: r
-      real, intent(out) :: va, ve      
+      real*8, intent(in)  :: r
+      real*8, intent(out) :: va, ve      
             
       select case (icase)
       case (0)                  ! NO CORE
@@ -3898,6 +3900,7 @@ C     used for calculation of Q_l(q,qa) in funleg3.
       function SinIntegral(x)
 !     Asymptotic expansion of Si(x) for rough evaluation        
       real, parameter :: pi = 3.1415926535897932384626433832795
+      real*8 x
       SinIntegral= Pi/2. + (87178291200.0/x**15 - 479001600/x**13 + 
      -     3628800/x**11 - 40320/x**9 + 720/x**7 - 24/x**5 + 
      -     2/x**3 - 1/x)*Cos(x) + 
