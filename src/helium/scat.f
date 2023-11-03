@@ -29,15 +29,15 @@ c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
 c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
 c$$$     >   npbot(0:lamax),nptop(0:lamax)
       common /increarrange/ inc
-      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
-c$$$      allocatable :: chiform(:,:),minchiform(:),maxchiform(:)
+      dimension minchiform(kmax),maxchiform(kmax)!,chiform(maxr,kmax)
+      allocatable :: chiform(:,:)
 c$$$      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1)
       dimension gridk(kmax,nchan), df(maxr), dwpot(maxr,nchan),
      >   vdcore(maxr,0:lamax),
      >   vdon(nchan,nchan,0:1), vmat(npk(nchm+1)-1,npk(nchm+1)),
      >   temp(maxr),psii(maxr),psif(maxr)
-      real  ortchil(npk(nchm+1)-1,nspm)
-      real  flchil(npk(nchm+1)-1,nspm)
+c$$$      real  ortchil(npk(nchm+1)-1,nspm),flchil(npk(nchm+1)-1,nspm)
+      real, allocatable :: ortchil(:,:),flchil(:,:)
       integer na, nam
       logical posi, posf, positron,ex
       common /CIdata/ na(nspmCI,KNM), nam(KNM)
@@ -52,17 +52,17 @@ crr -added by Rav
       COMMON/gausz/xgz(igzm),wgz(igzm),pl(0:maxl,igzm),igz
       common/gausp/xgp(igpm),wgp(igpm),igp
       real*8 Qlp(kmax,2*kmax*igp),Q0p(kmax,2*kmax*igp),
-     >       Alp(kmax,2*kmax*igp)
+     >   Alp(kmax,2*kmax*igp)
       real*8 aq(0:kmax),qq(kmax),xp(2*kmax*igp+kmax)
      >                ,wp(2*kmax*igp)
       real*8, allocatable ::Qlpi(:,:,:),Q0pi(:,:,:),Alpi(:,:,:),
-     >         aqi(:,:),xpi(:,:),wpi(:,:)
+     >   aqi(:,:),xpi(:,:),wpi(:,:)
       integer*4 ionshi(nchm),nqgeni(nchm),nqimi(nchm),imaxi(nchm)
       real*8 ve2stat(maxr),va2stat(maxr)
       real*8, allocatable :: fd0(:,:,:,:)
       real  fd01(maxr,0:5) 
-      real*8 gp(iglp),Bnlp(iglp,Nmax),Dnlp(iglp,Nmax),
-     >          Unlp(iglp,Nmax),Amg(iglp)
+      real*8 gp(iglp),
+     >   Bnlp(iglp,Nmax),Dnlp(iglp,Nmax),Unlp(iglp,Nmax),Amg(iglp)
       dimension nchps(nchm), nchat(nchm)
       complex phasel(kmax,nchan)
       integer, allocatable :: nchansi(:), nchansf(:) 
@@ -153,8 +153,11 @@ c$$$      if (npk(2)-npk(1).gt.1) open(42,file=nodetfile)
           alambda = 1./(r2-r1)*(Log(fl1/fl2)+ni1*Log(r2/r1))
 c$$$          alambda=1./(r2-r1)*Log((fl1*r2**ni1)/(fl2*r1**ni1))
 c$$$          print*,'alam1,alam:',alambda1,alambda
-          cfl=fl1*r1**(-ni1)*exp(alambda*r1)
-!        WRITE(17,'(a1,3i8,2e20.10)')'#',ni1,maxflr,nr,alambda,cfl
+c$$$          print*,'nodeid,cfl1:',nodeid,fl1*exp(-ni1*log(r1)+alambda*r1)
+c$$$          print*,'nodeid,cfl2:',nodeid,fl1*r1**(-ni1)*exp(alambda*r1)
+c$$$          cfl=fl1*r1**(-ni1)*exp(alambda*r1)
+          cfl = fl1*exp(-ni1*log(r1)+alambda*r1)
+!     WRITE(17,'(a1,3i8,2e20.10)')'#',ni1,maxflr,nr,alambda,cfl
 !        WRITE(17,*) 
 
 !        do i=1,nr
@@ -291,6 +294,10 @@ c     array lo_po(:) is already set up
          else
             allocate(ortchil_po(1,1)) !to stop "unallocated" errors when used in arguments
          endif
+         if (allocated(ortchil)) deallocate(ortchil)
+         allocate(ortchil(npk(nchm+1)-1,nspm))
+         if (allocated(flchil)) deallocate(flchil)
+         allocate(flchil(npk(nchm+1)-1,nspm))
 c     
 c     
 c     get overlap for projectile and s.p. functions
@@ -324,7 +331,7 @@ c$$$     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
       s2 = 0.0
       s3 = 0.0
       s4 = 0.0
-
+      
 c$$$C     The following is for the IBM
       if(.not.allocated(nchansi).and..not.allocated(nchansf)) then
        allocate(nchansi((nchif-nchii+1)*(nchm-nchii+1)))
@@ -384,12 +391,13 @@ C$OMP& shared(Qlpi,Q0pi,aqi,ionshi,nqgeni,nqimi,xpi,wpi,imaxi,Alpi)
 C$OMP END PARALLEL DO
       PRINT*,'Calculations of Qlp are done!'
       ENDIF
-c$$$      print '(2i5,":")', nchii, nchif
+      print '("nodeid:",i4," nchii,nchif:",2i6)', nodeid,nchii,nchif
 #ifdef GPU
 !$omp parallel do num_threads(1)
 #else
 C$OMP PARALLEL DO
 #endif
+
 C$OMP& SCHEDULE(dynamic)
 C$OMP& default(private)
 C$OMP& shared(nchm,Nmax,la,sa,lpar,nspm,lo,itail,phasel)
@@ -405,7 +413,7 @@ C$OMP& shared(Bnlp,Dnlp,Unlp)
 C$OMP& shared(nchansi,nchansf,nchansmax,nchat)
 C$OMP& shared(nodeid,scalapack,nze,nchistop)
 C$OMP& shared(dwpot,i_sw_ng)
-C$OMP& shared(vmat01,vmat0, vmat1)
+C$OMP& shared(vmat01,vmat0, vmat1,nr)
 C$OMP& shared(ionshi,nqgeni,nqimi,imaxi,xpi,wpi,Qlpi,Q0pi,Alpi,aqi)
       do nch = 1, nchansmax
 c$$$         print*,'OMP thread:',nch,omp_get_thread_num()
@@ -430,9 +438,10 @@ c$$$          call update(6)
             if (.not.posi.and..not.posf) then
                if(i_sw_ng.eq. 0) then  
                   call vdme(nze,nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minchil,
+     >               C,fl,maxf,minf,npk,!chil,minchil,
      >               nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
-     >               C,fl,maxf,minf,npk,chil,minchil,ortint,KJ,dwpot,
+     >               C,fl,maxf,minf,npk,!chil,minchil,
+     >               ortint,KJ,dwpot,
      >               vdon,vmatt,nchf,nchi,na,nam,namax,
      >               itail,gridk(1,nchi),phasel(1,nchi),gridk(1,nchf),
      >               phasel(1,nchf))
@@ -456,9 +465,9 @@ c!!        to test: no continuum-continuum rearrangment
  
 
             if (ifirst.ne.0) then
-c$$$               allocate(chiform(maxr,kmax))
-c$$$               allocate(minchiform(kmax))
-c$$$               allocate(maxchiform(kmax))
+               nmr = nr !maxr
+               km = nqmi !kmax
+               allocate(chiform(nmr,km))
 
 c$$$  do k = 1, nqmi
 c$$$                  do i = 1, maxr
@@ -476,7 +485,7 @@ c$$$               call clock(s1)
      >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
      >            C,fl,maxf,minf,npk,chil,minchil,
      >            ortint,ortchil,flchil,KJ,gridk,vmatt,nchf,nchi,
-     >            chiform,minchiform,maxchiform,na,nam,namax)
+     >            chiform,minchiform,maxchiform,nmr,km,na,nam,namax)
 c$$$               call clock(s2)
 C  Store time for e2 matrix elements
                te2 = te2 + s2 - s1
@@ -485,10 +494,8 @@ C  Store time for e2 matrix elements
      >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
      >            C,fl,maxf,minf,npk,chil,minchil,
      >            ortint,KJ,vmatt,nchf,nchi,
-     >            chiform,minchiform,maxchiform,na,nam,namax)
-c$$$               deallocate(chiform)
-c$$$               deallocate(minchiform)
-c$$$               deallocate(maxchiform)
+     >            chiform,minchiform,maxchiform,nmr,km,na,nam,namax)
+               deallocate(chiform)
 
 c$$$  call clock(s3)
 C  Store time for e1 matrix elements
@@ -672,17 +679,17 @@ c
            ENDDO 
           end if
         end if
-       end if
+      end if
 
 #ifdef GPU
-       call acc_set_device_num(gpunum,acc_device_nvidia)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
 !$acc exit data delete(chil(1:nr,npkstart:npkstop,1))
 !$acc& delete(nchm,npk(1:nchm+1),minchil(npkstart:npkstop))
 !$acc& finalize
 #endif 
-
-
       if (allocated(fd0)) deallocate(fd0)
+      if (allocated(flchil)) deallocate(flchil)
+      if (allocated(ortchil)) deallocate(ortchil)
       if (allocated(nchansi)) deallocate(nchansi,nchansf)
         if(allocated(Qlpi)) then
          deallocate(Qlpi)
