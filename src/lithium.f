@@ -362,6 +362,7 @@ c$$$                 print'(A,I1,A,F9.4)', '<2s|',n2,'s>', res22
                enddo
 c$$$               print'(A,2E13.4)', 'Overlaps',  over1,over2
 
+               print*,'S_st:',S_st
                if(S_st .eq. 0) then
 !                  TMP = TMP + CM*(over2*wr1+over1*wr2*sqrt(2.)) !Its a bug?
                   TMP = TMP + CM*(-over2*wr1+over1*wr2*sqrt(2.))

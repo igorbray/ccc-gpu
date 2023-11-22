@@ -141,7 +141,7 @@ c      endif
       nspmW = max(nspm,10)
       call structure(Nmax,nspmW,namax,pnewC,E,enionry,eproj,vdcore,
      >   slowe(1)) 
-      print*, 'Finish structure'
+c$$$      print*, 'Finish structure'
       lg = 0
       nchanmax = 0
 c     This block is for calculation of the osc.str. for continuum states.

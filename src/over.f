@@ -16,7 +16,6 @@
       do i=1,meshr
          result = result + P(i)*Q(i) * rmesh(i,3)
       end do 
-
       RETURN
       END
 

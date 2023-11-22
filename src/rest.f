@@ -4159,7 +4159,8 @@ C Alex for box basis.
          GF(:,:,nch)=0.0
          do kp=2,npk(nch+1)-npk(nch)
             GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
-         enddo 
+         enddo
+c$$$         print*,'gf:',gf(2,2,1)
          if (analytic .AND. nbmax .GT. 1) then
             if (eproj.ge.aenergyswitch) then !aenergyswitch is in modules.f
                if (nbox.ne.0) then !below is only for the box basis

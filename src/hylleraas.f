@@ -1838,7 +1838,7 @@ C  according to Aberg (1970)
       S = 0.
       do nch = 1, nchtop
          call  getchinfo (nch, nt, lg, psi, maxpsi, ea, la, na, l)
-
+         psi(maxpsi+1:meshr)= 0.0
          if(la.eq.0 .and. na.gt.nn .and. ea .lt. 0.)nn=na !Bound s-channels counter
          
 !         write(6,1954) nch,Ea,na,hh(la),hh(l)
@@ -1873,6 +1873,7 @@ C  according to Aberg (1970)
             S = S + rint(na) 
          end if
       end do
+
 !      do n = 1, nn
       if(nn.lt.ninc) STOP "Increase number of S-states"
       do n = ninc, nn

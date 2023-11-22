@@ -39,10 +39,10 @@ c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
       end module vmat_module
       
       module gf_module
-      allocatable gf(:,:,:)
+      real, allocatable :: gf(:,:,:)
       logical analytic
       integer nanalytic,nbox,kmaxgf
-      real aenergyswitch, gf
+      real aenergyswitch
       data aenergyswitch/0.0/
       end module gf_module
 
