@@ -5708,7 +5708,7 @@ c$$$     >            kii,real(wk(kii+npk(nch)-1))
 C End Added by Ivan
 
 C Take node(ntm) with max time, and see if initial/final channels can be moved to other nodes
-      subroutine iteratenodes(ntm,nodes,nchtime,nchtop,torf)
+      subroutine iteratenodes(ntm,nodest,nchtime,nchtop,torf)
       use vmat_module
       logical torf
       real nchtime(nchtop)

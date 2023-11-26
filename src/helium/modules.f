@@ -34,7 +34,7 @@ c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
       integer, allocatable :: nchistart(:), nchistop(:)
       integer, allocatable ::  ntime(:,:), nodet(:),
      >   nntime(:),nchistartold(:,:),nchistopold(:,:)
-      integer  nodeid
+      integer  nodeid, nodes
       logical scalapack
       end module vmat_module
       
@@ -54,7 +54,7 @@ c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
       module chil_module
       real, allocatable :: chil(:,:,:)
       integer, allocatable :: minchil(:,:)
-      integer meshrr,npkstart,npkstop,ichildim,nchii
+      integer meshrr,npkstart,npkstop,ichildim,nchii,nchif
       end module chil_module
       
 

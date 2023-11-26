@@ -792,7 +792,7 @@ c$$$      endif
          ve2e(nchf) = ve2e(nchf) * phasel(1,1) / gk(1,1)
       enddo 
 
-      call date_and_time(date,time,zone,valuesin)
+c$$$      call date_and_time(date,time,zone,valuesin)
 
       do nchf = 1, nchtop
 c$$$         if (-lg.gt.latop) uba(nchf) = .true.
@@ -1071,6 +1071,7 @@ c$$$     >            * gk(1,nchi)/(gk(1,nchi)+1e-10)
 
 C  Solve the linear equations
       if (projectile.eq.'photon') then
+         call date_and_time(date,time,zone,valuesin)
          rmcv = 1e-6*8 * (ichi) * nchan
          rmcv2 = 1e-6*8 * (ichi) * nchtop
 c$$$         call memalloc(ptrcv,mcv)
@@ -1160,6 +1161,10 @@ c$$$     >      phaseq)
          deallocate (cv, cv2)
 c$$$         call memfree(ptrcv)
 c$$$         call memfree(ptrcv2)
+         call date_and_time(date,time,zone,valuesout)
+         print '("Photo exited at:  ",a10,", diff (secs):",i5)',
+     >      time, idiff(valuesin,valuesout)
+         call update(6)
       else
          nv = nchtop
          nd = nchtop

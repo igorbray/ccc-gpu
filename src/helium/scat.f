@@ -1,6 +1,7 @@
       subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
      >   enionry,npk,vdcore,dwpot,nchm,Nmax,namax,
      >   nze,td,te1,te2,te3,vdon,vmat,nsmax,itail,phasel)
+      use mpi_f08 !avoids MPI argument missmatch warnings
       use CI_MODULE
       use chil_module
       use po_module
@@ -15,12 +16,13 @@
       include 'par.pos'
 c      implicit real*8 (a-h,o-z)       
       parameter (maxl=2*ltmax+1)
+      type(MPI_Status) :: my_status
       integer sa, npk(nchm+1)
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
       common /ortog/  ortint(nspmax,nspmax)
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       common /funLag/  fl(nmaxr,nspmax)
-      real*8  fli(nmaxr,nspmax)
+      real*8, allocatable :: fli(:,:) ! fli(nmaxr,nspmax)
       common /minmaxf/ maxf(nspmax),minf(nspmax)
       common /CcoefsE/  E(KNM)
       double precision E, ortint, Etot, Etot_nu, Etot_ve
@@ -30,7 +32,7 @@ c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
 c$$$     >   npbot(0:lamax),nptop(0:lamax)
       common /increarrange/ inc
       dimension minchiform(kmax),maxchiform(kmax)!,chiform(maxr,kmax)
-      allocatable :: chiform(:,:)
+      allocatable :: chiform(:,:), ortsr(:,:), flsr(:,:)
 c$$$      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1)
       dimension gridk(kmax,nchan), df(maxr), dwpot(maxr,nchan),
      >   vdcore(maxr,0:lamax),
@@ -117,46 +119,50 @@ c$$$      if (npk(2)-npk(1).gt.1) open(42,file=nodetfile)
          nqm1= npk(1+1) - npk(1)
          nqmm=npk(nchm+1)-npk(nchm)
 
-      IF(nqmm*nqm1.gt.1)  then
-         lpsmax=0
-         maxrps=0
-         do i=nchii,nchm 
-       call getchinfo (i, nt, KJ, psii, maxpsit, eit, lit, nit, Li)
-           posf = positron(nit,lit,npost)
+         IF(nqmm*nqm1.gt.1)  then
+            lpsmax=0
+            maxrps=0
+            do i=nchii,nchm 
+            call getchinfo (i, nt, KJ, psii, maxpsit, eit, lit, nit, Li)
+            posf = positron(nit,lit,npost)
 !        PRINT*, 'nch,Ps:: lp1,nion,lion', i,KJ,lit,posf, '::',lp1,lion,Li   
-         if(posf) then
-          npsch=npsch+1 ! max number of Ps-channels
-          nchps(i)=npsch
+            if(posf) then
+               npsch=npsch+1    ! max number of Ps-channels
+               nchps(i)=npsch
 !          PRINT*,'Ps: ei',eit
-         if( maxrps.lt.maxpsit) maxrps=maxpsit
-          if(lpsmax.lt.lit) lpsmax=lit ! max of Ps orb quant number
-         elseif((.not.posf).and.i.le.nchif) then
-          nchatom=nchatom+1
-          nchat(i)=nchatom
+               if( maxrps.lt.maxpsit) maxrps=maxpsit
+               if(lpsmax.lt.lit) lpsmax=lit ! max of Ps orb quant number
+            elseif((.not.posf).and.i.le.nchif) then
+               nchatom=nchatom+1
+               nchat(i)=nchatom
 !          PRINT*,'He: ei',eit
           ! nanchi(nchatom)=i
-          endif         
-        enddo
+            endif         
+            enddo
 
-       IF(npsch.gt.0.or.nchatom.gt.0) THEN
-       DO ni1=1,nspm
-          maxfli=maxf(ni1)
-          do i=1,maxfli
-             fli(i,ni1)=dble(fl(i,ni1))
-          enddo
-         fli(maxfli+1:nmaxr,ni1) = 0.d0
+            IF(npsch.gt.0.or.nchatom.gt.0) THEN
+               print*,'CAUTION: allocatable fli not yet tested'
+               maxfliall = maxval(maxf)
+               allocate(fli(maxfliall,nspm))
+               DO ni1=1,nspm
+                  maxfli=maxf(ni1)
+                  do i=1,maxfli
+                     fli(i,ni1)=dble(fl(i,ni1))
+                  enddo
+c$$$          fli(maxfli+1:nmaxr,ni1) = 0.d0
+                  fli(maxfli+1:maxfliall,ni1) = 0.d0
 
-          maxflr=maxf(ni1)
-          r1=gridr(maxflr-50,1); r2=gridr(maxflr,1)
-          fl1=fl(maxflr-50,ni1); fl2=fl(maxflr,ni1)
+                  maxflr=maxf(ni1)
+                  r1=gridr(maxflr-50,1); r2=gridr(maxflr,1)
+                  fl1=fl(maxflr-50,ni1); fl2=fl(maxflr,ni1)
 
-          alambda = 1./(r2-r1)*(Log(fl1/fl2)+ni1*Log(r2/r1))
+                  alambda = 1./(r2-r1)*(Log(fl1/fl2)+ni1*Log(r2/r1))
 c$$$          alambda=1./(r2-r1)*Log((fl1*r2**ni1)/(fl2*r1**ni1))
 c$$$          print*,'alam1,alam:',alambda1,alambda
 c$$$          print*,'nodeid,cfl1:',nodeid,fl1*exp(-ni1*log(r1)+alambda*r1)
-c$$$          print*,'nodeid,cfl2:',nodeid,fl1*r1**(-ni1)*exp(alambda*r1)
+c$$$  print*,'nodeid,cfl2:',nodeid,fl1*r1**(-ni1)*exp(alambda*r1)
 c$$$          cfl=fl1*r1**(-ni1)*exp(alambda*r1)
-          cfl = fl1*exp(-ni1*log(r1)+alambda*r1)
+                  cfl = fl1*exp(-ni1*log(r1)+alambda*r1)
 !     WRITE(17,'(a1,3i8,2e20.10)')'#',ni1,maxflr,nr,alambda,cfl
 !        WRITE(17,*) 
 
@@ -165,61 +171,59 @@ c$$$          cfl=fl1*r1**(-ni1)*exp(alambda*r1)
 !           if(i.gt.maxflr) fli(i,ni1)=cfl*rr**(ni1)*exp(-alambda*rr)
 !          WRITE(17,'(i5,3e20.10)') i,gridr(i,1),fl(i,ni1),fli(i,ni1)
 !        enddo
-        ENDDO
-        ENDIF
+               ENDDO
+            ENDIF
       
-       if(npsch.gt.0) then
+            if(npsch.gt.0) then
+               PRINT*,'number of Ps-channels:',npsch,'out of total',nchm
+               PRINT*, 'nmaxr & lmax for Ps channels:', maxrps,lpsmax
+               call makevstat(lo,fli,maxfliall,nspm,maxf,formf0,
+     >            ve2stat,va2stat)
 
-        PRINT*,'number of Ps-channels:', npsch,'out of total',nchm
-        PRINT*, 'nmaxr & lmax for Ps channels:', maxrps,lpsmax
-        call makevstat(nspm,lo,fli,maxf,formf0,ve2stat,va2stat)
-
-
-       if(nchatom.gt.0) then
-       Bnlp=0.; Dnlp=0.; Unlp=0.; Amg=0.;    
+               if(nchatom.gt.0) then
+                  Bnlp=0.; Dnlp=0.; Unlp=0.; Amg=0.;    
 !!!!!!!!!!11
-       qmax =60.0 
-       ndoub=6
-       pmax = gridr(nr,1)        
-       call grids(qmax,ndoub,pmax,gridp,nmaxr,mpg,jdouble,
-     >   40,njdouble) 
+                  qmax =60.0 
+                  ndoub=6
+                  pmax = gridr(nr,1)        
+                  call grids(qmax,ndoub,pmax,gridp,nmaxr,mpg,jdouble,
+     >               40,njdouble) 
 !!!!!!!!!!!!11
 C$OMP PARALLEL DO
 C$OMP& SCHEDULE(dynamic)
 C$OMP& default(private)
 C$OMP& shared(nze,Nmax,la,sa,lpar,nspm,lo,C,ortint,fli,maxf,minf)
 C$OMP& shared(na,nam,namax,gp,Bnlp,Dnlp,Unlp,Amg,mpg,gridp)
-       DO Ni=1,Nmax
+                  DO Ni=1,Nmax
         
-        call makehepsff(nze,Nmax,Ni,la,sa,lpar,nspm,lo,
-     >   C,ortint,fli,maxf,minf,na,nam,namax,gp,Bnlp,Dnlp,Unlp,Amg
-     >   ,mpg,gridp)
+                     call makehepsff(nze,Nmax,Ni,la,sa,lpar,nspm,lo,
+     >                  C,ortint,fli,maxfliall,nspm,maxf,minf,na,nam,
+     >                  namax,gp,Bnlp,Dnlp,Unlp,Amg,mpg,gridp)
 
 !        PRINT*,'He-pseudo FF:::', Bnlp(1,Ni),Unlp(1000,Ni),Amg(100)
 
-       ENDDO 
+                  ENDDO 
 C$OMP END PARALLEL DO 
 !         call clock(tff3) 
 !           Print*, 'makehepsff time:', tff3-tff2
-        endif ! nchatom       
-            
+               endif            ! nchatom       
+               if(.not.allocated(fd0)) then
+                  allocate(fd0(maxr,0:lpsmax,npsch,npsch))
+                  fd0 = 0.
+                  PRINT*, 'fd0 is allocated'        
+               endif 
 
-        if(.not.allocated(fd0)) then
-        allocate(fd0(maxr,0:lpsmax,npsch,npsch))
-          fd0 = 0.
-          PRINT*, 'fd0 is allocated'        
-        endif 
-
-          if(allocated(fd0)) then  
-            CALL hepsdir(gp,KJ,ve2stat,va2stat,nchm,npsch,nchps, 
-     >                 lpsmax,maxrps,nchii,nchif,formf0,fd0)
-          endif
+               if(allocated(fd0)) then  
+                  CALL hepsdir(gp,KJ,ve2stat,va2stat,nchm,npsch,nchps, 
+     >               lpsmax,maxrps,nchii,nchif,formf0,fd0)
+               endif
 
 !          call clock(tff3) 
 !          Print*, 'ps-ps fd0 cal time:',  tff3-tff2
-         endif
-       ENDIF     
-      ENDIF     
+            endif !npsch .gt.0
+            if (allocated(fli)) deallocate(fli)
+         ENDIF !nqmm*nqm1.gt.1
+      ENDIF     !nze.eq.1
 CRRR -End of Rav's add         
  
       if (ifirst.ne.0) then
@@ -259,9 +263,9 @@ c
          endif
 !
 
-c$$$         call date_and_time(date,time,zone,valuesin)
+         call date_and_time(date,time,zone,valuesin)
 c$$$         print '("Making one-electron array at:",a10)',time
-         call update(6)
+c$$$         call update(6)
          call clock(s1)
          
 c     This block is to code the projection operator to fix nonuniqueness.
@@ -298,24 +302,76 @@ c     array lo_po(:) is already set up
          allocate(ortchil(npk(nchm+1)-1,nspm))
          if (allocated(flchil)) deallocate(flchil)
          allocate(flchil(npk(nchm+1)-1,nspm))
+#ifdef _single
+#define nbytes 4
+#define MY_MPI_REAL MPI_REAL
+#define MY_MPI_COMPLEX MPI_COMPLEX
+#elif defined _double
+#define nbytes 8
+#define MY_MPI_REAL MPI_REAL8
+!#define MY_MPI_COMPLEX MPI_COMPLEX16
+!#define MY_MPI_REAL MPI_DOUBLE_PRECISION
+#define MY_MPI_COMPLEX MPI_DOUBLE_COMPLEX
+#endif
 c     
 c     
 c     get overlap for projectile and s.p. functions
+C  was from nchii to nchm, which is nchtop, now to nchif with MPI below         
          call ortchilnsp(KJ,npk,nchm,fl,maxf,
      >      minf,lo,nspm,vdcore,dwpot,inc,ortchil,flchil)
-c$$$         call date_and_time(date,time,zone,valuesout)
-c$$$         print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
-c$$$     >      ", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
-c$$$         valuesin = valuesout
+         call date_and_time(date,time,zone,valuesout)
+         print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
+     >", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
+!MPI section begins         
+         ntagort = 10
+         ntagfr = 11
+         npkstart = npk(nchii)
+         npkstop = npk(nchif+1)-1
+         nt = npkstop - npkstart + 1
+         nsend = nt * nspm
+         allocate(ortsr(nt,nspm),flsr(nt,nspm))
+         do nsp = 1, nspm
+            ortsr(1:nt,nsp) =
+     >         ortchil(npkstart:npkstop,nsp)
+            flsr(1:nt,nsp) =
+     >         flchil(npkstart:npkstop,nsp)
+         enddo
+         do nn = 1, nodeid - 1
+c$$$            print*,'Will send for nodeid to n:',nodeid,nn,nsend
+            call MPI_SEND(ortsr,nsend, 
+     >         MY_MPI_REAL,nn-1,ntagort,MPI_COMM_WORLD,ierr)
+            call MPI_SEND(flsr,nsend, 
+     >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,ierr)
+         enddo
+         deallocate(ortsr,flsr)
+         do nn = nodeid+1, nodes
+            nt = npk(nchistop(nn)+1) - npk(nchistart(nn))
+            allocate(ortsr(nt,nspm),flsr(nt,nspm))
+            nrcv = nt * nspm
+c$$$            print*,'Will receive on nodeid from n:',nodeid,nn,nrcv
+            call MPI_RECV(ortsr,nrcv, 
+     >         MY_MPI_REAL,nn-1,ntagort,MPI_COMM_WORLD,my_status,ierr)
+            call MPI_RECV(flsr,nrcv, 
+     >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,my_status,ierr)
+            do nsp = 1, nspm
+               ortchil(npk(nchistart(nn)):npk(nchistop(nn)+1)-1,nsp) =
+     >            ortsr(1:nt,nsp)
+               flchil(npk(nchistart(nn)):npk(nchistop(nn)+1)-1,nsp) =
+     >            flsr(1:nt,nsp)
+            enddo
+            deallocate(ortsr,flsr)
+         enddo
+!MPI section ends
+         valuesin = valuesout
          if(theta .ne. 0.0) then
             if(inc .eq. 0) then
                ortchil_po = ortchil
             else
                call ortchilnsp_po(nr,KJ,npk,nchm,fl_po,
      >            maxf_po,minf_po,lo_po,nspm_po,ortchil_po) 
-c$$$               call date_and_time(date,time,zone,valuesout)
-c$$$               print '(i4,": nodeid, ortchilnsp_po call complete at: ",
-c$$$     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
+               call date_and_time(date,time,zone,valuesout)
+               print '(i4,": nodeid, ortchilnsp_po call complete at: ",
+     >  a10,", diff (secs):",i5)',nodeid,time,idiff(valuesin,valuesout)
             endif
          endif
          call clock(s2)
@@ -718,17 +774,13 @@ c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)      
       ze = 2.0
-C     The following is for the SGI
-c$$$c$doacross local(nch,n,temp,maxt,ei,lia,nia,L,u,i,kqq,nsp,min1,max1)
-c$$$c$&  local(tmp,tmp1)
-c$$$c$& share(ze,ortchil,flchil,vdcore,dwpot,npk)
-c$$$C     The following is for the IBM
+
 C$OMP PARALLEL DO
 C$OMP& SCHEDULE(dynamic)
 C$OMP& private(nch,n,temp,maxt,ei,lia,nia,L,u,i,kqq,nsp,min1,max1)
 C$OMP& private(tmp,tmp1)
-C$OMP& shared(ze,ortchil,flchil,vdcore,dwpot,npk)
-      do nch=nchii,nchm
+C$OMP& shared(ze,ortchil,flchil,vdcore,dwpot,npk,nchii,nchif,nchm)
+      do nch=nchii,nchif !nchm !return to nchm if removing MPI comms above
 !         do nch=1,nchm
          call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
          if (dwpot(1,nch).eq.0.0) then
@@ -806,7 +858,7 @@ c
      >   minf,lo,nspm,ortchil)
       use chil_module
       include 'par.f'
-      dimension  lo(nspm),npk(nchm+1)
+      dimension  lo(nspm),npk(nchm+1), LP(nchan)
       dimension  fl(nr,nspm),maxf(nspm),minf(nspm),
      >   temp(maxr)
 c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
@@ -815,15 +867,24 @@ c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
       do nch=nchii,nchm
 !         do nch=1,nchm
          call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)
-         
+         LP(nch) = L
+      enddo
+
+C$OMP PARALLEL DO DEFAULT(SHARED) SCHEDULE(DYNAMIC) COLLAPSE(1)
+C$OMP&PRIVATE(nch,kqq,min1,max1,nsp)
+      do nch=nchii,nchm
+!         do nch=1,nchm
+c$$$         call getchinfo (nch, N, KJ, temp, maxt, ei, lia, nia, L)   
          do kqq = npk(nch), npk(nch+1) - 1
             do nsp=1,nspm
                ortchil(kqq,nsp) = 0.0
-               if(lo(nsp).eq.L) then
+c$$$               if(lo(nsp).eq.L) then
+               if(lo(nsp).eq.LP(nch)) then
                   min1 = minf(nsp)
                   max1 = maxf(nsp)
-                  ortchil(kqq,nsp) =
-     >                 SUM(chil(min1:max1,kqq,1)*fl(min1:max1,nsp))
+                  ortchil(kqq,nsp) = dot_product(chil(min1:max1,kqq,1),
+     >               fl(min1:max1,nsp))
+c$$$     >                 SUM(chil(min1:max1,kqq,1)*fl(min1:max1,nsp))
 !                  if(kqq .eq. 2) then
 !                 print*,'po:', kqq,nsp,max1,
 !     >                    fl(max1-2,nsp),fl(max1-1,nsp),
@@ -831,16 +892,16 @@ c$$$      dimension chil(nr,npk(nchm+1)-1), minchil(npk(nchm+1)-1)
 !                  endif
                end if
             end do
-
          end do
       end do
+C$OMP END PARALLEL DO
       return
       end
 
  
       subroutine makehepsff(nze,Nmaxi,Ni,lai,si,lpari,nspmi,loi,
-     >   Ci,ortint,fli,maxfi,minfi,na,nam,namax,gp,Bnlp,Dnlp,Unlp,Amg
-     >   ,mpg,gridp)
+     >   Ci,ortint,fli,maxfliall,nspm,maxfi,minfi,na,nam,namax,gp,Bnlp,
+     >   Dnlp,Unlp,Amg,mpg,gridp)
    
       include 'par.f'
       include 'par.pos'
@@ -852,7 +913,7 @@ C!!! initial channel (target + e):
       integer lai(Nmaxi), si(Nmaxi), lpari(Nmaxi)
       double precision Ci(Nmaxi,namax,namax),ortint(nspmax,nspmax)
       dimension loi(nspmi)
-      real*8 fli(nmaxr,nspmax)
+      real*8 fli(maxfliall,nspm) !fli(nmaxr,nspmax)
       dimension maxfi(nspmi),minfi(nspmi)
       real gridr
       common /meshrr/ nr, gridr(nmaxr,3)
@@ -958,8 +1019,12 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1
       do ir=1,nr !min(minfi(ni1),minfi(ni2)),max(maxfi(ni1),maxfi(ni2))
        rr=dgridr(ir,1) 
       Fn2(ir)=(-2.0)/rr*ort_wion+formf(ir,ni2)
-      Bnl(ir)=Bnl(ir)+const*ort_wion*fli(ir,ni1)
-      Dnl(ir)=Dnl(ir)+const*Fn2(ir)*fli(ir,ni1) 
+c$$$      Bnl(ir)=Bnl(ir)+const*ort_wion*fli(ir,ni1)
+c$$$      Dnl(ir)=Dnl(ir)+const*Fn2(ir)*fli(ir,ni1) 
+      enddo 
+      do ir=1,maxfi(ni1)
+         Bnl(ir)=Bnl(ir)+const*ort_wion*fli(ir,ni1)
+         Dnl(ir)=Dnl(ir)+const*Fn2(ir)*fli(ir,ni1) 
       enddo 
     
  20                    continue
@@ -1079,7 +1144,8 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1
        END
 
 
-       subroutine makevstat(nspm,lo,fli,maxfi,formf0,ve2stat,va2stat)
+      subroutine makevstat(lo,fli,maxfliall,nspm,maxfi,formf0,
+     >   ve2stat,va2stat)
 
       include 'par.f'
       include 'par.pos'
@@ -1087,7 +1153,7 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1
       double precision Z
       common /Zatom/ Z
       dimension lo(nspm)
-      real*8 fli(maxr,nspmax)
+      real*8 fli(maxfliall,nspm) !fli(maxr,nspmax)
       integer  maxfi(nspm),minfi(nspm)
       real gridr,veold,vaold
       common /meshrr/ nr, gridr(nmaxr,3)
@@ -1102,7 +1168,7 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1
 !        do ni2=1,nspm
            ni2=1
            li2=0
-          maxpsi=nr !maxfi(1)
+          maxpsi=maxfi(ni2) !nr !maxfi(1)
        do i=1,maxpsi
            r=gridr(i,1)
           hep=fli(i,1) !!   For He: 4.*sqrt(2.)*exp(-2.*r)

@@ -31,7 +31,7 @@
       
       subroutine redistributeAndSolve(ni,nf,nd
      >             ,blacs_ctx,ns,nsmax
-     >             ,nodes,npklen,npk
+     >             ,nodest,npklen,npk
      >             ,nchtop
      >             ,wk,wklen,soln)
       use vmat_module
@@ -54,7 +54,7 @@ c$$$      real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
       integer :: wklen
       complex, dimension(wklen) :: wk
       integer :: i, nsmax
-      integer :: nodes,matrix,vector
+      integer :: matrix,vector,nodest !nodes in vmat_module
       integer :: npklen
 c$$$      integer, dimension(nodes) :: nchistart
 c$$$      integer, dimension(nodes) :: nchistop
