@@ -17,6 +17,7 @@
 c      implicit real*8 (a-h,o-z)       
       parameter (maxl=2*ltmax+1)
       type(MPI_Status) :: my_status
+      type(MPI_Request) :: my_request
       integer sa, npk(nchm+1)
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
       common /ortog/  ortint(nspmax,nspmax)
@@ -343,7 +344,7 @@ c$$$            print*,'Will send for nodeid to n:',nodeid,nn,nsend
             call MPI_SEND(flsr,nsend, 
      >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,ierr)
          enddo
-         deallocate(ortsr,flsr)
+         deallocate(ortsr,flsr) !Hence, cannot use MPI_ISEND above
          do nn = nodeid+1, nodes
             nt = npk(nchistop(nn)+1) - npk(nchistart(nn))
             allocate(ortsr(nt,nspm),flsr(nt,nspm))
@@ -378,7 +379,6 @@ c$$$            print*,'Will receive on nodeid from n:',nodeid,nn,nrcv
          call update(6)
       endif 
 
-
       td  = 0.0
       te1 = 0.0
       te2 = 0.0
@@ -390,31 +390,31 @@ c$$$            print*,'Will receive on nodeid from n:',nodeid,nn,nrcv
       
 c$$$C     The following is for the IBM
       if(.not.allocated(nchansi).and..not.allocated(nchansf)) then
-       allocate(nchansi((nchif-nchii+1)*(nchm-nchii+1)))
-       allocate(nchansf((nchif-nchii+1)*(nchm-nchii+1)))
+         allocate(nchansi((nchif-nchii+1)*(nchm-nchii+1)))
+         allocate(nchansf((nchif-nchii+1)*(nchm-nchii+1)))
 
-      nch = 0
-      do nchi = nchii, nchif
-         do nchf = nchi, nchm
-            nch = nch + 1
-            nchansi(nch) = nchi
-            nchansf(nch) = nchf
+         nch = 0
+         do nchi = nchii, nchif
+            do nchf = nchi, nchm
+               nch = nch + 1
+               nchansi(nch) = nchi
+               nchansf(nch) = nchf
+            enddo
          enddo
-      enddo
-      nchansmax = nch
-       endif
+         nchansmax = nch
+      endif
       IF(npsch.gt.0.and.nchatom.gt.0) THEN  !  if there is any Ps-state
-      PRINT*,'Calculating Qlp(nchi,:,:) functions'
-        if(.not.allocated(Qlpi)) then
-          allocate(Qlpi(nchatom,kmax,2*kmax*igp))
-          allocate(Q0pi(nchatom,kmax,2*kmax*igp))
-          allocate(Alpi(nchatom,kmax,2*kmax*igp))
-          allocate(aqi(nchatom,0:kmax))
-          allocate(xpi(nchatom,2*kmax*igp+kmax))
-          allocate(wpi(nchatom,2*kmax*igp))
-          PRINT*, 'Qlpi, ... are allocated, :',nchii,nchatom
-        Qlpi=0.; Q0pi=0.; aqi=0.; ionshi=0; nqgeni=0; nqimi=0
-         xpi=0.; wpi=0.; imaxi=0; Alpi=0.
+         PRINT*,'Calculating Qlp(nchi,:,:) functions'
+         if(.not.allocated(Qlpi)) then
+            allocate(Qlpi(nchatom,kmax,2*kmax*igp))
+            allocate(Q0pi(nchatom,kmax,2*kmax*igp))
+            allocate(Alpi(nchatom,kmax,2*kmax*igp))
+            allocate(aqi(nchatom,0:kmax))
+            allocate(xpi(nchatom,2*kmax*igp+kmax))
+            allocate(wpi(nchatom,2*kmax*igp))
+            PRINT*, 'Qlpi, ... are allocated, :',nchii,nchatom
+            Qlpi=0.; Q0pi=0.; aqi=0.; ionshi=0; nqgeni=0; nqimi=0
+            xpi=0.; wpi=0.; imaxi=0; Alpi=0.
          endif
 C$OMP PARALLEL DO ! why BornICS 0???
 C$OMP& SCHEDULE(dynamic)
@@ -423,37 +423,38 @@ C$OMP& shared(KJ,gridk,npk)
 C$OMP& shared(Amg,gp)
 C$OMP& shared(nchii,nchif,nchat,nchatom)
 C$OMP& shared(Qlpi,Q0pi,aqi,ionshi,nqgeni,nqimi,xpi,wpi,imaxi,Alpi)
-      DO nchi = nchii,nchif
-        nqmi = npk(nchi+1) - npk(nchi)
-        lioni=0
-      call getchinfo (nchi, Ni, KJ, psii, maxpsii, ei, lia, nia,Li)
-        posi = positron(nia,lia,nposi)
-        if(nqmi.gt.1.and..not.posi)  then
-        call qlandal(gp,Amg,nqmi,gridk,nchi,Li,Qlp,Q0p,aq,ionsh,nqgen
-     *            ,nqim ,xp,wp,imax,Alp)
-        nchi1=nchat(nchi)
-        Qlpi(nchi1,:,:)=Qlp(:,:)
-        Q0pi(nchi1,:,:)=Q0p(:,:)
-        aqi(nchi1,:)=aq(:)
-        ionshi(nchi1)=ionsh
-        nqgeni(nchi1)=nqgen
-        nqimi(nchi1)=nqim
-        xpi(nchi1,:)=xp(:)
-        wpi(nchi1,:)=wp(:)
-        imaxi(nchi1)=imax
-        Alpi(nchi1,:,:)=Alp(:,:)        
-       endif     
-       ENDDO 
+         DO nchi = nchii,nchif
+            nqmi = npk(nchi+1) - npk(nchi)
+            lioni=0
+            call getchinfo(nchi, Ni, KJ, psii, maxpsii, ei, lia, nia,Li)
+            posi = positron(nia,lia,nposi)
+            if(nqmi.gt.1.and..not.posi)  then
+               call qlandal(gp,Amg,nqmi,gridk,nchi,Li,Qlp,Q0p,aq,ionsh,
+     *            nqgen,nqim ,xp,wp,imax,Alp)
+               nchi1=nchat(nchi)
+               Qlpi(nchi1,:,:)=Qlp(:,:)
+               Q0pi(nchi1,:,:)=Q0p(:,:)
+               aqi(nchi1,:)=aq(:)
+               ionshi(nchi1)=ionsh
+               nqgeni(nchi1)=nqgen
+               nqimi(nchi1)=nqim
+               xpi(nchi1,:)=xp(:)
+               wpi(nchi1,:)=wp(:)
+               imaxi(nchi1)=imax
+               Alpi(nchi1,:,:)=Alp(:,:)        
+            endif     
+         ENDDO 
 C$OMP END PARALLEL DO
-      PRINT*,'Calculations of Qlp are done!'
+         PRINT*,'Calculations of Qlp are done!'
       ENDIF
-      print '("nodeid:",i4," nchii,nchif:",2i6)', nodeid,nchii,nchif
+      print '("nodeid:",i4," nchii,nchif:",2i6)',
+     >   nodeid,nchii,nchif
+
 #ifdef GPU
 !$omp parallel do num_threads(1)
 #else
 C$OMP PARALLEL DO
 #endif
-
 C$OMP& SCHEDULE(dynamic)
 C$OMP& default(private)
 C$OMP& shared(nchm,Nmax,la,sa,lpar,nspm,lo,itail,phasel)
@@ -468,7 +469,7 @@ C$OMP& shared(Amg,gp)
 C$OMP& shared(Bnlp,Dnlp,Unlp)      
 C$OMP& shared(nchansi,nchansf,nchansmax,nchat)
 C$OMP& shared(nodeid,scalapack,nze,nchistop)
-C$OMP& shared(dwpot,i_sw_ng)
+C$OMP& shared(dwpot,i_sw_ng,nchii,nchif)
 C$OMP& shared(vmat01,vmat0, vmat1,nr)
 C$OMP& shared(ionshi,nqgeni,nqimi,imaxi,xpi,wpi,Qlpi,Q0pi,Alpi,aqi)
       do nch = 1, nchansmax
@@ -746,6 +747,7 @@ c
       if (allocated(fd0)) deallocate(fd0)
       if (allocated(flchil)) deallocate(flchil)
       if (allocated(ortchil)) deallocate(ortchil)
+      if (allocated(ortchil_po)) deallocate(ortchil_po)
       if (allocated(nchansi)) deallocate(nchansi,nchansf)
         if(allocated(Qlpi)) then
          deallocate(Qlpi)

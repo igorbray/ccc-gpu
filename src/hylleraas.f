@@ -1793,6 +1793,7 @@ c$$            end do
       
 C  Satellite intensities in the high photon energy limit
 C  according to Aberg (1970)
+      use vmat_module, only: nodeid
 
       include 'par.f'
       include 'paratom.f'
@@ -1821,7 +1822,7 @@ C  according to Aberg (1970)
       pi = acos(-1.)
       is = (-1)**iSpin
 
-      write(6,
+      if (nodeid.eq.1) write(6,
      : '(//21x,"ASYMPTOTIC SATELLITE INTENSITIES S(ns)x100%"/,
      :     21x,"-------------------------------------------" )')
 
@@ -1906,17 +1907,17 @@ C  according to Aberg (1970)
       ratio = (sum - S)/S
 
       
-      if(meta.eq.1)then
+      if(meta.eq.1.and.nodeid.eq.1) then
          write(6,110) 2*iSpin+1
       write(6,'(/4x,10(I2,A,6x),A)//') (i,hh(0), i =1,10),'oo'
       write(6,'(/20F9.4)//') (rint(n),n=1,10),ratio*100
-      else
+      elseif (nodeid.eq.1) then
 !         write(6,111)
          write(6,'(/4x,10(I2,A,6x),A)//') (i,hh(0), i =1,10),'oo'
          write(6,120) (rint(n)*100,n=1,10),  ratio*100
       end if
 
-      if(nn.lt.10) print'(//4x,A/)',
+      if(nn.lt.10.and.nodeid.eq.1) print'(//4x,A/)',
      >   'WARNING: Less than 10 target s-states are used!'
 
       
