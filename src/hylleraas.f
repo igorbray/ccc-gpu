@@ -1,4 +1,5 @@
       subroutine xHYLLERAAS
+      use vmat_module, only: nodeid
 
 C  Helium atom ground state               
 C  Hylleraas 2nd order wave function.                               
@@ -275,14 +276,15 @@ C For inferior Hylleraas uncomment a reduced set of parameters
      :          * (rt/z1+2./z1**2+2./rt/z1**3) 
       end do
 
-      write(6,101) nznuc,  Etot
+      if (nodeid.eq.1) write(6,101) nznuc,  Etot
  101  FORMAT (////12x,' HYLLERAAS GROUND STATE   ',
      :           /12x,'  ----------------------   '/,
      :           /,   ' Nucleus charge           ',I3,
      :           /,   ' Ground state energy, au  ',F10.6,
      :           /,   ' Parameters Z1, N, a1 ... a20'//)
 
-      write(6,'(F11.6)') z1,an,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,
+      if (nodeid.eq.1)
+     >   write(6,'(F11.6)') z1,an,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,
      :         a11, a12, a13,a14, a15, a16, a17, a18, a19
 
 C  Radial integrals
@@ -293,12 +295,14 @@ C  Radial integrals
       call RnOVER(3,phi1s,phi1s,P3)
       call RnOVER(4,phi1s,phi1s,P4)
 
-      write(6,111) '<r^0>=', P0, 'Err=', P0-AN*2  /(2*z1)**3
-      write(6,111) '<r^1>=', P1, 'Err=', P1-AN*6  /(2*z1)**4
-      write(6,111) '<r^2>=', P2, 'Err=', P2-AN*24 /(2*z1)**5
-      write(6,111) '<r^3>=', P3, 'Err=', P3-AN*120/(2*z1)**6
-      write(6,111) '<r^4>=', P4, 'Err=', P4-AN*720/(2*z1)**7
-      write(6,111)
+      if (nodeid.eq.1) then
+         write(6,111) '<r^0>=', P0, 'Err=', P0-AN*2  /(2*z1)**3
+         write(6,111) '<r^1>=', P1, 'Err=', P1-AN*6  /(2*z1)**4
+         write(6,111) '<r^2>=', P2, 'Err=', P2-AN*24 /(2*z1)**5
+         write(6,111) '<r^3>=', P3, 'Err=', P3-AN*120/(2*z1)**6
+         write(6,111) '<r^4>=', P4, 'Err=', P4-AN*720/(2*z1)**7
+         write(6,111)
+      endif
       
  111  format(A,F11.6,3x,A,2x,E12.5)
       
@@ -312,6 +316,7 @@ C  Coulomb integrals
       call MATRnm (Q6, phi1s, phi1s, 1, 3, 1)  
       call MATRnm (Q7, phi1s, phi1s, 1, 2, 2)  
 
+      if (nodeid.eq.1) then
       write(6,111) '<F0 r^2 r^0>=',Q1,'Err=', Q1-AN**2*21  /2/(2*z1)**7
       write(6,111) '<F1 r^1 r^1>=',Q2,'Err=', Q2-AN**2*21  /4/(2*z1)**7
       write(6,111) '<F0 r^4 r^0>=',Q3,'Err=', Q3-AN**2*1845/8/(2*z1)**9
@@ -319,7 +324,8 @@ C  Coulomb integrals
       write(6,111) '<F0 r^2 r^2>=',Q5,'Err=', Q5-AN**2*837 /8/(2*z1)**9
       write(6,111) '<F1 r^3 r^1>=',Q6,'Err=', Q6-AN**2*621 /8/(2*z1)**9
       write(6,111) '<F1 r^2 r^2>=',Q7,'Err=', Q7-AN**2*555 /8/(2*z1)**9
-
+      endif
+      
       F1 = P0**2 + 4*a2*(P2*P0 - P1**2) 
      :       +  2*a2**2*(P4*P0 - 4* P3*P1 + 3*P2**2)
 
@@ -330,7 +336,7 @@ C  Coulomb integrals
       F = F1 + F2 + F3
       F = (pi*4)**2 * F
 
-      write(6,'(A,F9.4)') 'Norma ', F
+      if (nodeid.eq.1) write(6,'(A,F9.4)') 'Norma ', F
 
 C                          _  -Zr  ___
 C  Radial orbitals |1s> = VN e    V4pi  
@@ -340,12 +346,12 @@ C  Radial orbitals |1s> = VN e    V4pi
       end do
 
       call RnOVER(0,phi1s,phi1s,over)
-      print*, 'Norma 1s    ', over
+      if (nodeid.eq.1) print*, 'Norma 1s    ', over
       
 C Overlap with HF ground state
 
       call RnOVER(0,phi1s,psi1s,over)
-      print*, 'Overlap GS  ', over
+      if (nodeid.eq.1) print*, 'Overlap GS  ', over
 
   20  FORMAT (2  F17.7)
 
@@ -1701,7 +1707,7 @@ C  according to Aberg (1970)
       DIMENSION  S(nnmax)
       pi = acos(-1.)
       
-      write(6,
+      if (nodeid.eq.1) write(6,
      : '(//11x,"ASYMPTOTIC SATELLITE INTENSITIES S(ns)/S(1s)x100%"/,
      :     11x,"-------------------------------------------------" )')
 
@@ -1779,12 +1785,13 @@ c$$            end do
             SP = SP + S(na)**2
          end if
       end do
-
-      write(6,'(/4x,10(I2,A,6x))//') (i,hh(0), i =2,nn)
-      write(6,'(/20F9.4)//') (S(i)**2/S(1)**2*100, i=2,nn)
+      if (nodeid.eq.1) then
+         write(6,'(/4x,10(I2,A,6x))//') (i,hh(0), i =2,nn)
+         write(6,'(/20F9.4)//') (S(i)**2/S(1)**2*100, i=2,nn)
                         
-      write(6,'(/3x,A,F9.4,//)') 'Asymptotic ratio S(++)/S(+)x100%',
-     : (ST-SP)/ST*100
+         write(6,'(/3x,A,F9.4,//)') 'Asymptotic ratio S(++)/S(+)x100%',
+     :      (ST-SP)/ST*100
+      endif
                          
 
       END      
