@@ -236,6 +236,7 @@ c$$$     >         ,phasediv(nch),nch
          call getchinfo (nch, nchp, ipar, temp, maxpsi, ea, la, na, l)
          if (nch.ne.0) go to 10
       enddo 
+      print* !give a clean finish to the above state printouts
 C  restore ipar to zero
       ipar = 0
       xerr = 0.1
