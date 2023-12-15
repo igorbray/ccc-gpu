@@ -4452,7 +4452,7 @@ C     cray compiler bug workaround
 C        cray compiler bug workaround
 !         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
          write(stringtemp,'(i3,"_chil_",a)') lg,ch2              
-         open(42,FILE=stringtemp) !'chil'//ch(lg)//'_'//ch(nch))
+         open(42,FILE=adjustl(stringtemp)) !'chil'//ch(lg)//'_'//ch(nch))
          write(42,'("#",13x,1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
          write(42,'("# en(Ry) ->   ",1p,1000E14.4)')
@@ -4477,7 +4477,7 @@ C        cray compiler bug workaround
 C           cray compiler bug workaround
 !            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)                 
             write(stringtemp,'(i3,"_chiltail_",a)') lg,ch2
-            open(42,FILE=stringtemp) !'chiltail'//ch(lg)//'_'//ch(nch))
+            open(42,FILE=adjustl(stringtemp)) !'chiltail'//ch(lg)//'_'//ch(nch))
             write(42,'("#",11x,1000F6.3)')
      >         (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
             write(42,'("# en(Ry) -> ",1p,1000E12.4)')
