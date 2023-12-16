@@ -1,7 +1,7 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >   mintemp3,maxtemp3,temp3,ltmin,minchilx,chilx,ctemp,itail,trat,
      >   nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii_dummy,second,
-     >   maxi2,temp2,ifirst)
+     >   maxpsii,temp2,ifirst)
       use chil_module
 #ifdef GPU
       use openacc
@@ -18,12 +18,13 @@ c$$$      real chil(1:meshr,1:(npk(nchtop+1)-1))
       logical second
       integer gpunum,tnum,tmod
       integer, external :: omp_get_thread_num
-      integer maxi2
-      real temp2(1:meshr,1:nqmi,nchi:nchtop)
+      integer maxpsii
+      real temp2(1:maxpsii,1:nqmi,nchi:nchtop)!temp2(1:meshr,1:nqmi,nchi:nchtop)
 
       allocate(chitemp(meshr,nqmi))
       allocate(tmp(nqmi,nqmfmax))
 
+      maxi2 = maxpsii
       if(ifirst.ne.1) then
         maxi2=0
       endif
@@ -60,7 +61,8 @@ c$$$!$acc& present(minchil(1:npk(nchtop+1)-1))
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
 !!$acc& create(temp2)
-!$acc& copyin(temp2(1:meshr,1:nqmi,nchi:nchtop))
+!$acc& copyin(temp2(1:maxpsii,1:nqmi,nchi:nchtop))
+!!!$acc& copyin(temp2(1:meshr,1:nqmi,nchi:nchtop))
 !$acc& create(tmp)
 c$$$!$omp do schedule(dynamic)
       do nchf = nchi, nchtop
@@ -75,8 +77,9 @@ c$$$!$omp do schedule(dynamic)
             enddo
          enddo
 !!$acc wait(nchf)
-!$acc loop independent collapse(2)
+         tmp(1:nqmi,1:nqmf) = 0.0
          if (ifirst.eq.1) then
+!$acc loop independent collapse(2)
             do ki = 1, nqmi
                do kf=1,nqmf
                   kff = npk(nchf) + kf - 1
@@ -85,8 +88,6 @@ c$$$!$omp do schedule(dynamic)
      >               ,temp2(mini:maxi2,ki,nchf))
                enddo
             enddo
-         else
-            tmp(1:nqmi,1:nqmf) = 0.0
          endif
 !$acc loop independent collapse(2)
          do ki = 1, nqmi
@@ -171,7 +172,7 @@ c$$$!$omp end parallel
 
       subroutine makev3e(chilx,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
      >   li,lf,minchilx,nqmi,lg,rnorm,second,npk,
-     >   nqmfmax,vmatt,nchtop,nnt,ngpus,temp2,maxi)
+     >   nqmfmax,vmatt,nchtop,nnt,ngpus,temp2)
       use chil_module
       include 'par.f'
       integer nnt,gpunum
@@ -182,7 +183,7 @@ c$$$      dimension minchil(npk(nchtop+1)-1)
       dimension psii(maxr),
      >   psif(maxr,nchtop),const(-lamax:lamax,nchtop)
       dimension maxpsif(nchtop), lfa(nchtop), lf(nchtop)
-      real temp2(meshr,nqmi,nchi:nchtop)
+      real temp2(maxpsii,nqmi,nchi:nchtop) !temp2(meshr,nqmi,nchi:nchtop)
       real, allocatable :: temp(:)
 !      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
       real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
@@ -196,7 +197,7 @@ c$$$      dimension minchil(npk(nchtop+1)-1)
 c
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut
-      integer maxpsii,maxi
+      integer maxpsii
 c      
       hat(l)= sqrt(2.0 * l + 1.0)
 
@@ -245,12 +246,10 @@ c$$$               stop 'CJ6 and W do not agree'
       end do
 !$omp end parallel do
 
-      maxi=maxpsii
-
 !$omp parallel do default(private) num_threads(nnt) !collapse(2)
 !$omp& schedule(dynamic)
 !$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
-!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
+!$omp& rpow2,temp2,nqmi,minchil,maxpsii,gamma,pol,minrp,maxrp,maxpsif,
 !$omp& nchtop,gpunum)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
@@ -261,7 +260,7 @@ c$$$               stop 'CJ6 and W do not agree'
          do i = minfun, maxfun
             fun(i) = chil(i,kii,1) * psif(i,nchf)
          end do
-         do i = 1, meshr
+         do i = 1, maxpsii !meshr
             temp2(i,ki,nchf) = 0.0
          enddo
          mini = meshr
@@ -270,7 +269,7 @@ c$$$               stop 'CJ6 and W do not agree'
             if (lt.lt.0.or.lt.gt.ltmax.or.abs(const(ilt,nchf)).lt.1e-10)
      >         go to 15
             call form(fun,minfun,maxfun,rpow1(1,lt),
-     >      rpow2(1,lt),minrp(lt),maxrp(lt),maxi,temp,i1,i2)
+     >      rpow2(1,lt),minrp(lt),maxrp(lt),maxpsii,temp,i1,i2)
 c
        if(lt.eq.1.and.gamma.ne.0.0) then
           sum1 = 0.0
@@ -282,14 +281,14 @@ c
              temp(i) = temp(i) - tmp*pol(i)
           end do
        end if
-
+       if (i2.gt.maxpsii) stop 'something is wrong'
             do i = i1, i2
                temp2(i,ki,nchf) = const(ilt,nchf) * temp(i) 
      >                          + temp2(i,ki,nchf)
             enddo
             mini = min(mini,i1)
  15      continue
-         do i = mini, maxi
+         do i = mini, maxpsii
             temp2(i,ki,nchf) = temp2(i,ki,nchf) * psii(i)
          enddo
       enddo

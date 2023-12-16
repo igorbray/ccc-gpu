@@ -1,8 +1,9 @@
 c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sqrt(2J+1) <||V||>
       subroutine vdme(nze,nchmi,Nmaxi,Ni,Li,lai,si,lpari,nspmi,loi,
-     >   Ci,fli,maxfi,minfi,npki,chili,minci,
+     >   Ci,fli,maxfi,minfi,npki,!chili,minci,
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
-     >   Cf,flf,maxff,minff,npkf,chilf,mincf,ortint,KJ,dwpot,
+     >   Cf,flf,maxff,minff,npkf,!chilf,mincf,
+     >   ortint,KJ,dwpot,
      >   vdon,VVD,nchf,nchi,na,nam,namax,itail,gki,phasei,gkf,phasef)
       use chil_module
       include 'par.f'
@@ -15,12 +16,14 @@ c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sq
       dimension loi(nspmi), lof(nspmf),npki(nchmi+1),npkf(nchmf+1)
       dimension fli(maxr,nspmax),maxfi(nspmi),minfi(nspmi)
       dimension flf(maxr,nspmax),maxff(nspmf),minff(nspmf)
-      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
-      dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
+c$$$      dimension chili(1,1), minci(1)
+c$$$      dimension chilf(1,1), mincf(1)
+c$$$      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
+c$$$      dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
       dimension gki(kmax),phasei(kmax),gkf(kmax),phasef(kmax)
       complex phasei,phasef
       dimension formout(maxr),dwpot(maxr,nchan)!,chiform(maxr,kmax)
-      allocatable :: chiform(:,:)
+      dimension chiform(maxr)
       dimension VVD(kmax,kmax,0:1)
 c$$$      dimension VVD(npkf(nchmf+1)-1,npki(nchmi+1))
       dimension  Vang(0:ltmax), upot(maxr), vdon(nchan,nchan,0:1)
@@ -218,13 +221,13 @@ c$$$     >         minci(npki(nchi)),gki,phasei,li,nqmi,
 c$$$     >         chilf(1,npkf(nchf)),mincf(npkf(nchf)),
 c$$$     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
 
-            allocate(chiform(maxr,kmax))
-            do ki=npki(nchi), npki(nchi+1) - 1
-               minki = max(minform, minchil(ki,1))
-               do i = minki, maxform
-                  chiform(i,ki-kistep) = temp(i) * chil(i,ki,1)
-               enddo
-            enddo
+c$$$            allocate(chiform(maxr,kmax))
+c$$$            do ki=npki(nchi), npki(nchi+1) - 1
+c$$$               minki = max(minform, minchil(ki,1))
+c$$$               do i = minki, maxform
+c$$$                  chiform(i,ki-kistep) = temp(i) * chil(i,ki,1)
+c$$$               enddo
+c$$$            enddo
             kistart = npki(nchi)
             kistop = npki(nchi+1) - 1
             quart = 0.0
@@ -234,6 +237,9 @@ c$$$c$par doall
             tmp = 0.0
             do ki=kistart, kistop
                minki = max(minform, minchil(ki,1))
+               do i = minki, maxform
+                  chiform(i) = temp(i) * chil(i,ki,1)
+               enddo
                kii = ki - kistep
                do 90 kf = npkf(nchf), npkf(nchf+1) - 1
                   kff = kf - npkf(nchf) + 1
@@ -244,11 +250,12 @@ c$$$c$par doall
 !                     print*,"!!>",chilf(100,kf),chiform(100,kii)
 !                  endif
                   tmp = dot_product(chil(mini:maxform,kf,1),
-     >               chiform(mini:maxform,kii)) + tail(kff,kii)
+     >               chiform(mini:maxform)) + tail(kff,kii)
 c$$$                  tmp = sdot(n,chilf(mini,kf),1,chiform(mini,kii),1)
 
                   vvd(kff,kii,0) = vvd(kff,kii,0) + tmp * const
-                  vvd(kff,kii,1) = (vvd(kff,kii,1) + tmp * const)*quart
+                  if (quart.ne.0.0)
+     >               vvd(kff,kii,1) = vvd(kff,kii,1) + tmp * const
                   
 c$$$                  VVD(kf,ki) = VVD(kf,ki) + tmp * const
 c$$$C  QUART is used to make sure that the quartet V matrix elements are
@@ -258,12 +265,14 @@ c$$$                  VVD(ki,kf+1) = (VVD(ki,kf+1) + tmp * const) * quart
 c     end ki,kf loops
  90            continue 
             end do
-            deallocate(chiform)
+c$$$            deallocate(chiform)
 c$$$            if (nchf*nchi.eq.1) print*,'vvd(1,1):',vvd(1,1,0)
             vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vvd(1,1,0) !vdon(nchf,nchi,0) + tmp * const
             vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
-            vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+vvd(1,1,1))*quart !(vdon(nchf,nchi,1)+tmp*const) * quart
-            vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+            if (quart.ne.0.0) then
+               vdon(nchf,nchi,1) = vdon(nchf,nchi,1)+vvd(1,1,1) !(vdon(nchf,nchi,1)+tmp*const) * quart
+               vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+            endif
 c     end nchi,nchf loops
  30      continue       
  40   continue       
@@ -275,7 +284,7 @@ c*********************************************************************
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,KJ,VE1,nchf,nchi,
-     >   chiform,minchiform,maxchiform,na,nam,namax)
+     >   chiform,minchiform,maxchiform,nmr,km,na,nam,namax)
       use chil_module
       include 'par.f'
       double precision Z
@@ -292,7 +301,9 @@ c*********************************************************************
       dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
       dimension VE1(kmax,kmax,0:1)
 c$$$      dimension VE1(npkf(nchmf+1)-1,npki(nchmi+1))
-      dimension formout(maxr), chiform(maxr,kmax),
+c$$$      dimension formout(maxr), chiform(:,:),
+c$$$     >   minchiform(:),maxchiform(:)
+      dimension formout(maxr), chiform(nmr,km),
      >   minchiform(kmax),maxchiform(kmax)
       double precision VA, tmp_Vang, tmp_Ci, hat, pnorm
       dimension Vang(0:ltmax,nspmCI) 
@@ -331,6 +342,7 @@ c     call   getchinfo2 (nchf,Nf,KJ,temp,ener,laf,naf,Lf)
       rllf=llf
       rsi=lsi
       rsf=lsf
+      
 c     Ni,Nf  -   numbers of physical chanels
 c     
 c     find maxumum value for maxfi(ni1) to be used in getformout2() routine.
@@ -452,7 +464,6 @@ c     calculation of radial integrals
 c     end nf1 loop
  68   continue
 
-
       TSpin = 0.5
       c0p5 = pnorm * ze * COF6J(0.5,0.5,rsf,0.5,TSpin,rsi)
       if (lsi.eq.lsf.and.lsf.eq.1) then
@@ -492,7 +503,7 @@ c     this subroutine calculates matrix elements for V(r0,r2).
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,ortchil,flchil,KJ,gridk,VE2,nchf,nchi,
-     >   chiform,minchiform,maxchiform,na,nam,namax)
+     >   chiform,minchiform,maxchiform,nrm,km,na,nam,namax)
       use chil_module
       include 'par.f'
       double precision Z, fangint
@@ -506,7 +517,8 @@ c     this subroutine calculates matrix elements for V(r0,r2).
       dimension  flf(maxr,nspmax),maxff(nspmf),minff(nspmf)
       dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
       dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
-      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
+c$$$      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
+      dimension chiform(nrm,km),minchiform(kmax),maxchiform(kmax)
       dimension Ang(kmax), Ang2(kmax)
       double precision  hat,pnorm,e1r
       dimension ortchil(npki(nchmi+1)-1,nspmf),
@@ -675,7 +687,7 @@ c     end nf1 loop
      >                        minff(nf2),maxfi(ni2),maxff(nf2),
      >                        fli(1,ni1),minfi(ni1),maxfi(ni1),
      >                        chiform,minchiform,maxchiform,
-     >                        Ang,nqmi)
+     >                        nrm,km,Ang,nqmi)
                         endif 
 c     end lambda loop:
  140                 continue
@@ -812,7 +824,9 @@ c$$$  if(abs(si(Ni)-0.5).gt.S.or.S.gt.si(Ni)+0.5) go to 40
 c$$$  if(abs(sf(Nf)-0.5).gt.S.or.S.gt.sf(Nf)+0.5) go to 30
 c     Ni,Nf  -   numbers of physical chanels
 c
-      allocate(formout(maxr,kmax))
+      nrm = nr
+      km = nqmf
+      allocate(formout(nrm,km))
       do kf=1,nqmf
          do i = 1, nr
             formout(i,kf) = 0.0
@@ -937,7 +951,7 @@ c     target hamiltonian overlap
      >                  fli(1,ni2),flf(1,nf2),minfi(ni2),
      >                  minff(nf2),maxfi(ni2),maxff(nf2),
      >                  flf(1,nf1),minff(nf1),maxff(nf1),
-     >                  formout,minform,maxform,
+     >                  formout,minform,maxform,nrm,km,
      >                  Ang,nqmf)
                   end if
                enddo 
@@ -1365,12 +1379,12 @@ c     This routine is called only from the exchange ME routine ve1me(...)
 c************************************************************************
        subroutine getformout3(lam,flam,fli,flf,minfi,minff,
      >    maxfi,maxff,fl,minfl,maxfl,formout,minform,maxform,
-     >    Ang,nqm)
+     >    nrm,km,Ang,nqm)
        include 'par.f'
        common /meshrr/ nr, gridr(maxr,3)
        dimension  fli(maxr), flf(maxr), fl(maxr)
        dimension   Ang(kmax), minform(kmax), maxform(kmax)
-       dimension temp(maxr), fun(maxr), formout(maxr,kmax)
+       dimension temp(maxr), fun(maxr), formout(nrm,km)
        common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >    minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
        common /di_el_core_polarization/ gamma, r0, pol(nmaxr)

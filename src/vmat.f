@@ -2292,9 +2292,9 @@ c$$$         endif
          print*,'Channel, NQK+1, KMAX:',nch,nqk+1,kmax
          stop 'Increase KMAX'
       endif
-c$$$      print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)
-      
-      npk(nchtop+1) = npk(nchtop) + nqk + 1 
+c$$$      if (lprint) print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)      
+      npk(nchtop+1) = npk(nchtop) + nqk + 1
+
       ldumm = -1
       if (la.le.ldumm.and.na.le.ndumm) nchopt = nchtop
       nch = nch + 1

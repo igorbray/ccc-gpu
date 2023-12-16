@@ -31,7 +31,7 @@
       
       subroutine redistributeAndSolve(ni,nf,nd
      >             ,blacs_ctx,ns,nsmax
-     >             ,nodes,npklen,npk
+     >             ,nodest,npklen,npk
      >             ,nchtop
      >             ,wk,wklen,soln)
       use vmat_module
@@ -54,7 +54,7 @@ c$$$      real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
       integer :: wklen
       complex, dimension(wklen) :: wk
       integer :: i, nsmax
-      integer :: nodes,matrix,vector
+      integer :: matrix,vector,nodest !nodes in vmat_module
       integer :: npklen
 c$$$      integer, dimension(nodes) :: nchistart
 c$$$      integer, dimension(nodes) :: nchistop
@@ -68,8 +68,13 @@ c$$$      integer, dimension(nodes) :: nchistop
 
       call mpi_comm_rank(MPI_COMM_WORLD,myid,ierr)
       call blacs_gridinfo(blacs_ctx,rows,cols,myrow,mycol)
-      kblock(1)=min(64,nd/rows)
-      kblock(2)=min(64,nd/cols)
+#ifdef SLATE
+      kblock(1)=min(384,nd/rows) ! min(1000,nd/rows)
+      kblock(2)=min(384,nd/cols) ! min(1000,nd/cols)
+#else
+      kblock(1)=min(144,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(144,nd/cols) ! min(64,nd/cols)
+#endif
       kblock(1)=min(kblock(1),kblock(2))
       kblock(2)=kblock(1)
 !      vblock(1)=min(64,nd/rows)

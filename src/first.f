@@ -198,10 +198,10 @@ c$$$      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
          rmem = 0.0
          do nchi = nchii, nchif
             nqmi = npk(nchi+1) - npk(nchi)
-            rmem = rmem + meshr * nqmi * nbytes * (nchtop-nchi+1)
+            rmem = rmem + nqmi*(nchtop-nchi+1)*maxpsi_t(nchi) !total memory for all nchi of node
          enddo
          print"('nodeid will allocate Mb to temp2:',i4,i7)", 
-     >      nodeid,nint(rmem*1e-6)
+     >      nodeid,nint(1e-6*rmem*nbytes)
       endif
 
       do nchtmp = nchii, nchif
@@ -245,11 +245,11 @@ C  which contains VDCORE.
      >      vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
          vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
          if (ifirst.eq.1) then
-            allocate(temp2(meshr,nqmi,nchi:nchtop))
+            allocate(temp2(maxpsii,nqmi,nchi:nchtop)) !allocate(temp2(meshr,nqmi,nchi:nchtop))
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
      >         lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
-     >         nnt,ngpus,temp2,maxi2) !vmatt not used
+     >         nnt,ngpus,temp2) !vmatt not used
          else 
             allocate(temp2(1,1,nchi:nchi))
          endif
@@ -487,7 +487,7 @@ C  them.
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxi2,temp2,ifirst)
+     >     maxpsii,temp2,ifirst)
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime

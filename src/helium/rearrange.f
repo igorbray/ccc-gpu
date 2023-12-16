@@ -72,7 +72,7 @@ c
             fl_po(1:nr,j) = fl(1:nr,n)
          endif
       enddo
-      print*,'Made s.p. projection operator with nspm_po=', nspm_po      
+c$$$      print*,'Made s.p. projection operator with nspm_po=', nspm_po      
       if(j .ne. nspm_po) then
          print*,'rearramge.f: j .ne. nspm_po:', j, nspm_po
          stop

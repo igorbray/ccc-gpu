@@ -898,7 +898,7 @@ c     call routine for making projection operator for nonuniqueness.
 c     here s.p. states are rearranged in case of frozen core treatment of HE.
          write(4,'("here s.p. states are rearranged")')
          write(4,'("frozen core treatment of ",A20,"is assumed")') atom
-         write(6,'("frozen core treatment of ",A20,"is assumed")') atom
+c$$$         write(6,'("frozen core treatment of ",A20,"is assumed")') atom
          call find_nsp_tot(Nmax,nspmW,nspm,C,lo,nsp_tot)
          call rearrange(Nmax,nspmW,nspm,nsp_tot,lo,ko,
      >        fl,maxf,minf,C,los)
@@ -2211,7 +2211,7 @@ c         print*,'***** N=',N,sign_wf
          end if
          
       end do                    ! end  N  loop
-      print*,'!!!!!!'
+c$$$      print*,'!!!!!!'
       open(534,file=adjustl(cnode//'save.sign.wf'//ench))
       write(534,'("lable         N   WaveFunc(i1,i2)        CI_sum")')
       do N=1,Nmax
@@ -2230,7 +2230,7 @@ c         write(534,'(A5,I5,2E12.4)') chan(N), N, tmp1, CI_sum(N)
 c         write(534,*) chan(N), N, tmp1, CI_sum(N)
       end do                    ! end  N  loop
       close(534)
-      print*,'-------'
+c$$$      print*,'-------'
       return
       end
 

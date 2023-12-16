@@ -1,7 +1,7 @@
       subroutine mainhe(Nmax,namax,pnewC,eproj,etot,
      >     lastop,nnbtop,ovlp,phasen,regcut,expcut,ry,enion,enlevel,
      >     enionry,nchanmax,ovlpnl,slowe,ne2e,vdcore)
-      use vmat_module !for nodeid only
+      use vmat_module, only: nodeid
       include 'par.f'
       integer la, sa, lpar
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
@@ -141,7 +141,7 @@ c      endif
       nspmW = max(nspm,10)
       call structure(Nmax,nspmW,namax,pnewC,E,enionry,eproj,vdcore,
      >   slowe(1)) 
-      print*, 'Finish structure'
+c$$$      print*, 'Finish structure'
       lg = 0
       nchanmax = 0
 c     This block is for calculation of the osc.str. for continuum states.
@@ -214,7 +214,7 @@ c$$$                  endif
 c$$$                  if (nnn.eq.Nmax) close(42)
 c$$$                  endif 
 c$$$               enddo 
-               print*
+
 c
 c     This block is for calculation of the osc.str. for continuum states.
 c               osc_cont_len = oscstr(nst,1,1) * ovlp(na,latom)**2/q
@@ -296,7 +296,7 @@ c$$$               endif ! ne2e.ne.0
 C  EDELTA is used to shift the energy levels
       edelta = - enion - enpsinb(ninc,linc) * ry
       if (nodeid.eq.1) then
-         write(*,'("finish structure calculation")')
+         write(*,'("finished structure calculation")')
          write(*,'("**********************************************")')
 c
          print*,'Error in ground state energy and ',

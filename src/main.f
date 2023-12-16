@@ -15,7 +15,6 @@ c$$$      use chil_module
       use gf_module
       use chil_module
       use photo_module
-
 C      use date_time_module can't do this as time gets overwritten
 c MPI Fortran header file
       use mpi_f08 !avoids MPI argument missmatch warnings
@@ -363,9 +362,8 @@ C
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
      >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid,limit_time)
-c$$$      cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
-c$$$      if (nodes.eq.1) 
-      cnode = ''
+      cnode = ch(mod(lstart,10))//'_'//ch(nodeid)
+      if (nodes.eq.1) cnode = ''
       write(ench,'(1p,"_",e10.4)') energy
       if (myid.le.0) print*, 'nomp, nodes:',
      >   nomporig,nodes!,myid,nodeid
@@ -1162,7 +1160,7 @@ c$$$         if (nze.eq.1) stop 'set OVLPNL properly'
             rmax=rmesh(meshr,1)
             nptopin(0:lptop) = nptop(0:lptop)
             nptop(:) = 0        ! no Ps states when calling He-like structure
-            print*,'calling mainhe with enion,enlevel:',enion,enlevel
+c$$$            print*,'calling mainhe with enion,enlevel:',enion,enlevel
             call mainhe(nmaxhe,namax,pnewC,ery,etot,
      >           lastop,abs(nnbtop),ovlp,phasen,regcut,expcut,ry,
      >           enion,enlevel,enionry,nchanmax,
@@ -2474,7 +2472,8 @@ C Determine nchistart and nchistop for each node
 c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
          if (natompstot.eq.0.or.lg.gt.lstoppos.or.lg.eq.0) then ! no Ps states in the calculation or 1 node
             do nn = 1, nodes-1
-               if (.not.hlike.and.projectile.eq.'photon') then !improve load balance for photons on He-like targets
+               if (.not.hlike.and.projectile.eq.'photon'.and.
+     >            nodes*2.lt.nchtop) then !improve load balance for photons on He-like targets
                   nchprspernode = nint(nchprspernodeor*
      >               (1.0+(nn-nodes/2)*0.5/nodes))
                   if (nodeid.eq.1) print*,'nchprs:',
@@ -2760,7 +2759,7 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
             endif
          else
             LGold(ipar) = -1
-            print*,'nodeid:,nchistart(nodes):',
+            print*,'nodeid,nchistart(nodes):',
      >         nodeid,nchistart(nodes)
          endif
          call MPI_Barrier(  MPI_COMM_WORLD, ierr)
@@ -2779,8 +2778,8 @@ C Allocate the node-dependent VMAT arrays
             mv01=0
             mv0=0
             mv1=0
-            mchi=nint(1.0/mb*(nd-ni+1)*meshr*nbytes)
-            if (itail.lt.0) mchi = mchi*2
+            mchi=nint(1.0/mb*(nd-ni+1)*meshr*nbytes*ichildim)
+c$$$  if (itail.lt.0) mchi = mchi*2
             npernode = (nf-ni+1)*(nf-ni+2)/2+(nf-ni+1)*(nd-nf)
 c$$$            if (nodes.gt.nchtop) stop 'nodes > nchtop'	
 c$$$            if (nodes.eq.1.and.scalapack)
@@ -3209,7 +3208,8 @@ C Concatenate the individual node timings into one file lg_ipar
 
             call factor_two(ntasks,nrows,ncols)
             call blacs_get(0,0,nblacs_context)
-            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
+c$$$            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
+            call blacs_gridinit(nblacs_context,'C',nrows,ncols) ! for SLATE or ScaLAPACK
             call mpi_bcast(nchistart,nodes,MPI_INTEGER,0,
      >         MPI_COMM_WORLD,ierr)
             call mpi_bcast(nchistop,nodes,MPI_INTEGER,0,
@@ -5708,7 +5708,7 @@ c$$$     >            kii,real(wk(kii+npk(nch)-1))
 C End Added by Ivan
 
 C Take node(ntm) with max time, and see if initial/final channels can be moved to other nodes
-      subroutine iteratenodes(ntm,nodes,nchtime,nchtop,torf)
+      subroutine iteratenodes(ntm,nodest,nchtime,nchtop,torf)
       use vmat_module
       logical torf
       real nchtime(nchtop)

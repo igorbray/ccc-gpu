@@ -50,7 +50,7 @@ C  The following are experimental energies
          endif
       enddo
       lg = 1
-      write(6,1000)  
+      if (nodeid.eq.1) write(6,1000)  
 
 c$$$      print '(i3,":",$)', nchtop
 C  The following directives are for the SGI

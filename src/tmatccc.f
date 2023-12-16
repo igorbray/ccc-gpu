@@ -792,7 +792,7 @@ c$$$      endif
          ve2e(nchf) = ve2e(nchf) * phasel(1,1) / gk(1,1)
       enddo 
 
-      call date_and_time(date,time,zone,valuesin)
+c$$$      call date_and_time(date,time,zone,valuesin)
 
       do nchf = 1, nchtop
 c$$$         if (-lg.gt.latop) uba(nchf) = .true.
@@ -1071,6 +1071,7 @@ c$$$     >            * gk(1,nchi)/(gk(1,nchi)+1e-10)
 
 C  Solve the linear equations
       if (projectile.eq.'photon') then
+         call date_and_time(date,time,zone,valuesin)
          rmcv = 1e-6*8 * (ichi) * nchan
          rmcv2 = 1e-6*8 * (ichi) * nchtop
 c$$$         call memalloc(ptrcv,mcv)
@@ -1160,6 +1161,10 @@ c$$$     >      phaseq)
          deallocate (cv, cv2)
 c$$$         call memfree(ptrcv)
 c$$$         call memfree(ptrcv2)
+         call date_and_time(date,time,zone,valuesout)
+         print '("Photo exited at:  ",a10,", diff (secs):",i5)',
+     >      time, idiff(valuesin,valuesout)
+         call update(6)
       else
          nv = nchtop
          nd = nchtop
@@ -1846,11 +1851,11 @@ c$$$  call memfree(ptrafi)
       n = nmax
 ! Due to occasional SEGV on Magnus, downloaded local copies. Igor 24/1/2018
 #ifdef _single
-      print*,'Calling own version of CGESV'      
+c$$$      print*,'Calling own version of CGESV'      
       call cgesv(n,nb,api,lda,kpvt,bhar,lda,info)
 
 #elif defined _double
-      print*,'Calling own version of ZGESV'
+c$$$      print*,'Calling own version of ZGESV'
       call zgesv(n,nb,api,lda,kpvt,bhar,lda,info)
 #endif
       print*,'Exiting ?GESV'
@@ -8171,1361 +8176,1361 @@ c$$$      enddo
       end
 
 
-      SUBROUTINE ZGESV_mine( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-*
-*  -- LAPACK driver routine (version 3.1) --
-*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      INTEGER            INFO, LDA, LDB, N, NRHS
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX*16         A( LDA, * ), B( LDB, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  ZGESV computes the solution to a complex system of linear equations
-*     A * X = B,
-*  where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
-*
-*  The LU decomposition with partial pivoting and row interchanges is
-*  used to factor A as
-*     A = P * L * U,
-*  where P is a permutation matrix, L is unit lower triangular, and U is
-*  upper triangular.  The factored form of A is then used to solve the
-*  system of equations A * X = B.
-*
-*  Arguments
-*  =========
-*
-*  N       (input) INTEGER
-*          The number of linear equations, i.e., the order of the
-*          matrix A.  N >= 0.
-*
-*  NRHS    (input) INTEGER
-*          The number of right hand sides, i.e., the number of columns
-*          of the matrix B.  NRHS >= 0.
-*
-*  A       (input/output) COMPLEX*16 array, dimension (LDA,N)
-*          On entry, the N-by-N coefficient matrix A.
-*          On exit, the factors L and U from the factorization
-*          A = P*L*U; the unit diagonal elements of L are not stored.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,N).
-*
-*  IPIV    (output) INTEGER array, dimension (N)
-*          The pivot indices that define the permutation matrix P;
-*          row i of the matrix was interchanged with row IPIV(i).
-*
-*  B       (input/output) COMPLEX*16 array, dimension (LDB,NRHS)
-*          On entry, the N-by-NRHS matrix of right hand side matrix B.
-*          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
-*
-*  LDB     (input) INTEGER
-*          The leading dimension of the array B.  LDB >= max(1,N).
-*
-*  INFO    (output) INTEGER
-*          = 0:  successful exit
-*          < 0:  if INFO = -i, the i-th argument had an illegal value
-*          > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
-*                has been completed, but the factor U is exactly
-*                singular, so the solution could not be computed.
-*
-*  =====================================================================
-*
-*     .. External Subroutines ..
-      EXTERNAL           XERBLA, ZGETRF, ZGETRS
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      IF( N.LT.0 ) THEN
-         INFO = -1
-      ELSE IF( NRHS.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
-         INFO = -4
-      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
-         INFO = -7
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'ZGESV ', -INFO )
-         RETURN
-      END IF
-*
-*     Compute the LU factorization of A.
-*
-      CALL ZGETRF( N, N, A, LDA, IPIV, INFO )
-
-      IF( INFO.EQ.0 ) THEN
-*
-*        Solve the system A*X = B, overwriting B with X.
-*
-         CALL ZGETRS( 'No transpose', N, NRHS, A, LDA, IPIV, B, LDB,
-     $                INFO )
-      END IF
-      RETURN
-*
-*     End of ZGESV
-*
-      END
-
-
-
-      SUBROUTINE ZGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-*
-*  -- LAPACK routine (version 3.1) --
-*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      CHARACTER          TRANS
-      INTEGER            INFO, LDA, LDB, N, NRHS
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX*16         A( LDA, * ), B( LDB, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  ZGETRS solves a system of linear equations
-*     A * X = B,  A**T * X = B,  or  A**H * X = B
-*  with a general N-by-N matrix A using the LU factorization computed
-*  by ZGETRF.
-*
-*  Arguments
-*  =========
-*
-*  TRANS   (input) CHARACTER*1
-*          Specifies the form of the system of equations:
-*          = 'N':  A * X = B     (No transpose)
-*          = 'T':  A**T * X = B  (Transpose)
-*          = 'C':  A**H * X = B  (Conjugate transpose)
-*
-*  N       (input) INTEGER
-*          The order of the matrix A.  N >= 0.
-*
-*  NRHS    (input) INTEGER
-*          The number of right hand sides, i.e., the number of columns
-*          of the matrix B.  NRHS >= 0.
-*
-*  A       (input) COMPLEX*16 array, dimension (LDA,N)
-*          The factors L and U from the factorization A = P*L*U
-*          as computed by ZGETRF.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,N).
-*
-*  IPIV    (input) INTEGER array, dimension (N)
-*          The pivot indices from ZGETRF; for 1<=i<=N, row i of the
-*          matrix was interchanged with row IPIV(i).
-*
-*  B       (input/output) COMPLEX*16 array, dimension (LDB,NRHS)
-*          On entry, the right hand side matrix B.
-*          On exit, the solution matrix X.
-*
-*  LDB     (input) INTEGER
-*          The leading dimension of the array B.  LDB >= max(1,N).
-*
-*  INFO    (output) INTEGER
-*          = 0:  successful exit
-*          < 0:  if INFO = -i, the i-th argument had an illegal value
-*
-*  =====================================================================
-*
-*     .. Parameters ..
-      COMPLEX*16         ONE
-      PARAMETER          ( ONE = ( 1.0D+0, 0.0D+0 ) )
-*     ..
-*     .. Local Scalars ..
-      LOGICAL            NOTRAN
-*     ..
-*     .. External Functions ..
-      LOGICAL            LSAME
-      EXTERNAL           LSAME
-*     ..
-*     .. External Subroutines ..
-      EXTERNAL           XERBLA, ZLASWP, ZTRSM
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      NOTRAN = LSAME( TRANS, 'N' )
-      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT.
-     $    LSAME( TRANS, 'C' ) ) THEN
-         INFO = -1
-      ELSE IF( N.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( NRHS.LT.0 ) THEN
-         INFO = -3
-      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
-         INFO = -5
-      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
-         INFO = -8
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'ZGETRS', -INFO )
-         RETURN
-      END IF
-*
-*     Quick return if possible
-*
-      IF( N.EQ.0 .OR. NRHS.EQ.0 )
-     $   RETURN
-*
-      IF( NOTRAN ) THEN
-*
-*        Solve A * X = B.
-*
-*        Apply row interchanges to the right hand sides.
-*
-         CALL ZLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
-*
-*        Solve L*X = B, overwriting B with X.
-*
-         CALL ZTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS,
-     $               ONE, A, LDA, B, LDB )
-*
-*        Solve U*X = B, overwriting B with X.
-*
-         CALL ZTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N,
-     $               NRHS, ONE, A, LDA, B, LDB )
-      ELSE
-*
-*        Solve A**T * X = B  or A**H * X = B.
-*
-*        Solve U'*X = B, overwriting B with X.
-*
-         CALL ZTRSM( 'Left', 'Upper', TRANS, 'Non-unit', N, NRHS, ONE,
-     $               A, LDA, B, LDB )
-*
-*        Solve L'*X = B, overwriting B with X.
-*
-         CALL ZTRSM( 'Left', 'Lower', TRANS, 'Unit', N, NRHS, ONE, A,
-     $               LDA, B, LDB )
-*
-*        Apply row interchanges to the solution vectors.
-*
-         CALL ZLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
-      END IF
-*
-      RETURN
-*
-*     End of ZGETRS
-*
-      END
-
-
-
-      SUBROUTINE ZTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
-*     .. Scalar Arguments ..
-      DOUBLE COMPLEX ALPHA
-      INTEGER LDA,LDB,M,N
-      CHARACTER DIAG,SIDE,TRANSA,UPLO
-*     ..
-*     .. Array Arguments ..
-      DOUBLE COMPLEX A(LDA,*),B(LDB,*)
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  ZTRSM  solves one of the matrix equations
-*
-*     op( A )*X = alpha*B,   or   X*op( A ) = alpha*B,
-*
-*  where alpha is a scalar, X and B are m by n matrices, A is a unit, or
-*  non-unit,  upper or lower triangular matrix  and  op( A )  is one  of
-*
-*     op( A ) = A   or   op( A ) = A'   or   op( A ) = conjg( A' ).
-*
-*  The matrix X is overwritten on B.
-*
-*  Arguments
-*  ==========
-*
-*  SIDE   - CHARACTER*1.
-*           On entry, SIDE specifies whether op( A ) appears on the left
-*           or right of X as follows:
-*
-*              SIDE = 'L' or 'l'   op( A )*X = alpha*B.
-*
-*              SIDE = 'R' or 'r'   X*op( A ) = alpha*B.
-*
-*           Unchanged on exit.
-*
-*  UPLO   - CHARACTER*1.
-*           On entry, UPLO specifies whether the matrix A is an upper or
-*           lower triangular matrix as follows:
-*
-*              UPLO = 'U' or 'u'   A is an upper triangular matrix.
-*
-*              UPLO = 'L' or 'l'   A is a lower triangular matrix.
-*
-*           Unchanged on exit.
-*
-*  TRANSA - CHARACTER*1.
-*           On entry, TRANSA specifies the form of op( A ) to be used in
-*           the matrix multiplication as follows:
-*
-*              TRANSA = 'N' or 'n'   op( A ) = A.
-*
-*              TRANSA = 'T' or 't'   op( A ) = A'.
-*
-*              TRANSA = 'C' or 'c'   op( A ) = conjg( A' ).
-*
-*           Unchanged on exit.
-*
-*  DIAG   - CHARACTER*1.
-*           On entry, DIAG specifies whether or not A is unit triangular
-*           as follows:
-*
-*              DIAG = 'U' or 'u'   A is assumed to be unit triangular.
-*
-*              DIAG = 'N' or 'n'   A is not assumed to be unit
-*                                  triangular.
-*
-*           Unchanged on exit.
-*
-*  M      - INTEGER.
-*           On entry, M specifies the number of rows of B. M must be at
-*           least zero.
-*           Unchanged on exit.
-*
-*  N      - INTEGER.
-*           On entry, N specifies the number of columns of B.  N must be
-*           at least zero.
-*           Unchanged on exit.
-*
-*  ALPHA  - COMPLEX*16      .
-*           On entry,  ALPHA specifies the scalar  alpha. When  alpha is
-*           zero then  A is not referenced and  B need not be set before
-*           entry.
-*           Unchanged on exit.
-*
-*  A      - COMPLEX*16       array of DIMENSION ( LDA, k ), where k is m
-*           when  SIDE = 'L' or 'l'  and is  n  when  SIDE = 'R' or 'r'.
-*           Before entry  with  UPLO = 'U' or 'u',  the  leading  k by k
-*           upper triangular part of the array  A must contain the upper
-*           triangular matrix  and the strictly lower triangular part of
-*           A is not referenced.
-*           Before entry  with  UPLO = 'L' or 'l',  the  leading  k by k
-*           lower triangular part of the array  A must contain the lower
-*           triangular matrix  and the strictly upper triangular part of
-*           A is not referenced.
-*           Note that when  DIAG = 'U' or 'u',  the diagonal elements of
-*           A  are not referenced either,  but are assumed to be  unity.
-*           Unchanged on exit.
-*
-*  LDA    - INTEGER.
-*           On entry, LDA specifies the first dimension of A as declared
-*           in the calling (sub) program.  When  SIDE = 'L' or 'l'  then
-*           LDA  must be at least  max( 1, m ),  when  SIDE = 'R' or 'r'
-*           then LDA must be at least max( 1, n ).
-*           Unchanged on exit.
-*
-*  B      - COMPLEX*16       array of DIMENSION ( LDB, n ).
-*           Before entry,  the leading  m by n part of the array  B must
-*           contain  the  right-hand  side  matrix  B,  and  on exit  is
-*           overwritten by the solution matrix  X.
-*
-*  LDB    - INTEGER.
-*           On entry, LDB specifies the first dimension of B as declared
-*           in  the  calling  (sub)  program.   LDB  must  be  at  least
-*           max( 1, m ).
-*           Unchanged on exit.
-*
-*
-*  Level 3 Blas routine.
-*
-*  -- Written on 8-February-1989.
-*     Jack Dongarra, Argonne National Laboratory.
-*     Iain Duff, AERE Harwell.
-*     Jeremy Du Croz, Numerical Algorithms Group Ltd.
-*     Sven Hammarling, Numerical Algorithms Group Ltd.
-*
-*
-*     .. External Functions ..
-      LOGICAL LSAME
-      EXTERNAL LSAME
-*     ..
-*     .. External Subroutines ..
-      EXTERNAL XERBLA
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC DCONJG,MAX
-*     ..
-*     .. Local Scalars ..
-      DOUBLE COMPLEX TEMP
-      INTEGER I,INFO,J,K,NROWA
-      LOGICAL LSIDE,NOCONJ,NOUNIT,UPPER
-*     ..
-*     .. Parameters ..
-      DOUBLE COMPLEX ONE
-      PARAMETER (ONE= (1.0D+0,0.0D+0))
-      DOUBLE COMPLEX ZERO
-      PARAMETER (ZERO= (0.0D+0,0.0D+0))
-*     ..
-*
-*     Test the input parameters.
-*
-      LSIDE = LSAME(SIDE,'L')
-      IF (LSIDE) THEN
-          NROWA = M
-      ELSE
-          NROWA = N
-      END IF
-      NOCONJ = LSAME(TRANSA,'T')
-      NOUNIT = LSAME(DIAG,'N')
-      UPPER = LSAME(UPLO,'U')
-*
-      INFO = 0
-      IF ((.NOT.LSIDE) .AND. (.NOT.LSAME(SIDE,'R'))) THEN
-          INFO = 1
-      ELSE IF ((.NOT.UPPER) .AND. (.NOT.LSAME(UPLO,'L'))) THEN
-          INFO = 2
-      ELSE IF ((.NOT.LSAME(TRANSA,'N')) .AND.
-     +         (.NOT.LSAME(TRANSA,'T')) .AND.
-     +         (.NOT.LSAME(TRANSA,'C'))) THEN
-          INFO = 3
-      ELSE IF ((.NOT.LSAME(DIAG,'U')) .AND. (.NOT.LSAME(DIAG,'N'))) THEN
-          INFO = 4
-      ELSE IF (M.LT.0) THEN
-          INFO = 5
-      ELSE IF (N.LT.0) THEN
-          INFO = 6
-      ELSE IF (LDA.LT.MAX(1,NROWA)) THEN
-          INFO = 9
-      ELSE IF (LDB.LT.MAX(1,M)) THEN
-          INFO = 11
-      END IF
-      IF (INFO.NE.0) THEN
-          CALL XERBLA('ZTRSM ',INFO)
-          RETURN
-      END IF
-*
-*     Quick return if possible.
-*
-      IF (N.EQ.0) RETURN
-*
-*     And when  alpha.eq.zero.
-*
-      IF (ALPHA.EQ.ZERO) THEN
-          DO 20 J = 1,N
-              DO 10 I = 1,M
-                  B(I,J) = ZERO
-   10         CONTINUE
-   20     CONTINUE
-          RETURN
-      END IF
-*
-*     Start the operations.
-*
-      IF (LSIDE) THEN
-          IF (LSAME(TRANSA,'N')) THEN
-*
-*           Form  B := alpha*inv( A )*B.
-*
-              IF (UPPER) THEN
-                  DO 60 J = 1,N
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 30 I = 1,M
-                              B(I,J) = ALPHA*B(I,J)
-   30                     CONTINUE
-                      END IF
-                      DO 50 K = M,1,-1
-                          IF (B(K,J).NE.ZERO) THEN
-                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
-                              DO 40 I = 1,K - 1
-                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
-   40                         CONTINUE
-                          END IF
-   50                 CONTINUE
-   60             CONTINUE
-              ELSE
-                  DO 100 J = 1,N
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 70 I = 1,M
-                              B(I,J) = ALPHA*B(I,J)
-   70                     CONTINUE
-                      END IF
-                      DO 90 K = 1,M
-                          IF (B(K,J).NE.ZERO) THEN
-                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
-                              DO 80 I = K + 1,M
-                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
-   80                         CONTINUE
-                          END IF
-   90                 CONTINUE
-  100             CONTINUE
-              END IF
-          ELSE
-*
-*           Form  B := alpha*inv( A' )*B
-*           or    B := alpha*inv( conjg( A' ) )*B.
-*
-              IF (UPPER) THEN
-                  DO 140 J = 1,N
-                      DO 130 I = 1,M
-                          TEMP = ALPHA*B(I,J)
-                          IF (NOCONJ) THEN
-                              DO 110 K = 1,I - 1
-                                  TEMP = TEMP - A(K,I)*B(K,J)
-  110                         CONTINUE
-                              IF (NOUNIT) TEMP = TEMP/A(I,I)
-                          ELSE
-                              DO 120 K = 1,I - 1
-                                  TEMP = TEMP - DCONJG(A(K,I))*B(K,J)
-  120                         CONTINUE
-                              IF (NOUNIT) TEMP = TEMP/DCONJG(A(I,I))
-                          END IF
-                          B(I,J) = TEMP
-  130                 CONTINUE
-  140             CONTINUE
-              ELSE
-                  DO 180 J = 1,N
-                      DO 170 I = M,1,-1
-                          TEMP = ALPHA*B(I,J)
-                          IF (NOCONJ) THEN
-                              DO 150 K = I + 1,M
-                                  TEMP = TEMP - A(K,I)*B(K,J)
-  150                         CONTINUE
-                              IF (NOUNIT) TEMP = TEMP/A(I,I)
-                          ELSE
-                              DO 160 K = I + 1,M
-                                  TEMP = TEMP - DCONJG(A(K,I))*B(K,J)
-  160                         CONTINUE
-                              IF (NOUNIT) TEMP = TEMP/DCONJG(A(I,I))
-                          END IF
-                          B(I,J) = TEMP
-  170                 CONTINUE
-  180             CONTINUE
-              END IF
-          END IF
-      ELSE
-          IF (LSAME(TRANSA,'N')) THEN
-*
-*           Form  B := alpha*B*inv( A ).
-*
-              IF (UPPER) THEN
-                  DO 230 J = 1,N
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 190 I = 1,M
-                              B(I,J) = ALPHA*B(I,J)
-  190                     CONTINUE
-                      END IF
-                      DO 210 K = 1,J - 1
-                          IF (A(K,J).NE.ZERO) THEN
-                              DO 200 I = 1,M
-                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
-  200                         CONTINUE
-                          END IF
-  210                 CONTINUE
-                      IF (NOUNIT) THEN
-                          TEMP = ONE/A(J,J)
-                          DO 220 I = 1,M
-                              B(I,J) = TEMP*B(I,J)
-  220                     CONTINUE
-                      END IF
-  230             CONTINUE
-              ELSE
-                  DO 280 J = N,1,-1
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 240 I = 1,M
-                              B(I,J) = ALPHA*B(I,J)
-  240                     CONTINUE
-                      END IF
-                      DO 260 K = J + 1,N
-                          IF (A(K,J).NE.ZERO) THEN
-                              DO 250 I = 1,M
-                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
-  250                         CONTINUE
-                          END IF
-  260                 CONTINUE
-                      IF (NOUNIT) THEN
-                          TEMP = ONE/A(J,J)
-                          DO 270 I = 1,M
-                              B(I,J) = TEMP*B(I,J)
-  270                     CONTINUE
-                      END IF
-  280             CONTINUE
-              END IF
-          ELSE
-*
-*           Form  B := alpha*B*inv( A' )
-*           or    B := alpha*B*inv( conjg( A' ) ).
-*
-              IF (UPPER) THEN
-                  DO 330 K = N,1,-1
-                      IF (NOUNIT) THEN
-                          IF (NOCONJ) THEN
-                              TEMP = ONE/A(K,K)
-                          ELSE
-                              TEMP = ONE/DCONJG(A(K,K))
-                          END IF
-                          DO 290 I = 1,M
-                              B(I,K) = TEMP*B(I,K)
-  290                     CONTINUE
-                      END IF
-                      DO 310 J = 1,K - 1
-                          IF (A(J,K).NE.ZERO) THEN
-                              IF (NOCONJ) THEN
-                                  TEMP = A(J,K)
-                              ELSE
-                                  TEMP = DCONJG(A(J,K))
-                              END IF
-                              DO 300 I = 1,M
-                                  B(I,J) = B(I,J) - TEMP*B(I,K)
-  300                         CONTINUE
-                          END IF
-  310                 CONTINUE
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 320 I = 1,M
-                              B(I,K) = ALPHA*B(I,K)
-  320                     CONTINUE
-                      END IF
-  330             CONTINUE
-              ELSE
-                  DO 380 K = 1,N
-                      IF (NOUNIT) THEN
-                          IF (NOCONJ) THEN
-                              TEMP = ONE/A(K,K)
-                          ELSE
-                              TEMP = ONE/DCONJG(A(K,K))
-                          END IF
-                          DO 340 I = 1,M
-                              B(I,K) = TEMP*B(I,K)
-  340                     CONTINUE
-                      END IF
-                      DO 360 J = K + 1,N
-                          IF (A(J,K).NE.ZERO) THEN
-                              IF (NOCONJ) THEN
-                                  TEMP = A(J,K)
-                              ELSE
-                                  TEMP = DCONJG(A(J,K))
-                              END IF
-                              DO 350 I = 1,M
-                                  B(I,J) = B(I,J) - TEMP*B(I,K)
-  350                         CONTINUE
-                          END IF
-  360                 CONTINUE
-                      IF (ALPHA.NE.ONE) THEN
-                          DO 370 I = 1,M
-                              B(I,K) = ALPHA*B(I,K)
-  370                     CONTINUE
-                      END IF
-  380             CONTINUE
-              END IF
-          END IF
-      END IF
-*
-      RETURN
-*
-*     End of ZTRSM .
-*
-      END
-
-      SUBROUTINE CGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-*
-*  -- LAPACK driver routine (version 3.2) --
-*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
-*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      INTEGER            INFO, LDA, LDB, N, NRHS
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX            A( LDA, * ), B( LDB, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  CGESV computes the solution to a complex system of linear equations
-*     A * X = B,
-*  where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
-*
-*  The LU decomposition with partial pivoting and row interchanges is
-*  used to factor A as
-*     A = P * L * U,
-*  where P is a permutation matrix, L is unit lower triangular, and U is
-*  upper triangular.  The factored form of A is then used to solve the
-*  system of equations A * X = B.
-*
-*  Arguments
-*  =========
-*
-*  N       (input) INTEGER
-*          The number of linear equations, i.e., the order of the
-*          matrix A.  N >= 0.
-*
-*  NRHS    (input) INTEGER
-*          The number of right hand sides, i.e., the number of columns
-*          of the matrix B.  NRHS >= 0.
-*
-*  A       (input/output) COMPLEX array, dimension (LDA,N)
-*          On entry, the N-by-N coefficient matrix A.
-*          On exit, the factors L and U from the factorization
-*          A = P*L*U; the unit diagonal elements of L are not stored.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,N).
-*
-*  IPIV    (output) INTEGER array, dimension (N)
-*          The pivot indices that define the permutation matrix P;
-*          row i of the matrix was interchanged with row IPIV(i).
-*
-*  B       (input/output) COMPLEX array, dimension (LDB,NRHS)
-*          On entry, the N-by-NRHS matrix of right hand side matrix B.
-*          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
-*
-*  LDB     (input) INTEGER
-*          The leading dimension of the array B.  LDB >= max(1,N).
-*
-*  INFO    (output) INTEGER
-*          = 0:  successful exit
-*          < 0:  if INFO = -i, the i-th argument had an illegal value
-*          > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
-*                has been completed, but the factor U is exactly
-*                singular, so the solution could not be computed.
-*
-*  =====================================================================
-*
-*     .. External Subroutines ..
-      EXTERNAL           CGETRF, CGETRS, XERBLA
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      IF( N.LT.0 ) THEN
-         INFO = -1
-      ELSE IF( NRHS.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
-         INFO = -4
-      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
-         INFO = -7
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'CGESV ', -INFO )
-         RETURN
-      END IF
-*
-*     Compute the LU factorization of A.
-*
-      CALL CGETRF( N, N, A, LDA, IPIV, INFO )
-      IF( INFO.EQ.0 ) THEN
-*
-*        Solve the system A*X = B, overwriting B with X.
-*
-         CALL CGETRS( 'No transpose', N, NRHS, A, LDA, IPIV, B, LDB,
-     $                INFO )
-      END IF
-      RETURN
-*
-*     End of CGESV
-*
-      END
-      SUBROUTINE CGETF2( M, N, A, LDA, IPIV, INFO )
-*
-*  -- LAPACK routine (version 3.2) --
-*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
-*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      INTEGER            INFO, LDA, M, N
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX            A( LDA, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  CGETF2 computes an LU factorization of a general m-by-n matrix A
-*  using partial pivoting with row interchanges.
-*
-*  The factorization has the form
-*     A = P * L * U
-*  where P is a permutation matrix, L is lower triangular with unit
-*  diagonal elements (lower trapezoidal if m > n), and U is upper
-*  triangular (upper trapezoidal if m < n).
-*
-*  This is the right-looking Level 2 BLAS version of the algorithm.
-*
-*  Arguments
-*  =========
-*
-*  M       (input) INTEGER
-*          The number of rows of the matrix A.  M >= 0.
-*
-*  N       (input) INTEGER
-*          The number of columns of the matrix A.  N >= 0.
-*
-*  A       (input/output) COMPLEX array, dimension (LDA,N)
-*          On entry, the m by n matrix to be factored.
-*          On exit, the factors L and U from the factorization
-*          A = P*L*U; the unit diagonal elements of L are not stored.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,M).
-*
-*  IPIV    (output) INTEGER array, dimension (min(M,N))
-*          The pivot indices; for 1 <= i <= min(M,N), row i of the
-*          matrix was interchanged with row IPIV(i).
-*
-*  INFO    (output) INTEGER
-*          = 0: successful exit
-*          < 0: if INFO = -k, the k-th argument had an illegal value
-*          > 0: if INFO = k, U(k,k) is exactly zero. The factorization
-*               has been completed, but the factor U is exactly
-*               singular, and division by zero will occur if it is used
-*               to solve a system of equations.
-*
-*  =====================================================================
-*
-*     .. Parameters ..
-      COMPLEX            ONE, ZERO
-      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ),
-     $                   ZERO = ( 0.0E+0, 0.0E+0 ) )
-*     ..
-*     .. Local Scalars ..
-      REAL               SFMIN
-      INTEGER            I, J, JP
-*     ..
-*     .. External Functions ..
-      REAL               SLAMCH
-      INTEGER            ICAMAX
-      EXTERNAL           SLAMCH, ICAMAX
-*     ..
-*     .. External Subroutines ..
-      EXTERNAL           CGERU, CSCAL, CSWAP, XERBLA
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX, MIN
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      IF( M.LT.0 ) THEN
-         INFO = -1
-      ELSE IF( N.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( LDA.LT.MAX( 1, M ) ) THEN
-         INFO = -4
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'CGETF2', -INFO )
-         RETURN
-      END IF
-*
-*     Quick return if possible
-*
-      IF( M.EQ.0 .OR. N.EQ.0 )
-     $   RETURN
-*
-*     Compute machine safe minimum
-*
-      SFMIN = SLAMCH('S') 
-*
-      DO 10 J = 1, MIN( M, N )
-*
-*        Find pivot and test for singularity.
-*
-         JP = J - 1 + ICAMAX( M-J+1, A( J, J ), 1 )
-         IPIV( J ) = JP
-         IF( A( JP, J ).NE.ZERO ) THEN
-*
-*           Apply the interchange to columns 1:N.
-*
-            IF( JP.NE.J )
-     $         CALL CSWAP( N, A( J, 1 ), LDA, A( JP, 1 ), LDA )
-*
-*           Compute elements J+1:M of J-th column.
-*
-            IF( J.LT.M ) THEN
-               IF( ABS(A( J, J )) .GE. SFMIN ) THEN
-                  CALL CSCAL( M-J, ONE / A( J, J ), A( J+1, J ), 1 )
-               ELSE
-                  DO 20 I = 1, M-J
-                     A( J+I, J ) = A( J+I, J ) / A( J, J )
-   20             CONTINUE
-               END IF
-            END IF
-*
-         ELSE IF( INFO.EQ.0 ) THEN
-*
-            INFO = J
-         END IF
-*
-         IF( J.LT.MIN( M, N ) ) THEN
-*
-*           Update trailing submatrix.
-*
-            CALL CGERU( M-J, N-J, -ONE, A( J+1, J ), 1, A( J, J+1 ),
-     $                  LDA, A( J+1, J+1 ), LDA )
-         END IF
-   10 CONTINUE
-      RETURN
-*
-*     End of CGETF2
-*
-      END
-      SUBROUTINE CGETRF( M, N, A, LDA, IPIV, INFO )
-*
-*  -- LAPACK routine (version 3.2) --
-*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
-*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      INTEGER            INFO, LDA, M, N
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX            A( LDA, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  CGETRF computes an LU factorization of a general M-by-N matrix A
-*  using partial pivoting with row interchanges.
-*
-*  The factorization has the form
-*     A = P * L * U
-*  where P is a permutation matrix, L is lower triangular with unit
-*  diagonal elements (lower trapezoidal if m > n), and U is upper
-*  triangular (upper trapezoidal if m < n).
-*
-*  This is the right-looking Level 3 BLAS version of the algorithm.
-*
-*  Arguments
-*  =========
-*
-*  M       (input) INTEGER
-*          The number of rows of the matrix A.  M >= 0.
-*
-*  N       (input) INTEGER
-*          The number of columns of the matrix A.  N >= 0.
-*
-*  A       (input/output) COMPLEX array, dimension (LDA,N)
-*          On entry, the M-by-N matrix to be factored.
-*          On exit, the factors L and U from the factorization
-*          A = P*L*U; the unit diagonal elements of L are not stored.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,M).
-*
-*  IPIV    (output) INTEGER array, dimension (min(M,N))
-*          The pivot indices; for 1 <= i <= min(M,N), row i of the
-*          matrix was interchanged with row IPIV(i).
-*
-*  INFO    (output) INTEGER
-*          = 0:  successful exit
-*          < 0:  if INFO = -i, the i-th argument had an illegal value
-*          > 0:  if INFO = i, U(i,i) is exactly zero. The factorization
-*                has been completed, but the factor U is exactly
-*                singular, and division by zero will occur if it is used
-*                to solve a system of equations.
-*
-*  =====================================================================
-*
-*     .. Parameters ..
-      COMPLEX            ONE
-      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ) )
-*     ..
-*     .. Local Scalars ..
-      INTEGER            I, IINFO, J, JB, NB
-*     ..
-*     .. External Subroutines ..
-      EXTERNAL           CGEMM, CGETF2, CLASWP, CTRSM, XERBLA
-*     ..
-*     .. External Functions ..
-      INTEGER            ILAENV
-      EXTERNAL           ILAENV
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX, MIN
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      IF( M.LT.0 ) THEN
-         INFO = -1
-      ELSE IF( N.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( LDA.LT.MAX( 1, M ) ) THEN
-         INFO = -4
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'CGETRF', -INFO )
-         RETURN
-      END IF
-*
-*     Quick return if possible
-*
-      IF( M.EQ.0 .OR. N.EQ.0 )
-     $   RETURN
-*
-*     Determine the block size for this environment.
-*
-      NB = ILAENV( 1, 'CGETRF', ' ', M, N, -1, -1 )
-      IF( NB.LE.1 .OR. NB.GE.MIN( M, N ) ) THEN
-*
-*        Use unblocked code.
-*
-         CALL CGETF2( M, N, A, LDA, IPIV, INFO )
-      ELSE
-*
-*        Use blocked code.
-*
-         DO 20 J = 1, MIN( M, N ), NB
-            JB = MIN( MIN( M, N )-J+1, NB )
-*
-*           Factor diagonal and subdiagonal blocks and test for exact
-*           singularity.
-*
-            CALL CGETF2( M-J+1, JB, A( J, J ), LDA, IPIV( J ), IINFO )
-*
-*           Adjust INFO and the pivot indices.
-*
-            IF( INFO.EQ.0 .AND. IINFO.GT.0 )
-     $         INFO = IINFO + J - 1
-            DO 10 I = J, MIN( M, J+JB-1 )
-               IPIV( I ) = J - 1 + IPIV( I )
-   10       CONTINUE
-*
-*           Apply interchanges to columns 1:J-1.
-*
-            CALL CLASWP( J-1, A, LDA, J, J+JB-1, IPIV, 1 )
-*
-            IF( J+JB.LE.N ) THEN
-*
-*              Apply interchanges to columns J+JB:N.
-*
-               CALL CLASWP( N-J-JB+1, A( 1, J+JB ), LDA, J, J+JB-1,
-     $                      IPIV, 1 )
-*
-*              Compute block row of U.
-*
-               CALL CTRSM( 'Left', 'Lower', 'No transpose', 'Unit', JB,
-     $                     N-J-JB+1, ONE, A( J, J ), LDA, A( J, J+JB ),
-     $                     LDA )
-               IF( J+JB.LE.M ) THEN
-*
-*                 Update trailing submatrix.
-*
-                  CALL CGEMM( 'No transpose', 'No transpose', M-J-JB+1,
-     $                        N-J-JB+1, JB, -ONE, A( J+JB, J ), LDA,
-     $                        A( J, J+JB ), LDA, ONE, A( J+JB, J+JB ),
-     $                        LDA )
-               END IF
-            END IF
-   20    CONTINUE
-      END IF
-      RETURN
-*
-*     End of CGETRF
-*
-      END
-      SUBROUTINE CGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
-*
-*  -- LAPACK routine (version 3.3.1) --
-*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
-*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
-*  -- April 2011                                                      --
-*
-*     .. Scalar Arguments ..
-      CHARACTER          TRANS
-      INTEGER            INFO, LDA, LDB, N, NRHS
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX            A( LDA, * ), B( LDB, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  CGETRS solves a system of linear equations
-*     A * X = B,  A**T * X = B,  or  A**H * X = B
-*  with a general N-by-N matrix A using the LU factorization computed
-*  by CGETRF.
-*
-*  Arguments
-*  =========
-*
-*  TRANS   (input) CHARACTER*1
-*          Specifies the form of the system of equations:
-*          = 'N':  A * X = B     (No transpose)
-*          = 'T':  A**T * X = B  (Transpose)
-*          = 'C':  A**H * X = B  (Conjugate transpose)
-*
-*  N       (input) INTEGER
-*          The order of the matrix A.  N >= 0.
-*
-*  NRHS    (input) INTEGER
-*          The number of right hand sides, i.e., the number of columns
-*          of the matrix B.  NRHS >= 0.
-*
-*  A       (input) COMPLEX array, dimension (LDA,N)
-*          The factors L and U from the factorization A = P*L*U
-*          as computed by CGETRF.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.  LDA >= max(1,N).
-*
-*  IPIV    (input) INTEGER array, dimension (N)
-*          The pivot indices from CGETRF; for 1<=i<=N, row i of the
-*          matrix was interchanged with row IPIV(i).
-*
-*  B       (input/output) COMPLEX array, dimension (LDB,NRHS)
-*          On entry, the right hand side matrix B.
-*          On exit, the solution matrix X.
-*
-*  LDB     (input) INTEGER
-*          The leading dimension of the array B.  LDB >= max(1,N).
-*
-*  INFO    (output) INTEGER
-*          = 0:  successful exit
-*          < 0:  if INFO = -i, the i-th argument had an illegal value
-*
-*  =====================================================================
-*
-*     .. Parameters ..
-      COMPLEX            ONE
-      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ) )
-*     ..
-*     .. Local Scalars ..
-      LOGICAL            NOTRAN
-*     ..
-*     .. External Functions ..
-      LOGICAL            LSAME
-      EXTERNAL           LSAME
-*     ..
-*     .. External Subroutines ..
-      EXTERNAL           CLASWP, CTRSM, XERBLA
-*     ..
-*     .. Intrinsic Functions ..
-      INTRINSIC          MAX
-*     ..
-*     .. Executable Statements ..
-*
-*     Test the input parameters.
-*
-      INFO = 0
-      NOTRAN = LSAME( TRANS, 'N' )
-      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT.
-     $    LSAME( TRANS, 'C' ) ) THEN
-         INFO = -1
-      ELSE IF( N.LT.0 ) THEN
-         INFO = -2
-      ELSE IF( NRHS.LT.0 ) THEN
-         INFO = -3
-      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
-         INFO = -5
-      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
-         INFO = -8
-      END IF
-      IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'CGETRS', -INFO )
-         RETURN
-      END IF
-*
-*     Quick return if possible
-*
-      IF( N.EQ.0 .OR. NRHS.EQ.0 )
-     $   RETURN
-*
-      IF( NOTRAN ) THEN
-*
-*        Solve A * X = B.
-*
-*        Apply row interchanges to the right hand sides.
-*
-         CALL CLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
-*
-*        Solve L*X = B, overwriting B with X.
-*
-         CALL CTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS,
-     $               ONE, A, LDA, B, LDB )
-*
-*        Solve U*X = B, overwriting B with X.
-*
-         CALL CTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N,
-     $               NRHS, ONE, A, LDA, B, LDB )
-      ELSE
-*
-*        Solve A**T * X = B  or A**H * X = B.
-*
-*        Solve U**T *X = B or U**H *X = B, overwriting B with X.
-*
-         CALL CTRSM( 'Left', 'Upper', TRANS, 'Non-unit', N, NRHS, ONE,
-     $               A, LDA, B, LDB )
-*
-*        Solve L**T *X = B, or L**H *X = B overwriting B with X.
-*
-         CALL CTRSM( 'Left', 'Lower', TRANS, 'Unit', N, NRHS, ONE, A,
-     $               LDA, B, LDB )
-*
-*        Apply row interchanges to the solution vectors.
-*
-         CALL CLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
-      END IF
-*
-      RETURN
-*
-*     End of CGETRS
-*
-      END
-      SUBROUTINE CLASWP( N, A, LDA, K1, K2, IPIV, INCX )
-*
-*  -- LAPACK auxiliary routine (version 3.2) --
-*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
-*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
-*     November 2006
-*
-*     .. Scalar Arguments ..
-      INTEGER            INCX, K1, K2, LDA, N
-*     ..
-*     .. Array Arguments ..
-      INTEGER            IPIV( * )
-      COMPLEX            A( LDA, * )
-*     ..
-*
-*  Purpose
-*  =======
-*
-*  CLASWP performs a series of row interchanges on the matrix A.
-*  One row interchange is initiated for each of rows K1 through K2 of A.
-*
-*  Arguments
-*  =========
-*
-*  N       (input) INTEGER
-*          The number of columns of the matrix A.
-*
-*  A       (input/output) COMPLEX array, dimension (LDA,N)
-*          On entry, the matrix of column dimension N to which the row
-*          interchanges will be applied.
-*          On exit, the permuted matrix.
-*
-*  LDA     (input) INTEGER
-*          The leading dimension of the array A.
-*
-*  K1      (input) INTEGER
-*          The first element of IPIV for which a row interchange will
-*          be done.
-*
-*  K2      (input) INTEGER
-*          The last element of IPIV for which a row interchange will
-*          be done.
-*
-*  IPIV    (input) INTEGER array, dimension (K2*abs(INCX))
-*          The vector of pivot indices.  Only the elements in positions
-*          K1 through K2 of IPIV are accessed.
-*          IPIV(K) = L implies rows K and L are to be interchanged.
-*
-*  INCX    (input) INTEGER
-*          The increment between successive values of IPIV.  If IPIV
-*          is negative, the pivots are applied in reverse order.
-*
-*  Further Details
-*  ===============
-*
-*  Modified by
-*   R. C. Whaley, Computer Science Dept., Univ. of Tenn., Knoxville, USA
-*
-* =====================================================================
-*
-*     .. Local Scalars ..
-      INTEGER            I, I1, I2, INC, IP, IX, IX0, J, K, N32
-      COMPLEX            TEMP
-*     ..
-*     .. Executable Statements ..
-*
-*     Interchange row I with row IPIV(I) for each of rows K1 through K2.
-*
-      IF( INCX.GT.0 ) THEN
-         IX0 = K1
-         I1 = K1
-         I2 = K2
-         INC = 1
-      ELSE IF( INCX.LT.0 ) THEN
-         IX0 = 1 + ( 1-K2 )*INCX
-         I1 = K2
-         I2 = K1
-         INC = -1
-      ELSE
-         RETURN
-      END IF
-*
-      N32 = ( N / 32 )*32
-      IF( N32.NE.0 ) THEN
-         DO 30 J = 1, N32, 32
-            IX = IX0
-            DO 20 I = I1, I2, INC
-               IP = IPIV( IX )
-               IF( IP.NE.I ) THEN
-                  DO 10 K = J, J + 31
-                     TEMP = A( I, K )
-                     A( I, K ) = A( IP, K )
-                     A( IP, K ) = TEMP
-   10             CONTINUE
-               END IF
-               IX = IX + INCX
-   20       CONTINUE
-   30    CONTINUE
-      END IF
-      IF( N32.NE.N ) THEN
-         N32 = N32 + 1
-         IX = IX0
-         DO 50 I = I1, I2, INC
-            IP = IPIV( IX )
-            IF( IP.NE.I ) THEN
-               DO 40 K = N32, N
-                  TEMP = A( I, K )
-                  A( I, K ) = A( IP, K )
-                  A( IP, K ) = TEMP
-   40          CONTINUE
-            END IF
-            IX = IX + INCX
-   50    CONTINUE
-      END IF
-*
-      RETURN
-*
-*     End of CLASWP
-*
-      END
+c$$$      SUBROUTINE ZGESV_mine( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+c$$$*
+c$$$*  -- LAPACK driver routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, LDA, LDB, N, NRHS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX*16         A( LDA, * ), B( LDB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  ZGESV computes the solution to a complex system of linear equations
+c$$$*     A * X = B,
+c$$$*  where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
+c$$$*
+c$$$*  The LU decomposition with partial pivoting and row interchanges is
+c$$$*  used to factor A as
+c$$$*     A = P * L * U,
+c$$$*  where P is a permutation matrix, L is unit lower triangular, and U is
+c$$$*  upper triangular.  The factored form of A is then used to solve the
+c$$$*  system of equations A * X = B.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of linear equations, i.e., the order of the
+c$$$*          matrix A.  N >= 0.
+c$$$*
+c$$$*  NRHS    (input) INTEGER
+c$$$*          The number of right hand sides, i.e., the number of columns
+c$$$*          of the matrix B.  NRHS >= 0.
+c$$$*
+c$$$*  A       (input/output) COMPLEX*16 array, dimension (LDA,N)
+c$$$*          On entry, the N-by-N coefficient matrix A.
+c$$$*          On exit, the factors L and U from the factorization
+c$$$*          A = P*L*U; the unit diagonal elements of L are not stored.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,N).
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (N)
+c$$$*          The pivot indices that define the permutation matrix P;
+c$$$*          row i of the matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  B       (input/output) COMPLEX*16 array, dimension (LDB,NRHS)
+c$$$*          On entry, the N-by-NRHS matrix of right hand side matrix B.
+c$$$*          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+c$$$*
+c$$$*  LDB     (input) INTEGER
+c$$$*          The leading dimension of the array B.  LDB >= max(1,N).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0:  if INFO = -i, the i-th argument had an illegal value
+c$$$*          > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
+c$$$*                has been completed, but the factor U is exactly
+c$$$*                singular, so the solution could not be computed.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           XERBLA, ZGETRF, ZGETRS
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( N.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( NRHS.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -4
+c$$$      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -7
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'ZGESV ', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Compute the LU factorization of A.
+c$$$*
+c$$$      CALL ZGETRF( N, N, A, LDA, IPIV, INFO )
+c$$$
+c$$$      IF( INFO.EQ.0 ) THEN
+c$$$*
+c$$$*        Solve the system A*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL ZGETRS( 'No transpose', N, NRHS, A, LDA, IPIV, B, LDB,
+c$$$     $                INFO )
+c$$$      END IF
+c$$$      RETURN
+c$$$*
+c$$$*     End of ZGESV
+c$$$*
+c$$$      END
+c$$$
+c$$$
+c$$$
+c$$$      SUBROUTINE ZGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.1) --
+c$$$*     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER          TRANS
+c$$$      INTEGER            INFO, LDA, LDB, N, NRHS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX*16         A( LDA, * ), B( LDB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  ZGETRS solves a system of linear equations
+c$$$*     A * X = B,  A**T * X = B,  or  A**H * X = B
+c$$$*  with a general N-by-N matrix A using the LU factorization computed
+c$$$*  by ZGETRF.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  TRANS   (input) CHARACTER*1
+c$$$*          Specifies the form of the system of equations:
+c$$$*          = 'N':  A * X = B     (No transpose)
+c$$$*          = 'T':  A**T * X = B  (Transpose)
+c$$$*          = 'C':  A**H * X = B  (Conjugate transpose)
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The order of the matrix A.  N >= 0.
+c$$$*
+c$$$*  NRHS    (input) INTEGER
+c$$$*          The number of right hand sides, i.e., the number of columns
+c$$$*          of the matrix B.  NRHS >= 0.
+c$$$*
+c$$$*  A       (input) COMPLEX*16 array, dimension (LDA,N)
+c$$$*          The factors L and U from the factorization A = P*L*U
+c$$$*          as computed by ZGETRF.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,N).
+c$$$*
+c$$$*  IPIV    (input) INTEGER array, dimension (N)
+c$$$*          The pivot indices from ZGETRF; for 1<=i<=N, row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  B       (input/output) COMPLEX*16 array, dimension (LDB,NRHS)
+c$$$*          On entry, the right hand side matrix B.
+c$$$*          On exit, the solution matrix X.
+c$$$*
+c$$$*  LDB     (input) INTEGER
+c$$$*          The leading dimension of the array B.  LDB >= max(1,N).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0:  if INFO = -i, the i-th argument had an illegal value
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      COMPLEX*16         ONE
+c$$$      PARAMETER          ( ONE = ( 1.0D+0, 0.0D+0 ) )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      LOGICAL            NOTRAN
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      LOGICAL            LSAME
+c$$$      EXTERNAL           LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           XERBLA, ZLASWP, ZTRSM
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      NOTRAN = LSAME( TRANS, 'N' )
+c$$$      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT.
+c$$$     $    LSAME( TRANS, 'C' ) ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( NRHS.LT.0 ) THEN
+c$$$         INFO = -3
+c$$$      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -5
+c$$$      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -8
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'ZGETRS', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( N.EQ.0 .OR. NRHS.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$      IF( NOTRAN ) THEN
+c$$$*
+c$$$*        Solve A * X = B.
+c$$$*
+c$$$*        Apply row interchanges to the right hand sides.
+c$$$*
+c$$$         CALL ZLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
+c$$$*
+c$$$*        Solve L*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL ZTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS,
+c$$$     $               ONE, A, LDA, B, LDB )
+c$$$*
+c$$$*        Solve U*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL ZTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N,
+c$$$     $               NRHS, ONE, A, LDA, B, LDB )
+c$$$      ELSE
+c$$$*
+c$$$*        Solve A**T * X = B  or A**H * X = B.
+c$$$*
+c$$$*        Solve U'*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL ZTRSM( 'Left', 'Upper', TRANS, 'Non-unit', N, NRHS, ONE,
+c$$$     $               A, LDA, B, LDB )
+c$$$*
+c$$$*        Solve L'*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL ZTRSM( 'Left', 'Lower', TRANS, 'Unit', N, NRHS, ONE, A,
+c$$$     $               LDA, B, LDB )
+c$$$*
+c$$$*        Apply row interchanges to the solution vectors.
+c$$$*
+c$$$         CALL ZLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of ZGETRS
+c$$$*
+c$$$      END
+c$$$
+c$$$
+c$$$
+c$$$      SUBROUTINE ZTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+c$$$*     .. Scalar Arguments ..
+c$$$      DOUBLE COMPLEX ALPHA
+c$$$      INTEGER LDA,LDB,M,N
+c$$$      CHARACTER DIAG,SIDE,TRANSA,UPLO
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      DOUBLE COMPLEX A(LDA,*),B(LDB,*)
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  ZTRSM  solves one of the matrix equations
+c$$$*
+c$$$*     op( A )*X = alpha*B,   or   X*op( A ) = alpha*B,
+c$$$*
+c$$$*  where alpha is a scalar, X and B are m by n matrices, A is a unit, or
+c$$$*  non-unit,  upper or lower triangular matrix  and  op( A )  is one  of
+c$$$*
+c$$$*     op( A ) = A   or   op( A ) = A'   or   op( A ) = conjg( A' ).
+c$$$*
+c$$$*  The matrix X is overwritten on B.
+c$$$*
+c$$$*  Arguments
+c$$$*  ==========
+c$$$*
+c$$$*  SIDE   - CHARACTER*1.
+c$$$*           On entry, SIDE specifies whether op( A ) appears on the left
+c$$$*           or right of X as follows:
+c$$$*
+c$$$*              SIDE = 'L' or 'l'   op( A )*X = alpha*B.
+c$$$*
+c$$$*              SIDE = 'R' or 'r'   X*op( A ) = alpha*B.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  UPLO   - CHARACTER*1.
+c$$$*           On entry, UPLO specifies whether the matrix A is an upper or
+c$$$*           lower triangular matrix as follows:
+c$$$*
+c$$$*              UPLO = 'U' or 'u'   A is an upper triangular matrix.
+c$$$*
+c$$$*              UPLO = 'L' or 'l'   A is a lower triangular matrix.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  TRANSA - CHARACTER*1.
+c$$$*           On entry, TRANSA specifies the form of op( A ) to be used in
+c$$$*           the matrix multiplication as follows:
+c$$$*
+c$$$*              TRANSA = 'N' or 'n'   op( A ) = A.
+c$$$*
+c$$$*              TRANSA = 'T' or 't'   op( A ) = A'.
+c$$$*
+c$$$*              TRANSA = 'C' or 'c'   op( A ) = conjg( A' ).
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  DIAG   - CHARACTER*1.
+c$$$*           On entry, DIAG specifies whether or not A is unit triangular
+c$$$*           as follows:
+c$$$*
+c$$$*              DIAG = 'U' or 'u'   A is assumed to be unit triangular.
+c$$$*
+c$$$*              DIAG = 'N' or 'n'   A is not assumed to be unit
+c$$$*                                  triangular.
+c$$$*
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  M      - INTEGER.
+c$$$*           On entry, M specifies the number of rows of B. M must be at
+c$$$*           least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  N      - INTEGER.
+c$$$*           On entry, N specifies the number of columns of B.  N must be
+c$$$*           at least zero.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  ALPHA  - COMPLEX*16      .
+c$$$*           On entry,  ALPHA specifies the scalar  alpha. When  alpha is
+c$$$*           zero then  A is not referenced and  B need not be set before
+c$$$*           entry.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  A      - COMPLEX*16       array of DIMENSION ( LDA, k ), where k is m
+c$$$*           when  SIDE = 'L' or 'l'  and is  n  when  SIDE = 'R' or 'r'.
+c$$$*           Before entry  with  UPLO = 'U' or 'u',  the  leading  k by k
+c$$$*           upper triangular part of the array  A must contain the upper
+c$$$*           triangular matrix  and the strictly lower triangular part of
+c$$$*           A is not referenced.
+c$$$*           Before entry  with  UPLO = 'L' or 'l',  the  leading  k by k
+c$$$*           lower triangular part of the array  A must contain the lower
+c$$$*           triangular matrix  and the strictly upper triangular part of
+c$$$*           A is not referenced.
+c$$$*           Note that when  DIAG = 'U' or 'u',  the diagonal elements of
+c$$$*           A  are not referenced either,  but are assumed to be  unity.
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  LDA    - INTEGER.
+c$$$*           On entry, LDA specifies the first dimension of A as declared
+c$$$*           in the calling (sub) program.  When  SIDE = 'L' or 'l'  then
+c$$$*           LDA  must be at least  max( 1, m ),  when  SIDE = 'R' or 'r'
+c$$$*           then LDA must be at least max( 1, n ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*  B      - COMPLEX*16       array of DIMENSION ( LDB, n ).
+c$$$*           Before entry,  the leading  m by n part of the array  B must
+c$$$*           contain  the  right-hand  side  matrix  B,  and  on exit  is
+c$$$*           overwritten by the solution matrix  X.
+c$$$*
+c$$$*  LDB    - INTEGER.
+c$$$*           On entry, LDB specifies the first dimension of B as declared
+c$$$*           in  the  calling  (sub)  program.   LDB  must  be  at  least
+c$$$*           max( 1, m ).
+c$$$*           Unchanged on exit.
+c$$$*
+c$$$*
+c$$$*  Level 3 Blas routine.
+c$$$*
+c$$$*  -- Written on 8-February-1989.
+c$$$*     Jack Dongarra, Argonne National Laboratory.
+c$$$*     Iain Duff, AERE Harwell.
+c$$$*     Jeremy Du Croz, Numerical Algorithms Group Ltd.
+c$$$*     Sven Hammarling, Numerical Algorithms Group Ltd.
+c$$$*
+c$$$*
+c$$$*     .. External Functions ..
+c$$$      LOGICAL LSAME
+c$$$      EXTERNAL LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC DCONJG,MAX
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      DOUBLE COMPLEX TEMP
+c$$$      INTEGER I,INFO,J,K,NROWA
+c$$$      LOGICAL LSIDE,NOCONJ,NOUNIT,UPPER
+c$$$*     ..
+c$$$*     .. Parameters ..
+c$$$      DOUBLE COMPLEX ONE
+c$$$      PARAMETER (ONE= (1.0D+0,0.0D+0))
+c$$$      DOUBLE COMPLEX ZERO
+c$$$      PARAMETER (ZERO= (0.0D+0,0.0D+0))
+c$$$*     ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      LSIDE = LSAME(SIDE,'L')
+c$$$      IF (LSIDE) THEN
+c$$$          NROWA = M
+c$$$      ELSE
+c$$$          NROWA = N
+c$$$      END IF
+c$$$      NOCONJ = LSAME(TRANSA,'T')
+c$$$      NOUNIT = LSAME(DIAG,'N')
+c$$$      UPPER = LSAME(UPLO,'U')
+c$$$*
+c$$$      INFO = 0
+c$$$      IF ((.NOT.LSIDE) .AND. (.NOT.LSAME(SIDE,'R'))) THEN
+c$$$          INFO = 1
+c$$$      ELSE IF ((.NOT.UPPER) .AND. (.NOT.LSAME(UPLO,'L'))) THEN
+c$$$          INFO = 2
+c$$$      ELSE IF ((.NOT.LSAME(TRANSA,'N')) .AND.
+c$$$     +         (.NOT.LSAME(TRANSA,'T')) .AND.
+c$$$     +         (.NOT.LSAME(TRANSA,'C'))) THEN
+c$$$          INFO = 3
+c$$$      ELSE IF ((.NOT.LSAME(DIAG,'U')) .AND. (.NOT.LSAME(DIAG,'N'))) THEN
+c$$$          INFO = 4
+c$$$      ELSE IF (M.LT.0) THEN
+c$$$          INFO = 5
+c$$$      ELSE IF (N.LT.0) THEN
+c$$$          INFO = 6
+c$$$      ELSE IF (LDA.LT.MAX(1,NROWA)) THEN
+c$$$          INFO = 9
+c$$$      ELSE IF (LDB.LT.MAX(1,M)) THEN
+c$$$          INFO = 11
+c$$$      END IF
+c$$$      IF (INFO.NE.0) THEN
+c$$$          CALL XERBLA('ZTRSM ',INFO)
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible.
+c$$$*
+c$$$      IF (N.EQ.0) RETURN
+c$$$*
+c$$$*     And when  alpha.eq.zero.
+c$$$*
+c$$$      IF (ALPHA.EQ.ZERO) THEN
+c$$$          DO 20 J = 1,N
+c$$$              DO 10 I = 1,M
+c$$$                  B(I,J) = ZERO
+c$$$   10         CONTINUE
+c$$$   20     CONTINUE
+c$$$          RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Start the operations.
+c$$$*
+c$$$      IF (LSIDE) THEN
+c$$$          IF (LSAME(TRANSA,'N')) THEN
+c$$$*
+c$$$*           Form  B := alpha*inv( A )*B.
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 60 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 30 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$   30                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 50 K = M,1,-1
+c$$$                          IF (B(K,J).NE.ZERO) THEN
+c$$$                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
+c$$$                              DO 40 I = 1,K - 1
+c$$$                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
+c$$$   40                         CONTINUE
+c$$$                          END IF
+c$$$   50                 CONTINUE
+c$$$   60             CONTINUE
+c$$$              ELSE
+c$$$                  DO 100 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 70 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$   70                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 90 K = 1,M
+c$$$                          IF (B(K,J).NE.ZERO) THEN
+c$$$                              IF (NOUNIT) B(K,J) = B(K,J)/A(K,K)
+c$$$                              DO 80 I = K + 1,M
+c$$$                                  B(I,J) = B(I,J) - B(K,J)*A(I,K)
+c$$$   80                         CONTINUE
+c$$$                          END IF
+c$$$   90                 CONTINUE
+c$$$  100             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$*
+c$$$*           Form  B := alpha*inv( A' )*B
+c$$$*           or    B := alpha*inv( conjg( A' ) )*B.
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 140 J = 1,N
+c$$$                      DO 130 I = 1,M
+c$$$                          TEMP = ALPHA*B(I,J)
+c$$$                          IF (NOCONJ) THEN
+c$$$                              DO 110 K = 1,I - 1
+c$$$                                  TEMP = TEMP - A(K,I)*B(K,J)
+c$$$  110                         CONTINUE
+c$$$                              IF (NOUNIT) TEMP = TEMP/A(I,I)
+c$$$                          ELSE
+c$$$                              DO 120 K = 1,I - 1
+c$$$                                  TEMP = TEMP - DCONJG(A(K,I))*B(K,J)
+c$$$  120                         CONTINUE
+c$$$                              IF (NOUNIT) TEMP = TEMP/DCONJG(A(I,I))
+c$$$                          END IF
+c$$$                          B(I,J) = TEMP
+c$$$  130                 CONTINUE
+c$$$  140             CONTINUE
+c$$$              ELSE
+c$$$                  DO 180 J = 1,N
+c$$$                      DO 170 I = M,1,-1
+c$$$                          TEMP = ALPHA*B(I,J)
+c$$$                          IF (NOCONJ) THEN
+c$$$                              DO 150 K = I + 1,M
+c$$$                                  TEMP = TEMP - A(K,I)*B(K,J)
+c$$$  150                         CONTINUE
+c$$$                              IF (NOUNIT) TEMP = TEMP/A(I,I)
+c$$$                          ELSE
+c$$$                              DO 160 K = I + 1,M
+c$$$                                  TEMP = TEMP - DCONJG(A(K,I))*B(K,J)
+c$$$  160                         CONTINUE
+c$$$                              IF (NOUNIT) TEMP = TEMP/DCONJG(A(I,I))
+c$$$                          END IF
+c$$$                          B(I,J) = TEMP
+c$$$  170                 CONTINUE
+c$$$  180             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      ELSE
+c$$$          IF (LSAME(TRANSA,'N')) THEN
+c$$$*
+c$$$*           Form  B := alpha*B*inv( A ).
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 230 J = 1,N
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 190 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$  190                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 210 K = 1,J - 1
+c$$$                          IF (A(K,J).NE.ZERO) THEN
+c$$$                              DO 200 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
+c$$$  200                         CONTINUE
+c$$$                          END IF
+c$$$  210                 CONTINUE
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(J,J)
+c$$$                          DO 220 I = 1,M
+c$$$                              B(I,J) = TEMP*B(I,J)
+c$$$  220                     CONTINUE
+c$$$                      END IF
+c$$$  230             CONTINUE
+c$$$              ELSE
+c$$$                  DO 280 J = N,1,-1
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 240 I = 1,M
+c$$$                              B(I,J) = ALPHA*B(I,J)
+c$$$  240                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 260 K = J + 1,N
+c$$$                          IF (A(K,J).NE.ZERO) THEN
+c$$$                              DO 250 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - A(K,J)*B(I,K)
+c$$$  250                         CONTINUE
+c$$$                          END IF
+c$$$  260                 CONTINUE
+c$$$                      IF (NOUNIT) THEN
+c$$$                          TEMP = ONE/A(J,J)
+c$$$                          DO 270 I = 1,M
+c$$$                              B(I,J) = TEMP*B(I,J)
+c$$$  270                     CONTINUE
+c$$$                      END IF
+c$$$  280             CONTINUE
+c$$$              END IF
+c$$$          ELSE
+c$$$*
+c$$$*           Form  B := alpha*B*inv( A' )
+c$$$*           or    B := alpha*B*inv( conjg( A' ) ).
+c$$$*
+c$$$              IF (UPPER) THEN
+c$$$                  DO 330 K = N,1,-1
+c$$$                      IF (NOUNIT) THEN
+c$$$                          IF (NOCONJ) THEN
+c$$$                              TEMP = ONE/A(K,K)
+c$$$                          ELSE
+c$$$                              TEMP = ONE/DCONJG(A(K,K))
+c$$$                          END IF
+c$$$                          DO 290 I = 1,M
+c$$$                              B(I,K) = TEMP*B(I,K)
+c$$$  290                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 310 J = 1,K - 1
+c$$$                          IF (A(J,K).NE.ZERO) THEN
+c$$$                              IF (NOCONJ) THEN
+c$$$                                  TEMP = A(J,K)
+c$$$                              ELSE
+c$$$                                  TEMP = DCONJG(A(J,K))
+c$$$                              END IF
+c$$$                              DO 300 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - TEMP*B(I,K)
+c$$$  300                         CONTINUE
+c$$$                          END IF
+c$$$  310                 CONTINUE
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 320 I = 1,M
+c$$$                              B(I,K) = ALPHA*B(I,K)
+c$$$  320                     CONTINUE
+c$$$                      END IF
+c$$$  330             CONTINUE
+c$$$              ELSE
+c$$$                  DO 380 K = 1,N
+c$$$                      IF (NOUNIT) THEN
+c$$$                          IF (NOCONJ) THEN
+c$$$                              TEMP = ONE/A(K,K)
+c$$$                          ELSE
+c$$$                              TEMP = ONE/DCONJG(A(K,K))
+c$$$                          END IF
+c$$$                          DO 340 I = 1,M
+c$$$                              B(I,K) = TEMP*B(I,K)
+c$$$  340                     CONTINUE
+c$$$                      END IF
+c$$$                      DO 360 J = K + 1,N
+c$$$                          IF (A(J,K).NE.ZERO) THEN
+c$$$                              IF (NOCONJ) THEN
+c$$$                                  TEMP = A(J,K)
+c$$$                              ELSE
+c$$$                                  TEMP = DCONJG(A(J,K))
+c$$$                              END IF
+c$$$                              DO 350 I = 1,M
+c$$$                                  B(I,J) = B(I,J) - TEMP*B(I,K)
+c$$$  350                         CONTINUE
+c$$$                          END IF
+c$$$  360                 CONTINUE
+c$$$                      IF (ALPHA.NE.ONE) THEN
+c$$$                          DO 370 I = 1,M
+c$$$                              B(I,K) = ALPHA*B(I,K)
+c$$$  370                     CONTINUE
+c$$$                      END IF
+c$$$  380             CONTINUE
+c$$$              END IF
+c$$$          END IF
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of ZTRSM .
+c$$$*
+c$$$      END
+c$$$
+c$$$      SUBROUTINE CGESV( N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+c$$$*
+c$$$*  -- LAPACK driver routine (version 3.2) --
+c$$$*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
+c$$$*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, LDA, LDB, N, NRHS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX            A( LDA, * ), B( LDB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  CGESV computes the solution to a complex system of linear equations
+c$$$*     A * X = B,
+c$$$*  where A is an N-by-N matrix and X and B are N-by-NRHS matrices.
+c$$$*
+c$$$*  The LU decomposition with partial pivoting and row interchanges is
+c$$$*  used to factor A as
+c$$$*     A = P * L * U,
+c$$$*  where P is a permutation matrix, L is unit lower triangular, and U is
+c$$$*  upper triangular.  The factored form of A is then used to solve the
+c$$$*  system of equations A * X = B.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of linear equations, i.e., the order of the
+c$$$*          matrix A.  N >= 0.
+c$$$*
+c$$$*  NRHS    (input) INTEGER
+c$$$*          The number of right hand sides, i.e., the number of columns
+c$$$*          of the matrix B.  NRHS >= 0.
+c$$$*
+c$$$*  A       (input/output) COMPLEX array, dimension (LDA,N)
+c$$$*          On entry, the N-by-N coefficient matrix A.
+c$$$*          On exit, the factors L and U from the factorization
+c$$$*          A = P*L*U; the unit diagonal elements of L are not stored.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,N).
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (N)
+c$$$*          The pivot indices that define the permutation matrix P;
+c$$$*          row i of the matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  B       (input/output) COMPLEX array, dimension (LDB,NRHS)
+c$$$*          On entry, the N-by-NRHS matrix of right hand side matrix B.
+c$$$*          On exit, if INFO = 0, the N-by-NRHS solution matrix X.
+c$$$*
+c$$$*  LDB     (input) INTEGER
+c$$$*          The leading dimension of the array B.  LDB >= max(1,N).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0:  if INFO = -i, the i-th argument had an illegal value
+c$$$*          > 0:  if INFO = i, U(i,i) is exactly zero.  The factorization
+c$$$*                has been completed, but the factor U is exactly
+c$$$*                singular, so the solution could not be computed.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           CGETRF, CGETRS, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( N.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( NRHS.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -4
+c$$$      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -7
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'CGESV ', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Compute the LU factorization of A.
+c$$$*
+c$$$      CALL CGETRF( N, N, A, LDA, IPIV, INFO )
+c$$$      IF( INFO.EQ.0 ) THEN
+c$$$*
+c$$$*        Solve the system A*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL CGETRS( 'No transpose', N, NRHS, A, LDA, IPIV, B, LDB,
+c$$$     $                INFO )
+c$$$      END IF
+c$$$      RETURN
+c$$$*
+c$$$*     End of CGESV
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE CGETF2( M, N, A, LDA, IPIV, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.2) --
+c$$$*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
+c$$$*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, LDA, M, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX            A( LDA, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  CGETF2 computes an LU factorization of a general m-by-n matrix A
+c$$$*  using partial pivoting with row interchanges.
+c$$$*
+c$$$*  The factorization has the form
+c$$$*     A = P * L * U
+c$$$*  where P is a permutation matrix, L is lower triangular with unit
+c$$$*  diagonal elements (lower trapezoidal if m > n), and U is upper
+c$$$*  triangular (upper trapezoidal if m < n).
+c$$$*
+c$$$*  This is the right-looking Level 2 BLAS version of the algorithm.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  M       (input) INTEGER
+c$$$*          The number of rows of the matrix A.  M >= 0.
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.  N >= 0.
+c$$$*
+c$$$*  A       (input/output) COMPLEX array, dimension (LDA,N)
+c$$$*          On entry, the m by n matrix to be factored.
+c$$$*          On exit, the factors L and U from the factorization
+c$$$*          A = P*L*U; the unit diagonal elements of L are not stored.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,M).
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (min(M,N))
+c$$$*          The pivot indices; for 1 <= i <= min(M,N), row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0: successful exit
+c$$$*          < 0: if INFO = -k, the k-th argument had an illegal value
+c$$$*          > 0: if INFO = k, U(k,k) is exactly zero. The factorization
+c$$$*               has been completed, but the factor U is exactly
+c$$$*               singular, and division by zero will occur if it is used
+c$$$*               to solve a system of equations.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      COMPLEX            ONE, ZERO
+c$$$      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ),
+c$$$     $                   ZERO = ( 0.0E+0, 0.0E+0 ) )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      REAL               SFMIN
+c$$$      INTEGER            I, J, JP
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      REAL               SLAMCH
+c$$$      INTEGER            ICAMAX
+c$$$      EXTERNAL           SLAMCH, ICAMAX
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           CGERU, CSCAL, CSWAP, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX, MIN
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( M.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( LDA.LT.MAX( 1, M ) ) THEN
+c$$$         INFO = -4
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'CGETF2', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( M.EQ.0 .OR. N.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$*     Compute machine safe minimum
+c$$$*
+c$$$      SFMIN = SLAMCH('S') 
+c$$$*
+c$$$      DO 10 J = 1, MIN( M, N )
+c$$$*
+c$$$*        Find pivot and test for singularity.
+c$$$*
+c$$$         JP = J - 1 + ICAMAX( M-J+1, A( J, J ), 1 )
+c$$$         IPIV( J ) = JP
+c$$$         IF( A( JP, J ).NE.ZERO ) THEN
+c$$$*
+c$$$*           Apply the interchange to columns 1:N.
+c$$$*
+c$$$            IF( JP.NE.J )
+c$$$     $         CALL CSWAP( N, A( J, 1 ), LDA, A( JP, 1 ), LDA )
+c$$$*
+c$$$*           Compute elements J+1:M of J-th column.
+c$$$*
+c$$$            IF( J.LT.M ) THEN
+c$$$               IF( ABS(A( J, J )) .GE. SFMIN ) THEN
+c$$$                  CALL CSCAL( M-J, ONE / A( J, J ), A( J+1, J ), 1 )
+c$$$               ELSE
+c$$$                  DO 20 I = 1, M-J
+c$$$                     A( J+I, J ) = A( J+I, J ) / A( J, J )
+c$$$   20             CONTINUE
+c$$$               END IF
+c$$$            END IF
+c$$$*
+c$$$         ELSE IF( INFO.EQ.0 ) THEN
+c$$$*
+c$$$            INFO = J
+c$$$         END IF
+c$$$*
+c$$$         IF( J.LT.MIN( M, N ) ) THEN
+c$$$*
+c$$$*           Update trailing submatrix.
+c$$$*
+c$$$            CALL CGERU( M-J, N-J, -ONE, A( J+1, J ), 1, A( J, J+1 ),
+c$$$     $                  LDA, A( J+1, J+1 ), LDA )
+c$$$         END IF
+c$$$   10 CONTINUE
+c$$$      RETURN
+c$$$*
+c$$$*     End of CGETF2
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE CGETRF( M, N, A, LDA, IPIV, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.2) --
+c$$$*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
+c$$$*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INFO, LDA, M, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX            A( LDA, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  CGETRF computes an LU factorization of a general M-by-N matrix A
+c$$$*  using partial pivoting with row interchanges.
+c$$$*
+c$$$*  The factorization has the form
+c$$$*     A = P * L * U
+c$$$*  where P is a permutation matrix, L is lower triangular with unit
+c$$$*  diagonal elements (lower trapezoidal if m > n), and U is upper
+c$$$*  triangular (upper trapezoidal if m < n).
+c$$$*
+c$$$*  This is the right-looking Level 3 BLAS version of the algorithm.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  M       (input) INTEGER
+c$$$*          The number of rows of the matrix A.  M >= 0.
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.  N >= 0.
+c$$$*
+c$$$*  A       (input/output) COMPLEX array, dimension (LDA,N)
+c$$$*          On entry, the M-by-N matrix to be factored.
+c$$$*          On exit, the factors L and U from the factorization
+c$$$*          A = P*L*U; the unit diagonal elements of L are not stored.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,M).
+c$$$*
+c$$$*  IPIV    (output) INTEGER array, dimension (min(M,N))
+c$$$*          The pivot indices; for 1 <= i <= min(M,N), row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0:  if INFO = -i, the i-th argument had an illegal value
+c$$$*          > 0:  if INFO = i, U(i,i) is exactly zero. The factorization
+c$$$*                has been completed, but the factor U is exactly
+c$$$*                singular, and division by zero will occur if it is used
+c$$$*                to solve a system of equations.
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      COMPLEX            ONE
+c$$$      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ) )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER            I, IINFO, J, JB, NB
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           CGEMM, CGETF2, CLASWP, CTRSM, XERBLA
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      INTEGER            ILAENV
+c$$$      EXTERNAL           ILAENV
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX, MIN
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      IF( M.LT.0 ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( LDA.LT.MAX( 1, M ) ) THEN
+c$$$         INFO = -4
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'CGETRF', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( M.EQ.0 .OR. N.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$*     Determine the block size for this environment.
+c$$$*
+c$$$      NB = ILAENV( 1, 'CGETRF', ' ', M, N, -1, -1 )
+c$$$      IF( NB.LE.1 .OR. NB.GE.MIN( M, N ) ) THEN
+c$$$*
+c$$$*        Use unblocked code.
+c$$$*
+c$$$         CALL CGETF2( M, N, A, LDA, IPIV, INFO )
+c$$$      ELSE
+c$$$*
+c$$$*        Use blocked code.
+c$$$*
+c$$$         DO 20 J = 1, MIN( M, N ), NB
+c$$$            JB = MIN( MIN( M, N )-J+1, NB )
+c$$$*
+c$$$*           Factor diagonal and subdiagonal blocks and test for exact
+c$$$*           singularity.
+c$$$*
+c$$$            CALL CGETF2( M-J+1, JB, A( J, J ), LDA, IPIV( J ), IINFO )
+c$$$*
+c$$$*           Adjust INFO and the pivot indices.
+c$$$*
+c$$$            IF( INFO.EQ.0 .AND. IINFO.GT.0 )
+c$$$     $         INFO = IINFO + J - 1
+c$$$            DO 10 I = J, MIN( M, J+JB-1 )
+c$$$               IPIV( I ) = J - 1 + IPIV( I )
+c$$$   10       CONTINUE
+c$$$*
+c$$$*           Apply interchanges to columns 1:J-1.
+c$$$*
+c$$$            CALL CLASWP( J-1, A, LDA, J, J+JB-1, IPIV, 1 )
+c$$$*
+c$$$            IF( J+JB.LE.N ) THEN
+c$$$*
+c$$$*              Apply interchanges to columns J+JB:N.
+c$$$*
+c$$$               CALL CLASWP( N-J-JB+1, A( 1, J+JB ), LDA, J, J+JB-1,
+c$$$     $                      IPIV, 1 )
+c$$$*
+c$$$*              Compute block row of U.
+c$$$*
+c$$$               CALL CTRSM( 'Left', 'Lower', 'No transpose', 'Unit', JB,
+c$$$     $                     N-J-JB+1, ONE, A( J, J ), LDA, A( J, J+JB ),
+c$$$     $                     LDA )
+c$$$               IF( J+JB.LE.M ) THEN
+c$$$*
+c$$$*                 Update trailing submatrix.
+c$$$*
+c$$$                  CALL CGEMM( 'No transpose', 'No transpose', M-J-JB+1,
+c$$$     $                        N-J-JB+1, JB, -ONE, A( J+JB, J ), LDA,
+c$$$     $                        A( J, J+JB ), LDA, ONE, A( J+JB, J+JB ),
+c$$$     $                        LDA )
+c$$$               END IF
+c$$$            END IF
+c$$$   20    CONTINUE
+c$$$      END IF
+c$$$      RETURN
+c$$$*
+c$$$*     End of CGETRF
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE CGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+c$$$*
+c$$$*  -- LAPACK routine (version 3.3.1) --
+c$$$*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
+c$$$*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
+c$$$*  -- April 2011                                                      --
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      CHARACTER          TRANS
+c$$$      INTEGER            INFO, LDA, LDB, N, NRHS
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX            A( LDA, * ), B( LDB, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  CGETRS solves a system of linear equations
+c$$$*     A * X = B,  A**T * X = B,  or  A**H * X = B
+c$$$*  with a general N-by-N matrix A using the LU factorization computed
+c$$$*  by CGETRF.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  TRANS   (input) CHARACTER*1
+c$$$*          Specifies the form of the system of equations:
+c$$$*          = 'N':  A * X = B     (No transpose)
+c$$$*          = 'T':  A**T * X = B  (Transpose)
+c$$$*          = 'C':  A**H * X = B  (Conjugate transpose)
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The order of the matrix A.  N >= 0.
+c$$$*
+c$$$*  NRHS    (input) INTEGER
+c$$$*          The number of right hand sides, i.e., the number of columns
+c$$$*          of the matrix B.  NRHS >= 0.
+c$$$*
+c$$$*  A       (input) COMPLEX array, dimension (LDA,N)
+c$$$*          The factors L and U from the factorization A = P*L*U
+c$$$*          as computed by CGETRF.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.  LDA >= max(1,N).
+c$$$*
+c$$$*  IPIV    (input) INTEGER array, dimension (N)
+c$$$*          The pivot indices from CGETRF; for 1<=i<=N, row i of the
+c$$$*          matrix was interchanged with row IPIV(i).
+c$$$*
+c$$$*  B       (input/output) COMPLEX array, dimension (LDB,NRHS)
+c$$$*          On entry, the right hand side matrix B.
+c$$$*          On exit, the solution matrix X.
+c$$$*
+c$$$*  LDB     (input) INTEGER
+c$$$*          The leading dimension of the array B.  LDB >= max(1,N).
+c$$$*
+c$$$*  INFO    (output) INTEGER
+c$$$*          = 0:  successful exit
+c$$$*          < 0:  if INFO = -i, the i-th argument had an illegal value
+c$$$*
+c$$$*  =====================================================================
+c$$$*
+c$$$*     .. Parameters ..
+c$$$      COMPLEX            ONE
+c$$$      PARAMETER          ( ONE = ( 1.0E+0, 0.0E+0 ) )
+c$$$*     ..
+c$$$*     .. Local Scalars ..
+c$$$      LOGICAL            NOTRAN
+c$$$*     ..
+c$$$*     .. External Functions ..
+c$$$      LOGICAL            LSAME
+c$$$      EXTERNAL           LSAME
+c$$$*     ..
+c$$$*     .. External Subroutines ..
+c$$$      EXTERNAL           CLASWP, CTRSM, XERBLA
+c$$$*     ..
+c$$$*     .. Intrinsic Functions ..
+c$$$      INTRINSIC          MAX
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Test the input parameters.
+c$$$*
+c$$$      INFO = 0
+c$$$      NOTRAN = LSAME( TRANS, 'N' )
+c$$$      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT.
+c$$$     $    LSAME( TRANS, 'C' ) ) THEN
+c$$$         INFO = -1
+c$$$      ELSE IF( N.LT.0 ) THEN
+c$$$         INFO = -2
+c$$$      ELSE IF( NRHS.LT.0 ) THEN
+c$$$         INFO = -3
+c$$$      ELSE IF( LDA.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -5
+c$$$      ELSE IF( LDB.LT.MAX( 1, N ) ) THEN
+c$$$         INFO = -8
+c$$$      END IF
+c$$$      IF( INFO.NE.0 ) THEN
+c$$$         CALL XERBLA( 'CGETRS', -INFO )
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$*     Quick return if possible
+c$$$*
+c$$$      IF( N.EQ.0 .OR. NRHS.EQ.0 )
+c$$$     $   RETURN
+c$$$*
+c$$$      IF( NOTRAN ) THEN
+c$$$*
+c$$$*        Solve A * X = B.
+c$$$*
+c$$$*        Apply row interchanges to the right hand sides.
+c$$$*
+c$$$         CALL CLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
+c$$$*
+c$$$*        Solve L*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL CTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS,
+c$$$     $               ONE, A, LDA, B, LDB )
+c$$$*
+c$$$*        Solve U*X = B, overwriting B with X.
+c$$$*
+c$$$         CALL CTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N,
+c$$$     $               NRHS, ONE, A, LDA, B, LDB )
+c$$$      ELSE
+c$$$*
+c$$$*        Solve A**T * X = B  or A**H * X = B.
+c$$$*
+c$$$*        Solve U**T *X = B or U**H *X = B, overwriting B with X.
+c$$$*
+c$$$         CALL CTRSM( 'Left', 'Upper', TRANS, 'Non-unit', N, NRHS, ONE,
+c$$$     $               A, LDA, B, LDB )
+c$$$*
+c$$$*        Solve L**T *X = B, or L**H *X = B overwriting B with X.
+c$$$*
+c$$$         CALL CTRSM( 'Left', 'Lower', TRANS, 'Unit', N, NRHS, ONE, A,
+c$$$     $               LDA, B, LDB )
+c$$$*
+c$$$*        Apply row interchanges to the solution vectors.
+c$$$*
+c$$$         CALL CLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of CGETRS
+c$$$*
+c$$$      END
+c$$$      SUBROUTINE CLASWP( N, A, LDA, K1, K2, IPIV, INCX )
+c$$$*
+c$$$*  -- LAPACK auxiliary routine (version 3.2) --
+c$$$*  -- LAPACK is a software package provided by Univ. of Tennessee,    --
+c$$$*  -- Univ. of California Berkeley, Univ. of Colorado Denver and NAG Ltd..--
+c$$$*     November 2006
+c$$$*
+c$$$*     .. Scalar Arguments ..
+c$$$      INTEGER            INCX, K1, K2, LDA, N
+c$$$*     ..
+c$$$*     .. Array Arguments ..
+c$$$      INTEGER            IPIV( * )
+c$$$      COMPLEX            A( LDA, * )
+c$$$*     ..
+c$$$*
+c$$$*  Purpose
+c$$$*  =======
+c$$$*
+c$$$*  CLASWP performs a series of row interchanges on the matrix A.
+c$$$*  One row interchange is initiated for each of rows K1 through K2 of A.
+c$$$*
+c$$$*  Arguments
+c$$$*  =========
+c$$$*
+c$$$*  N       (input) INTEGER
+c$$$*          The number of columns of the matrix A.
+c$$$*
+c$$$*  A       (input/output) COMPLEX array, dimension (LDA,N)
+c$$$*          On entry, the matrix of column dimension N to which the row
+c$$$*          interchanges will be applied.
+c$$$*          On exit, the permuted matrix.
+c$$$*
+c$$$*  LDA     (input) INTEGER
+c$$$*          The leading dimension of the array A.
+c$$$*
+c$$$*  K1      (input) INTEGER
+c$$$*          The first element of IPIV for which a row interchange will
+c$$$*          be done.
+c$$$*
+c$$$*  K2      (input) INTEGER
+c$$$*          The last element of IPIV for which a row interchange will
+c$$$*          be done.
+c$$$*
+c$$$*  IPIV    (input) INTEGER array, dimension (K2*abs(INCX))
+c$$$*          The vector of pivot indices.  Only the elements in positions
+c$$$*          K1 through K2 of IPIV are accessed.
+c$$$*          IPIV(K) = L implies rows K and L are to be interchanged.
+c$$$*
+c$$$*  INCX    (input) INTEGER
+c$$$*          The increment between successive values of IPIV.  If IPIV
+c$$$*          is negative, the pivots are applied in reverse order.
+c$$$*
+c$$$*  Further Details
+c$$$*  ===============
+c$$$*
+c$$$*  Modified by
+c$$$*   R. C. Whaley, Computer Science Dept., Univ. of Tenn., Knoxville, USA
+c$$$*
+c$$$* =====================================================================
+c$$$*
+c$$$*     .. Local Scalars ..
+c$$$      INTEGER            I, I1, I2, INC, IP, IX, IX0, J, K, N32
+c$$$      COMPLEX            TEMP
+c$$$*     ..
+c$$$*     .. Executable Statements ..
+c$$$*
+c$$$*     Interchange row I with row IPIV(I) for each of rows K1 through K2.
+c$$$*
+c$$$      IF( INCX.GT.0 ) THEN
+c$$$         IX0 = K1
+c$$$         I1 = K1
+c$$$         I2 = K2
+c$$$         INC = 1
+c$$$      ELSE IF( INCX.LT.0 ) THEN
+c$$$         IX0 = 1 + ( 1-K2 )*INCX
+c$$$         I1 = K2
+c$$$         I2 = K1
+c$$$         INC = -1
+c$$$      ELSE
+c$$$         RETURN
+c$$$      END IF
+c$$$*
+c$$$      N32 = ( N / 32 )*32
+c$$$      IF( N32.NE.0 ) THEN
+c$$$         DO 30 J = 1, N32, 32
+c$$$            IX = IX0
+c$$$            DO 20 I = I1, I2, INC
+c$$$               IP = IPIV( IX )
+c$$$               IF( IP.NE.I ) THEN
+c$$$                  DO 10 K = J, J + 31
+c$$$                     TEMP = A( I, K )
+c$$$                     A( I, K ) = A( IP, K )
+c$$$                     A( IP, K ) = TEMP
+c$$$   10             CONTINUE
+c$$$               END IF
+c$$$               IX = IX + INCX
+c$$$   20       CONTINUE
+c$$$   30    CONTINUE
+c$$$      END IF
+c$$$      IF( N32.NE.N ) THEN
+c$$$         N32 = N32 + 1
+c$$$         IX = IX0
+c$$$         DO 50 I = I1, I2, INC
+c$$$            IP = IPIV( IX )
+c$$$            IF( IP.NE.I ) THEN
+c$$$               DO 40 K = N32, N
+c$$$                  TEMP = A( I, K )
+c$$$                  A( I, K ) = A( IP, K )
+c$$$                  A( IP, K ) = TEMP
+c$$$   40          CONTINUE
+c$$$            END IF
+c$$$            IX = IX + INCX
+c$$$   50    CONTINUE
+c$$$      END IF
+c$$$*
+c$$$      RETURN
+c$$$*
+c$$$*     End of CLASWP
+c$$$*
+c$$$      END

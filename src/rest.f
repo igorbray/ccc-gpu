@@ -3433,6 +3433,7 @@ c$$$     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
      >   sigma,nnbtop,pos,lnch)
       use gf_module
       use chil_module
+      use vmat_module, only: nodeid
       include 'par.f'
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   istartrp(0:ltmax),istoprp(0:ltmax),cntfug(maxr,0:lmax)
@@ -3547,10 +3548,11 @@ c$$$            print*,'Added VDCORE to DWPOT:',utemp(1)*rmesh(1,1)
      >            psib(n,l)%max)
                psib(n,l)%min = 1
                imax = psib(n,l)%max
-               print'("n,l,imax,en,ovlp",3i6,1p,1e12.3,0p,f9.3)',
+               if (nodeid.eq.1)
+     >            print'("n,l,imax,en,ovlp",3i6,1p,1e12.3,0p,f9.3)',
      >            n,l,psib(n,l)%max,psib(n,l)%en,dot_product(
-     >               psib(n,l)%radial(1:imax)*rmesh(1:imax,3),
-     >               psib(n,l)%radial(1:imax))
+     >            psib(n,l)%radial(1:imax)*rmesh(1:imax,3),
+     >            psib(n,l)%radial(1:imax))
             enddo
             if (l.gt.ldw.and.npsbndin.lt.0) then
                psibd(:,l) = psib(:,l) ! use exact eigenstates
@@ -3571,8 +3573,9 @@ c$$$               endif
                niter = -20
                scale = 3.0
                if (alpha.gt.0.0) then
-                  print*,"Projectile diagonalisation: N, L, al",nps,l,
-     >                 alpha
+                  if (nodeid.eq.1)
+     >               print*,"Projectile diagonalisation: N, L, al",
+     >                 nps,l,alpha
                   call makeps(zasym, torf,alpha,l,expcut,nps,ps2,
      >               psen2,minps2, maxps2,rmesh,utemp,meshr,meshr,dummy)
                   if (nz.gt.0) then
@@ -3585,9 +3588,10 @@ c$$$               endif
                         test=(psen2(npose)*scale-psen2(npose+1))/
      >                       psen2(npose+1)
                         alpha = alpha * (1.0 - test /10.0)
-                        print'("nt,npose,al,test,4psen:",2i3,6f10.6)',
-     >                       ntimes,npose+l,alpha,test,
-     >                       (psen2(n),n=npose-2,npose+1) 
+                        if (nodeid.eq.1)
+     >                     print'("nt,npose,al,test,4psen:",2i3,6f10.6)'
+     >                     ,ntimes,npose+l,alpha,test,
+     >                     (psen2(n),n=npose-2,npose+1) 
                         if (abs(test).lt.1e-3) exit
                         call makeps(zasym,torf,alpha,l,expcut,nps,
      >                       ps2,psen2, minps2, maxps2, rmesh, utemp,
@@ -3598,7 +3602,8 @@ c$$$               endif
                   hmax = rmesh(meshr,2)
                   ra = abs(abnd(l))
                   nbmax = abs(npsbndin) ! - l There is a subtraction of L inside
-                  print*,'Projectile Box-based states; Z, N and R:',
+                  if (nodeid.eq.1)
+     >               print*,'Projectile Box-based states; Z, N and R:',
      >               -nze*zasym-1.0,nbmax,ra !note that z+1 is used in pseudo
                   call pseudo(jdouble,id,hmax,-nze*zasym-1.0,l,ra,nbmax,
      >               maxr,utemp,psen2,ps2,jmax)
@@ -3640,7 +3645,8 @@ c$$$     >                       (psen2(npose) - psen2(max(npose-1,1)))
      >                  psibd(n,l)%radial(1:imax)*rmesh(1:imax,3),
      >                  psib(np,l)%radial(1:imax))**2
                   enddo
-                  print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
+                  if (nodeid.eq.1)
+     >               print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
      >               n,l,psibd(n,l)%max,psibd(n,l)%en,psib(n,l)%en,proj
                   n = n + 1
                   psibd(n,l)%en = psen2(n-l)
@@ -3664,7 +3670,7 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       trat = 1.0
       if (itail.lt.0) then
          trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
-         print'("Rtail, max ktail:",2f6.1)',
+         if (nodeid.eq.1) print'("Rtail, max ktail:",2f6.1)',
      >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
@@ -3768,7 +3774,7 @@ c$$$               psen2(n) = psibd(n+l,l)%en
                enddo
                nneg = nneg - 1
                if (nneg.gt.nbndm) then
-                  print*,
+                  if (nodeid.eq.1) print*,
      >               'Have generated more bound states than requested',
      >               ' NNEG, NBNDM, L:',NNEG, NBNDM, L
                   if (zasym.eq.0.0)
@@ -3804,13 +3810,13 @@ c$$$            endif
      >               dummy)
                enddo
                alpha = alpha + alpha/100.0
-               print*, 'ABND(l) changed to',alpha,l
+               if (nodeid.eq.1) print*, 'ABND(l) changed to',alpha,l
                call makeps(zasym,.false.,alpha,l,1e-10,npsbnd,ps2,
      >            psen2, minps2, maxps2, rmesh, utemp, meshr, meshr,
      >            dummy)
             endif 
-            print '(i2,2x,a3,i3,1p,100e12.5)', nneg, chan(nt), l,
-     >         (psen2(i), i=1, nbndm)
+            if (nodeid.eq.1) print '(i2,2x,a3,i3,1p,100e12.5)', 
+     >         nneg, chan(nt), l, (psen2(i), i=1, nbndm)
          else
             do n = 1, nbndm
 C  Any positive number will do
@@ -3831,7 +3837,7 @@ c$$$               wk(kp) = (1e,0.0)
 c$$$            endif 
             e1 = etot-ea-psen2(n)
             e2 = etot-ea-psen2(n+1)
-            if (n.lt.nbndm.and.e1*e2.lt.0.0) 
+            if (n.lt.nbndm.and.e1*e2.lt.0.0.and.nodeid.eq.1) 
      >         print'("CAUTION: WK changes sign across bound states",
      >         i3,2f8.4,a5,i2)',n,e1,e2,chan(nt),l
 C     The choice of phase makes no difference
@@ -3840,7 +3846,8 @@ c$$$            phasel(k,nch) = (0.0,1.0)**(-l)
             if (psen2(n).lt.0.0) then
 c$$$            if (psen2(n).lt.0.0.and.etot-ea.gt.0.0) then
                gk(k,nch) = -sqrt(-psen2(n))
-               if (abs(etot - ea - psen2(n)).lt.0.1) print*,
+               if (abs(etot - ea - psen2(n)).lt.0.1.and.nodeid.eq.1)
+     >            print*,
      >            'Warning for bound state have etot - ea - psen2(n)',
      >            etot - ea - psen2(n), n
                minchil(kp,1) = 1
@@ -3936,7 +3943,7 @@ c$$$                  print*,'phase,phasel:',phase,phasel(k,nch)
 c$$$                  print'("NCH, l, En, test and T dist:",
 c$$$     >               i4,i3,f7.3,f7.4,1p,2e13.4)', nch, l, en, test,
 c$$$     >               tmp*2.0/pi/en*phasel(k,nch)*sig**2
-                  if (abs(test-1.0).gt.0.1) 
+                  if (abs(test-1.0).gt.0.1.and.nodeid.eq.1) 
      >               print*,'Caution distorted waves are inaccurate',
      >               tmp,-aimag(phasel(k,nch)) * sqrt(en) / 2.0
                endif 
@@ -4021,8 +4028,8 @@ c$$$            endif
                      rkmax = gk(k,nch)
                   endif 
                endif 
-               if (nb.eq.nbndm.and.k.eq.nqm-nbndm) print*,
-     >            'L, Max overlap, bound state e, k:',
+               if (nb.eq.nbndm.and.k.eq.nqm-nbndm.and.nodeid.eq.1) 
+     >            print*,'L, Max overlap, bound state e, k:',
      >            l,summax,ebmax,rkmax
             enddo 
             minchil(kp,1) = jstart
@@ -4139,7 +4146,7 @@ c$$$                  print*,'CHIL(:,kp,2)=0 for kp>qcut',sqrt(entail),qcut
 C$OMP end parallel do
 c$$$         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
 
-         if (nqm.gt.1.and.nbnd(lg).ne.0) print 
+         if (nqm.gt.1.and.nbnd(lg).ne.0.and.nodeid.eq.1) print 
      >      '("test integral for state:",a4,f10.6," =",f10.6," +",
      >      f10.6)',chan(nt),testb+testc,testb,testc
 c$$$         close(10*na+la)
@@ -4159,11 +4166,12 @@ C Alex for box basis.
          GF(:,:,nch)=0.0
          do kp=2,npk(nch+1)-npk(nch)
             GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
-         enddo 
+         enddo
+c$$$         print*,'gf:',gf(2,2,1)
          if (analytic .AND. nbmax .GT. 1) then
             if (eproj.ge.aenergyswitch) then !aenergyswitch is in modules.f
                if (nbox.ne.0) then !below is only for the box basis
-                  print*,'Box basis for nch:',nch
+                  if (nodeid.eq.1) print*,'Box basis for nch:',nch
                hmax=rmesh(meshr,2)
 c$$$               zas=-nze*zasym-1.0 ! check this
                zas=-zeff-1.0 ! check this
@@ -4201,8 +4209,9 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                      minps2(:)=1
                      kstep = 0
                      do k = nbmax-ndble+2,nbmax+1
-                     print*,'k,k+kstep,k+kstep+1:',k,k+kstep,k+kstep+1,
-     >                     erydout(k+kstep),erydout(k+kstep+1)
+                        if (nodeid.eq.1)
+     >                     print*,'k,k+kstep,k+kstep+1:',k,k+kstep,
+     >                     k+kstep+1,erydout(k+kstep),erydout(k+kstep+1)
                         waveout(1:lastpt,k) = (waveout(1:lastpt,k+kstep)
      >                     + waveout(1:lastpt,k+1+kstep))/sqrt(2d0)
                         erydout(k)=(erydout(k+kstep)+erydout(k+kstep+1))
@@ -4212,7 +4221,8 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   else
                      temp(:) = 0d0
 c$$$  nbmax = max(nbmax, npsbndin-la)
-                     print*,'Diagonalising with L,N,a,zas,n:',
+                     if (nodeid.eq.1)
+     >                  print*,'Diagonalising with L,N,a,zas,n:',
      >                  l,npsbndin,abnd(l),zas,nbmax
                      call makeps(zasym,.false.,abnd(l),l,expcut,
      >                  npsbndin,waveout(1,2),erydout(2),minps2(2),
@@ -4274,7 +4284,8 @@ c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                         do i = minchil(kp,2), meshr
                            chil(i,kp,2) = temp(i) * rmesh(i,3)
                         enddo
-                        print*,'Defined tail CHIL, MINCHIL for en:',
+                        if (nodeid.eq.1)
+     >                     print*,'Defined tail CHIL, MINCHIL for en:',
      >                     entail,minchil(kp,2)
                      endif 
                   else 
@@ -4293,7 +4304,8 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                   minchil(k+npk(nch)-1,1) = 1 !this needs to change for large L
 !                  print*,npk(nch+1)-npk(nch),nps
                   if (npk(nch+1)-npk(nch).le.nps+1) then
-                     print'("nch,k,gk,sqrt(abs(enb)):", 2i4,1p,2e12.3)', 
+                     if (nodeid.eq.1)
+     >               print'("nch,k,gk,sqrt(abs(enb)):", 2i4,1p,2e12.3)', 
      >                  nch,k,gk(k,nch),sqrt(abs(psibd(k-1+l,l)%en))*
      >                  psibd(k-1+l,l)%en/abs(psibd(k-1+l,l)%en)
                      gk(k,nch) = sqrt(abs(psibd(k-1+l,l)%en))*
@@ -4304,7 +4316,8 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                      enddo 
                      chil(psibd(k-1+l,l)%max+1:meshr,k+npk(nch)-1,1)=0d0
                   else
-                     print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
+                     if (nodeid.eq.1)
+     >                  print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
      >                  nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
                   endif
                enddo !k loop
@@ -4428,7 +4441,7 @@ c$$$                  write(42,'(1p,500e12.3)') rmesh(i,1),(c(i,kp),
 c$$$     >               chil(i,kp,1)/rmesh(i,3),kp=2,npk(nch+1)-npk(nch),10)
 c$$$               enddo 
             close(42)
-            print*,'Written:',stringtemp
+            if (nodeid.eq.1) print*,'Written:',stringtemp
          endif 
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
@@ -4439,7 +4452,7 @@ C     cray compiler bug workaround
 C        cray compiler bug workaround
 !         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
          write(stringtemp,'(i3,"_chil_",a)') lg,ch2              
-         open(42,FILE=stringtemp) !'chil'//ch(lg)//'_'//ch(nch))
+         open(42,FILE=adjustl(stringtemp)) !'chil'//ch(lg)//'_'//ch(nch))
          write(42,'("#",13x,1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
          write(42,'("# en(Ry) ->   ",1p,1000E14.4)')
@@ -4464,7 +4477,7 @@ C        cray compiler bug workaround
 C           cray compiler bug workaround
 !            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)                 
             write(stringtemp,'(i3,"_chiltail_",a)') lg,ch2
-            open(42,FILE=stringtemp) !'chiltail'//ch(lg)//'_'//ch(nch))
+            open(42,FILE=adjustl(stringtemp)) !'chiltail'//ch(lg)//'_'//ch(nch))
             write(42,'("#",11x,1000F6.3)')
      >         (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
             write(42,'("# en(Ry) -> ",1p,1000E12.4)')
@@ -4480,7 +4493,7 @@ C           cray compiler bug workaround
             write(42,*) i,rmesh(i,1),ui(i)
          enddo
          close(42)
-         print*,'Written chil for NCH, ZASYM:',nch,zasym
+         if (nodeid.eq.1)print*,'Written chil for NCH, ZASYM:',nch,zasym
       endif 
       end do ! End of the loop over NCH
       if (allocated(c)) deallocate(c)
