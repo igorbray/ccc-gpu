@@ -325,7 +325,7 @@ C  was from nchii to nchm, which is nchtop, now to nchif with MPI below
      >", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
 !MPI section begins         
          ntagort = 10
-         ntagfr = 11
+         ntagfl = 11
          npkstart = npk(nchii)
          npkstop = npk(nchif+1)-1
          nt = npkstop - npkstart + 1

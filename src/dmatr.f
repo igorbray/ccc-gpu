@@ -92,6 +92,9 @@ c$$         write(600+nch,'(2E13.4)')
 c$$     :         rmesh(ii,1),chil(ii,1)/rmesh(ii,3)
 c$$         end do
 
+         r1 = 0.0
+         v1 = 0.0
+         x1 = 0.0
          do k = 1, nqm
             dr (k,nch)=0.0
             dv (k,nch)=0.0
@@ -108,9 +111,6 @@ c$$$               call pdipole(psi,chil(1,kp),la,l,r1,v1,x1,r,v,x) ! for Lesech
                call xdipole(psi,chil(1,kp,1),la,l,r1,v1,x1,r,v,x)
             else if (ntype.eq.-1) then 
                call hDIPOLE(psi,chil(1,kp,1),la,l,lg,r,v,x)
-               r1 = 0.0
-               v1 = 0.0
-               a1 = 0.0
             else if (ntype.eq.1 .and. lithium.eq.1) then 
                call LiDIPOLEc(nt,chil(1,kp,1),la,L,lg,r,v,x)
 c$$$               print*,'nodeid,nt,chil,la,L,lg',nodeid,
