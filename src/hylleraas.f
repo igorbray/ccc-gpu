@@ -249,21 +249,133 @@ C For inferior Hylleraas uncomment a reduced set of parameters
          a18 = -1.364837        !              + a_{18}st^2u                           
          a19 = -0.185285        !              + a_{19}t^4                             
          Etot=  59.156581
-         
-*         z1 = 8.200012          !Chandrasekhar PR 98, 1050 (1955): O^6+ 10-term Hylleraas 
-*         an = 141.2470          !Set 1                                                    
-*         a1 = 0.377172          !              -Z(r1+r2)                          2       
-*         a2 = 0.675101          ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)        
-*         a3 = 0.292231          !    1 2                                 2         2      
-*         a4 = 0.134920          !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12       
-*         a5 =-0.506193          !                                              2          
-*         a6 = 0.331757          !              + a6 R12(r1+r2) + a7 R12 (r1-r2)           
-*         a7 =-0.784625          !                      3          2       2               
-*         a8 = 0.168222          !              + a8 R12   + a9 R12 (r1-r2)                
-*         a9 = 0.467885          !                                                         
-*         Etot=  59.156413
+      endif
 
+      if(nznuc.eq.5)then
+         z1  =  5.200000        !Hart & Herzberg PR 106, 79 (1957): B3+ 20-term Hylleraas
+         an  =  31.54113        !                                                      
+         a1  =  0.434777        !              -Z(r1+r2)                          2    
+         a2  =  0.518229        ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
+         a3  =  0.253041        !    1 2                                 2         2   
+         a4  =  0.194770        !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12    
+         a5  = -0.507177        !                                              2       
+         a6  =  0.240745        !              + a6 R12(r1+r2) + a7 R12 (r1-r2)        
+         a7  = -0.987602        !                      3          2       2            
+         a8  =  0.398635        !              + a8 R12   + a9 R12 (r1-r2)             
+         a9  =  0.969216        !                                   2              3   
+         a10 =  0.252556        !              + a10 (r1+r2) (r1-r2)  + a11 (r1+r2)    
+         a11 = -0.069987        !                           2    4             4       
+         a12 =  0.066553        !              + a12 (r1-r2)  R12     + a13 R12        
+         a13 = -0.214618        !                                                      
+         a14 =  0.044410        !              + a_{14}u^5                             
+         a15 = -0.388582        !              + a_{15}t^2u^3                          
+         a16 =  0.035281        !              + a_{16}s^2t^2                          
+         a17 =  0.027014        !              + a_{17}s^4                             
+         a18 = -0.147231        !              + a_{18}st^2u                           
+         a19 = -0.028971        !              + a_{19}t^4                             
+         Etot=  22.03095
       endif          
+
+      if(nznuc.eq.10)then
+         z1  =  11.10000        !Hart & Herzberg PR 106, 79 (1957): B3+ 20-term Hylleraas
+         an  =  284.1423        !                                                      
+         a1  =  0.442223        !              -Z(r1+r2)                          2    
+         a2  =  1.090423        ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
+         a3  =  1.144766        !    1 2                                 2         2   
+         a4  =  1.053751        !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12    
+         a5  = -1.220022        !                                              2       
+         a6  =  0.784059        !              + a6 R12(r1+r2) + a7 R12 (r1-r2)        
+         a7  = -4.550268        !                      3          2       2            
+         a8  =  1.902458        !              + a8 R12   + a9 R12 (r1-r2)             
+         a9  = 10.174607        !                                   2              3   
+         a10 =  1.293796        !              + a10 (r1+r2) (r1-r2)  + a11 (r1+r2)    
+         a11 = -0.052013        !                           2    4             4       
+         a12 =  2.939486        !              + a12 (r1-r2)  R12     + a13 R12        
+         a13 = -2.202905        !                                                      
+         a14 =  1.002219        !              + a_{14}u^5                             
+         a15 = -8.009360        !              + a_{15}t^2u^3                          
+         a16 =  1.189838        !              + a_{16}s^2t^2                          
+         a17 =  0.526835        !              + a_{17}s^4                             
+         a18 = -2.959437        !              + a_{18}st^2u                           
+         a19 = -0.388282        !              + a_{19}t^4                             
+         Etot=  93.90679
+      endif          
+
+      if(nznuc.eq.12)then
+         z1  =  13.50000        !Hart & Herzberg PR 106, 79 (1957): B3+ 20-term Hylleraas
+         an  =  500.5882        !                                                      
+         a1  =   0.443411       !              -Z(r1+r2)                          2    
+         a2  =   1.325185       ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
+         a3  =   1.541377       !    1 2                                 2         2   
+         a4  =   1.700390       !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12    
+         a5  =  -1.526735       !                                              2       
+         a6  =   1.036880       !              + a6 R12(r1+r2) + a7 R12 (r1-r2)        
+         a7  =  -6.727462       !                      3          2       2            
+         a8  =   2.866044       !              + a8 R12   + a9 R12 (r1-r2)             
+         a9  =  18.592420       !                                   2              3   
+         a10 =   1.938116       !              + a10 (r1+r2) (r1-r2)  + a11 (r1+r2)    
+         a11 =   0.124981       !                           2    4             4       
+         a12 =   7.842638       !              + a12 (r1-r2)  R12     + a13 R12        
+         a13 =  -4.063292       !                                                      
+         a14 =   2.281403       !              + a_{14}u^5                             
+         a15 = -17.528067       !              + a_{15}t^2u^3                          
+         a16 =   2.565497       !              + a_{16}s^2t^2                          
+         a17 =   1.247697       !              + a_{17}s^4                             
+         a18 =  -5.971432       !              + a_{18}st^2u                           
+         a19 =  -0.738207       !              + a_{19}t^4                             
+         Etot= 136.65693
+      endif          
+
+      if(nznuc.eq.13)then
+         z1  =  14.63        !Extrapolation from Hart & Herzberg PR 106, 79 (1957)
+         an  = 641.17        !                                                      
+         a1  =   0.4444      !              -Z(r1+r2)                          2    
+         a2  =   1.4345      ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
+         a3  =   1.8417      !    1 2                                 2         2   
+         a4  =   2.1716      !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12    
+         a5  =  -1.6703      !                                              2       
+         a6  =   1.2203      !              + a6 R12(r1+r2) + a7 R12 (r1-r2)        
+         a7  =  -7.9772      !                      3          2       2            
+         a8  =   3.4404      !              + a8 R12   + a9 R12 (r1-r2)             
+         a9  =  24.2889      !                                   2              3   
+         a10 =   2.3039      !              + a10 (r1+r2) (r1-r2)  + a11 (r1+r2)    
+         a11 =   0.2930      !                           2    4             4       
+         a12 =  11.9727      !              + a12 (r1-r2)  R12     + a13 R12        
+         a13 =  -5.3411      !                                                      
+         a14 =   3.2829      !              + a_{14}u^5                             
+         a15 = -24.7550      !              + a_{15}t^2u^3                          
+         a16 =   3.6303      !              + a_{16}s^2t^2                          
+         a17 =   1.8499      !              + a_{17}s^4                             
+         a18 =  -8.1752      !              + a_{18}st^2u                           
+         a19 =  -0.9833      !              + a_{19}t^4                             
+         Etot= 161.03    
+      endif          
+
+      if(nznuc.eq.14)then
+          z1 =  15.72       !Extrapolation from Hart & Herzberg PR 106, 79 (1957)
+          an = 805.89       !                                                      
+          a1 =   0.4462     !              -Z(r1+r2)                          2    
+          a2 =   1.5395     ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
+          a3 =   2.2414     !    1 2                                 2         2   
+          a4 =   2.7695     !              + a3 (r1+r2)  + a4 (r1+r2)  + a5 R12    
+          a5 =  -1.8118     !                                              2       
+          a6 =   1.4584     !              + a6 R12(r1+r2) + a7 R12 (r1-r2)        
+          a7 =  -9.3512     !                      3          2       2            
+          a8 =   4.0915     !              + a8 R12   + a9 R12 (r1-r2)             
+          a9 =  31.2111     !                                   2              3   
+          a10=   2.7076     !              + a10 (r1+r2) (r1-r2)  + a11 (r1+r2)    
+          a11=   0.5405     !                           2    4             4       
+          a12=  17.6389     !              + a12 (r1-r2)  R12     + a13 R12        
+          a13=  -6.9088     !                                                      
+          a14=   4.6061     !              + a_{14}u^5                             
+          a15= -34.1208     !              + a_{15}t^2u^3                          
+          a16=   5.0600     !              + a_{16}s^2t^2                          
+          a17=   2.6844     !              + a_{17}s^4                             
+          a18= -11.0134     !              + a_{18}st^2u                           
+          a19=  -1.2890     !              + a_{19}t^4                             
+         Etot= 187.40   
+      endif          
+
       eps = 1.E-8                                    
       pi =acos(-1.0)    
 
@@ -296,12 +408,12 @@ C  Radial integrals
       call RnOVER(4,phi1s,phi1s,P4)
 
       if (nodeid.eq.1) then
-         write(6,111) '<r^0>=', P0, 'Err=', P0-AN*2  /(2*z1)**3
-         write(6,111) '<r^1>=', P1, 'Err=', P1-AN*6  /(2*z1)**4
-         write(6,111) '<r^2>=', P2, 'Err=', P2-AN*24 /(2*z1)**5
-         write(6,111) '<r^3>=', P3, 'Err=', P3-AN*120/(2*z1)**6
-         write(6,111) '<r^4>=', P4, 'Err=', P4-AN*720/(2*z1)**7
-         write(6,111)
+      write(6,111) '<r^0>=', P0, 'Err=', P0-AN*2  /(2*z1)**3
+      write(6,111) '<r^1>=', P1, 'Err=', P1-AN*6  /(2*z1)**4
+      write(6,111) '<r^2>=', P2, 'Err=', P2-AN*24 /(2*z1)**5
+      write(6,111) '<r^3>=', P3, 'Err=', P3-AN*120/(2*z1)**6
+      write(6,111) '<r^4>=', P4, 'Err=', P4-AN*720/(2*z1)**7
+      write(6,111)
       endif
       
  111  format(A,F11.6,3x,A,2x,E12.5)
@@ -325,7 +437,6 @@ C  Coulomb integrals
       write(6,111) '<F1 r^3 r^1>=',Q6,'Err=', Q6-AN**2*621 /8/(2*z1)**9
       write(6,111) '<F1 r^2 r^2>=',Q7,'Err=', Q7-AN**2*555 /8/(2*z1)**9
       endif
-      
       F1 = P0**2 + 4*a2*(P2*P0 - P1**2) 
      :       +  2*a2**2*(P4*P0 - 4* P3*P1 + 3*P2**2)
 
@@ -370,7 +481,7 @@ C Overlap with HF ground state
 C Get rid of the Simpson's weights for continuum WF
 C But don't corrupt them for later use. That's why w2, not w1
 
-!      do i=1,meshr!was maxr
+!      do i=1,maxr
 !         if(rmesh(i,3) .ne. 0d0) w1(i) = w2(i)/rmesh(i,3)
 !      end do
       do i=1,meshr
@@ -1683,7 +1794,8 @@ C                   o
       END
       
       subroutine xSATEL(nchtop,lg)
-      
+      use vmat_module, only: nodeid
+
 C  Satellite intensities in the high photon energy limit
 C  according to Aberg (1970)
 
@@ -1796,7 +1908,7 @@ c$$            end do
 
       END      
 
-            subroutine mSATEL(nchtop,lg)
+      subroutine mSATEL(nchtop,lg)
       
 C  Satellite intensities in the high photon energy limit
 C  according to Aberg (1970)
@@ -1881,7 +1993,6 @@ C  according to Aberg (1970)
             S = S + rint(na) 
          end if
       end do
-
 !      do n = 1, nn
       if(nn.lt.ninc) STOP "Increase number of S-states"
       do n = ninc, nn

@@ -427,13 +427,15 @@ c$$$            print*," p-Alk case: ntype is set to -3 to block exchange"
          end if         
       endif                     ! projectile
 
-C  RAV--------
+C     RAV--------
+      if (nze.eq.1) then !Igor added on 18/12/23, helike seems poor choice of name 
          IF (nznuc.eq.12) then
             helike=.true.
          else
             helike=.false.
          end if         
-      if (myid.le.0) print*, 'He - like', helike
+         if (myid.le.0) print*, 'He - like', helike ! will be false for He!
+      endif
       
 C  zeff is used in the calculation of the projectile plane/distorted/
 C  coulomb waves.
@@ -502,7 +504,7 @@ c$$$      print*,'maxpot:',maxpot
       if (projectile.eq.'photon') then
          if (ntype.eq.0) then
             if (nodeid.eq.1)
-     >         print*,'Will be using Hylleraas-20 helium ground state'
+     >         print*,'Will be using Hylleraas ground state'
          else 
             if (nodeid.eq.1) print*,'Will be using an MCHF ground state'
          endif
@@ -591,7 +593,7 @@ C MYID=0 writes the core states to disk, and the rest read.
          print*,'myid completed makecorepsi:',myid
 C  Get the direct core potential.
          call makevdcore(temp,minvdc,maxvdc,nznuc,uplane)
-         print*,'MAXVDC, MESHR:',maxvdc,meshr
+c$$$         print*,'MAXVDC, MESHR:',maxvdc,meshr
          temp(maxvdc+1:meshr) = 0.0
            
 C ANDREY: for pos-alkali and el-alkali without exchange
@@ -630,7 +632,7 @@ C                               !-------------------------------
          end if
 
 C RAV-----------         
-         if (helike) then
+         if (helike.and.nze.eq.1) then
             if (nznuc.eq.12) then
                epar = 0.681008
             else
@@ -2252,7 +2254,7 @@ c$$$         nchtope2e = nchtop
             npkb(nch) = nch
          enddo 
 
-         if (myid.le.-1.and.lg.le.max(ldw,0).and.ipar.eq.0) then
+         if (nodeid.eq.1.and.lg.le.max(ldw,0).and.ipar.eq.0) then
             do k=1, max(1, npk(2) - npk(1) - nbnd(lg))
                qgrid(k) = gk(k,1)
             end do
@@ -2605,8 +2607,8 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
             if (exists) then
                open(42,file=nodetfile,action='read')
                print*,'Nodeid, reading: ',nodeid,nodetfile
- 34            read(42,*,end=35) lgold(ipar),iparold,nodeidold,ntimeold,
-     >          n1, n2
+ 34            read(42,*,end=35,err=36) 
+     >            lgold(ipar),iparold,nodeidold,ntimeold,n1, n2
                if (nodeidold.le.nodes) then !allocations above are for NODES
                   nchistartold(nodeidold,ipar) = n1
                   nchistopold(nodeidold,ipar) = n2
@@ -2639,7 +2641,10 @@ c$$$     >               print*,'nch,time:',nch,nchtimeold(nch)
                enddo
             endif
          endif
-
+         goto 37
+ 36      continue
+         exists = .false. !manage occasional read errors
+ 37      continue
          if (exists.and.nchtop.gt.nodes) then
             if (nodeid.eq.1) print*,'Using:',nodetfile,nchtopold,nchtop
             do nch = 1, nchtop
@@ -2860,7 +2865,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
          call clock(s1)
          valuesin = valuesout
          firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw 
-         if (firstrun.and.projectile.ne.'photon') then
+         if (firstrun) then !.and.projectile.ne.'photon') then
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
      >         vdon,vmat,vmatp)
@@ -3195,7 +3200,7 @@ C Concatenate the individual node timings into one file lg_ipar
                   write(nodetfile,'(i3,"_",i1,a11,"_",i3.3)') lg,ipar,
      >               ench,node
                   nodetfile=adjustl(nodetfile)
-                  open(42,file=nodetfile,status='old')
+                  open(42,file=nodetfile,status='old',err=54)
  42               read(42,'(a)',end=43) string
                   write(43,'(a)') string
                   goto 42
@@ -3203,6 +3208,7 @@ C Concatenate the individual node timings into one file lg_ipar
                enddo
                close(43)
             endif
+ 54         continue
             
             call MPI_Barrier(  MPI_COMM_WORLD, ierr)
 
@@ -3673,6 +3679,7 @@ c$$$      print*,'Total CPU time:',stop-start
       END
 
       subroutine makecorepsi(nznuci,zasymi,ry,corepin,r0in)
+      use vmat_module, only: nodeid
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -3688,7 +3695,7 @@ c$$$      print*,'Total CPU time:',stop-start
       r0 = 1.0
       corep = 0.0
       nnn = nznuc-nint(zasym)
-      print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
+c$$$      print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
       if (nznuc-nint(zasym).eq.11) then
          call hfz11(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.3) then
@@ -3744,21 +3751,23 @@ c$$$      print*,'Total CPU time:',stop-start
          call hfz79(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else
          stop 'Unknown target'
-      endif 
-      print*,'Core wave functions'
-      do lac = 0, lactop
-         do nac = lac + 1, nabot(lac) - 1
-            print'(2i3,i6,12x,f16.8,"  eV, ",f16.8,"  au")',
-     >         lac,nac,istoppsinb(nac,lac),enpsinb(nac,lac)*ry,
-     >         enpsinb(nac,lac)/2.0
+      endif
+      if (nodeid.eq.1) then
+         print*,'Core wave functions'
+         do lac = 0, lactop
+            do nac = lac + 1, nabot(lac) - 1
+               print'(2i3,i6,12x,f16.8,"  eV, ",f16.8,"  au")',
+     >            lac,nac,istoppsinb(nac,lac),enpsinb(nac,lac)*ry,
+     >            enpsinb(nac,lac)/2.0
+            enddo 
          enddo 
-      enddo 
-      print*,'Initial state'
-      nac = ninc !nabot(labot)
-      lac = linc !0
-      print'(2i3,i6,12x,f16.8,"  eV, ",f16.8,"  au")',
-     >   lac,nac,istoppsinb(nac,lac),enpsinb(nac,lac)*ry,
-     >         enpsinb(nac,lac)/2.0
+         nac = ninc             !nabot(labot)
+         lac = linc             !0
+         print*,'Initial state'
+         print'(2i3,i6,12x,f16.8,"  eV, ",f16.8,"  au")',
+     >      lac,nac,istoppsinb(nac,lac),enpsinb(nac,lac)*ry,
+     >      enpsinb(nac,lac)/2.0
+      endif
       return
       end
       
@@ -4572,7 +4581,7 @@ C statement below to use in tmatcco.f
          end do
          en = enpsinb(n,l)
          if (ery+enpsinb(ninc,linc)-enpsinb(n,l).gt.0.0.and.en.gt.0e0
-     >      .and.hlike) then
+     >      .and.hlike.and.ne2e.gt.0) then
             if (ntype.eq.-3) then
                eta = -1.0 / sqrt(en)
                do i = 1, meshr

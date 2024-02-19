@@ -1744,7 +1744,7 @@ C  IN(IS) is the principal quantum number of the lowest excited state
        L1     = lv
        SS1    = 2
 c
-       print*,'FCZ31;in(is),lv,nb:',in(is),lv,nb
+c$$$       print*,'FCZ31;in(is),lv,nb:',in(is),lv,nb
        do i = 1, is
           dir(i) = 1
 C  Do orthogonalise to the core states

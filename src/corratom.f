@@ -143,13 +143,15 @@ C Lithium 2s/2p
                 lithium2p=1
                 lithium  =0
                 meta = 0
-                print'(A)', 'Excited state Li 2p'
+                if (nodeid.eq.1)
+     >             print'(A)', 'Excited state Li 2p'
              end if
              if(i.eq.1 .and. n1.eq.2 .and. l1.eq.0) then
                 lithium2p=0
                 lithium  =1
                 meta = 0
-                print'(A)', 'Ground state Li 2s'
+                if (nodeid.eq.1)
+     >             print'(A)', 'Ground state Li 2s'
              end if
           end if
        end do

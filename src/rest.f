@@ -1168,14 +1168,13 @@ c            r0(1) = 2.5
             target = 'Ga I'
             enlevel = 48387.634
             enion  = 5.9993
-c            do l = 0, lamax
-c               corep(l) = 2.6
-c               r0(l) = 2.0
-c            enddo
-c            corep(0) = 8.0
-c            corep(1) = 8.0            
-c            r0(0) = 2.3
-c            r0(1) = 2.5
+            do l = 0, lamax
+               corep(l) = 18.195
+               r0(l) = 5.05
+            enddo
+            r0(0) = 3.297
+            r0(1) = 4.282
+            r0(2) = 3.511
          endif 
       elseif (n.eq.36) then ! Kr-like atoms and ions
          lactop = 2
