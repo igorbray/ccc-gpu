@@ -72,8 +72,13 @@ c$$$      integer, dimension(nodes) :: nchistop
       kblock(1)=min(384,nd/rows) ! min(1000,nd/rows)
       kblock(2)=min(384,nd/cols) ! min(1000,nd/cols)
 #else
-      kblock(1)=min(144,nd/rows) ! min(64,nd/rows)
-      kblock(2)=min(144,nd/cols) ! min(64,nd/cols)
+#if defined _single
+      kblock(1)=min(384,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(384,nd/cols) ! min(64,nd/cols)
+#else
+      kblock(1)=min(384,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(384,nd/cols) ! min(64,nd/cols)
+#endif      
 #endif
       kblock(1)=min(kblock(1),kblock(2))
       kblock(2)=kblock(1)

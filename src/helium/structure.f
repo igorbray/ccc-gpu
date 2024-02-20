@@ -31,7 +31,7 @@ c     enionry - in
 c     eproj   - in
 c     vdcore  - in
 c     slowe   - in
-      use vmat_module ! only for nodeid
+      use vmat_module, only: nodeid
       include 'par.f'
       character atom*20
       character string*40
@@ -73,12 +73,21 @@ c     the routine set_basis(...)
 c     set 2-el. angular coef. array.
       call setfang
 
-      open(15,file=adjustl(cnode//'states.core_parts'//ench),
-     >   action='WRITE')
-      open(4,file=adjustl(cnode//'F6'//ench),action='WRITE')
-      open(10,file=adjustl(cnode//'he-states'//ench),action='WRITE')
-      open(20,file=adjustl(cnode//'overlap.result'//ench),
-     >   action='WRITE')
+      if (nodeid.eq.1) then
+c$$$         open(15,file='states.core_parts'//ench,
+c$$$     >      action='WRITE')
+c$$$         open(4,file='F6'//ench,action='WRITE')
+c$$$         open(10,file='he-states'//ench,action='WRITE')
+c$$$         open(20,file='overlap.result'//ench,
+c$$$     >      action='WRITE')
+
+         open(15,file=adjustl(cnode//'states.core_parts'//ench),
+     >      action='WRITE')
+         open(4,file=adjustl(cnode//'F6'//ench),action='WRITE')
+         open(10,file=adjustl(cnode//'he-states'//ench),action='WRITE')
+         open(20,file=adjustl(cnode//'overlap.result'//ench),
+     >      action='WRITE')
+      endif
  10   open(3,file='F5',iostat=iostatF5,action='READ')
 
       if(iostatF5.ne.0) then
@@ -86,7 +95,8 @@ c     set 2-el. angular coef. array.
          stop
       end if
  110  read(3,'(a20)') atom
-      write(4,'(a20)') atom
+      if (nodeid.eq.1)
+     >write(4,'(a20)') atom
       
       lmaxhe(:,:) = 0
       nstate(:,:,:) = 0
@@ -97,13 +107,15 @@ c     set 2-el. angular coef. array.
       do ip=1,2
          do is=0,1
             read(3,*) lmaxhe(is,ip)
-            write(4,'("lmaxhe(s=",I1,",ip=",I1,") =",I3)')
+            if (nodeid.eq.1)
+     >write(4,'("lmaxhe(s=",I1,",ip=",I1,") =",I3)')
      >         is, ip, lmaxhe(is,ip)
             read(3,*) (nstate(i,is,ip), i=0,lmaxhe(is,ip))
             do i=0,lmaxhe(is,ip)
                if(nstate(i,is,ip) .lt. 0 ) nstate(i,is,ip) = 0
             enddo
-            write(4,'("nstate(s=",I1,",ip=",I1,")=",10I3)')
+            if (nodeid.eq.1)
+     >write(4,'("nstate(s=",I1,",ip=",I1,")=",10I3)')
      >         is, ip, (nstate(i,is,ip),i=0,lmaxhe(is,ip))
          end do
       end do
@@ -125,21 +137,25 @@ c     if i_dipmom = 4  singlet triplet mixing is calculated
 c     if i_dipmom = 5  singlet triplet mixing and osc. strength are calculated
 
       read(3,*)  nhfo, i_dipmom, i_r_sq, i_ort, i_gsort, gamma, r0
-      write(4,'(" nhfo =",I3," i_dipmom =",I3," i_r_sq =",I3,
+      if (nodeid.eq.1)
+     >write(4,'(" nhfo =",I3," i_dipmom =",I3," i_r_sq =",I3,
      >   " i_ort =",I3," , i_gsort =",I3)')
      >   nhfo, i_dipmom, i_r_sq, i_ort, i_gsort
       inquire(file='JMitroy_par',exist=exists)
       if (exists) then
-         write(4,'("Set two-electron pol.pot parameters to ",
+         if (nodeid.eq.1)
+     >write(4,'("Set two-electron pol.pot parameters to ",
      >        "J.Mitroy choice: PRA 78(2008)012715")') 
          gamma = 0.4814
          r0 = 1.361
       endif
-      write(4,'("Di-electron pol.pot.: gamma =",F10.5," r0 =",F10.5)') 
+      if (nodeid.eq.1)
+     >write(4,'("Di-electron pol.pot.: gamma =",F10.5," r0 =",F10.5)') 
      >     gamma, r0
 
       if(nhfo.eq.1) then
-         write(4,'(" numerical h.f. orbitals are used")')
+         if (nodeid.eq.1)
+     >write(4,'(" numerical h.f. orbitals are used")')
       end if
 
       i_stmix = 0
@@ -190,17 +206,20 @@ c     If inc = 12, remove all interaction between frozen-core manifolds for stat
       if(inc. eq. 10) then
          inc = 1
          isw_manifold = 1
-         write(4,'("isw_manifold = ",I5," setting inc=1")') 
+         if (nodeid.eq.1)
+     >write(4,'("isw_manifold = ",I5," setting inc=1")') 
      >        isw_manifold 
       elseif(inc. eq. 11) then
          inc = 1
          isw_manifold = 2
-         write(4,'("isw_manifold = ",I5," setting inc=1")') 
+         if (nodeid.eq.1)
+     >write(4,'("isw_manifold = ",I5," setting inc=1")') 
      >        isw_manifold 
       elseif(inc. eq. 12) then
          inc = 1
          isw_manifold = 3
-         write(4,'("isw_manifold = ",I5," setting inc=1")') 
+         if (nodeid.eq.1)
+     >write(4,'("isw_manifold = ",I5," setting inc=1")') 
      >        isw_manifold 
       endif
 
@@ -211,7 +230,8 @@ c     are used to perform diagonalization or optimized orbitals have been made (
 c     the previous step of CI).  In this case we have set in routine 
 c     start_structure(...)  nswitch=0 and igorfunctions=1. This way we avoid 
 c     making new s.p.orbitals on this step.
-      write(4,'("if inc=1 rearrange.f is on : inc =",I3)') inc
+      if (nodeid.eq.1)
+     >write(4,'("if inc=1 rearrange.f is on : inc =",I3)') inc
       if(nswitch.eq.1) igorfunctions = igorf
 c
 c     If isubset = 0  - standard calculation 
@@ -223,7 +243,8 @@ c                       the singlet state frozen-core  orbitals, then
 c                       the last state is summed up with all upper states
 c     If isubset = -1 or 2, Then the last state is summed up with all upper states
       if(isubset.eq.-1.or.isubset.eq.2) then
-         write(4,'("isubset =",I3,", the last state for given ",
+         if (nodeid.eq.1)
+     >write(4,'("isubset =",I3,", the last state for given ",
      >      "symmetry is summed up with all upper states")') isubset
 c     
          if(isubset.eq.-1) then
@@ -246,14 +267,17 @@ c
       else
          imake_summed_state = 0 ! default
       end if     
-      write(4,'("if isubset=1 (3) then subset of F.C. orbital is ",
+      if (nodeid.eq.1)
+     >write(4,'("if isubset=1 (3) then subset of F.C. orbital is ",
      >   "used to perform diagonalization: isubset=",I3)') isubset
 c
-      write(4,'("if igorfunctions=1 then NO Laguerre functions are ",
+      if (nodeid.eq.1)
+     >write(4,'("if igorfunctions=1 then NO Laguerre functions are ",
      >   "made to perform diagonalization: igorfunctions=",I3)')
      >   igorfunctions
 c      
-      write(4,'("i_exclude =",I3,", partN =",F10.4,", en_max =",
+      if (nodeid.eq.1)
+     >write(4,'("i_exclude =",I3,", partN =",F10.4,", en_max =",
      >   F10.5)') i_exclude, partN, en_max
 c     if i_exclude=0, then no states are excluded due to partstN(N).le.partN
 c                  = Ncore(.not.0), then coeffic. up to Ncore ionic orbital 
@@ -273,7 +297,8 @@ c        if it is < 0 then en_max = (total energy in the incident channel = inci
 c                                    incident state energy (above frozen core))
 c     
       read(3,*) l_ion_core, (nk_ion_core(i), i=0,l_ion_core)
-      write(4,'("l_ion_core=",I3,", nk_ion_core(i)=",20I3)') 
+      if (nodeid.eq.1)
+     >write(4,'("l_ion_core=",I3,", nk_ion_core(i)=",20I3)') 
      >     l_ion_core,(nk_ion_core(i), i=0,l_ion_core)
 c     l_ion_core < 0 - no limitations on outer electron configurations
 c     l_ion_core >= 0 - outer electron allowed to be in continuum like config. 
@@ -292,7 +317,8 @@ c     here  Nmax  is determined (number of helium states).
          end do
       end do
       Nmax=isum
-      write(4,'("Nmax =",I3)') Nmax
+      if (nodeid.eq.1)
+     >write(4,'("Nmax =",I3)') Nmax
       if (nodeid.eq.1) print*, 'Nmax =', Nmax
       if (Nmax.gt.KNM) then
          print*,'Have too many target states, need to increse KNM to',
@@ -318,7 +344,8 @@ c     If igorfunction=0 then Laguerre functions are made in this file,
 c     If igorfunction=1 then Laguerre functions are NOT made and
 c     s.p. functions from Igors programm or F.C. orbitals for triplet states
 c     or optimized orbitals are used to perform diagonalization.
-         write(4,'("igorfunctions=1, Laguere functions are not made")') 
+         if (nodeid.eq.1)
+     >write(4,'("igorfunctions=1, Laguere functions are not made")') 
          do n =1, 8
             read(3,'(a40)') string
             if (nodeid.eq.1) print '(''Skipping line: '',a40)', string
@@ -360,7 +387,7 @@ c
      >     enionry,eproj,Nmax,nspmW,namax,E,
      >   imake_summed_state,vdcore,slowe,i_stmix)
 
-      use vmat_module ! only for nodeid
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension lmaxhe(0:1,2), nextsym(0:lamax)
       logical filled(0:3,0:lamax)
@@ -556,7 +583,8 @@ c
          print*,'increase KNM to value of Nmax+1 =', Nmax+1
          stop
       end if
-      write(15,'("states not included in the scattering calculation",
+      if (nodeid.eq.1)
+     >write(15,'("states not included in the scattering calculation",
      >     " have  -  in first row  or N =",I3)') Nmax+1
 
       C(:,:,:) = 0d0
@@ -581,10 +609,12 @@ c     This is case when nswitch=0 (do later: it also case when working on subset
             print*,'Make sure that in file F5 i_exclude.ne.0, ',
      >         'and partN, en_max are chosen in such way that no ',
      >         'states are excluded.'
-            write(4,'("File Set.order_of_states exists, inclusion ",
+            if (nodeid.eq.1)
+     >write(4,'("File Set.order_of_states exists, inclusion ",
      >         "and ordering of the target states for each ",
      >         "symmetry is given in this file.")')
-            write(4,'("Make sure that in file F5 i_exclude.ne.0, ",
+            if (nodeid.eq.1)
+     >write(4,'("Make sure that in file F5 i_exclude.ne.0, ",
      >         "and partN, en_max are chosen in such way that no ",
      >         "states are excluded.")')
             call read_Set_order_of_states(nstate,iorder_st)
@@ -599,7 +629,8 @@ c     this programm is in the file  hel-3.f
      >   print*,'Calling configuration interaction routines'
       do nsll=1,nslm
          Nadd = 0
-         write(4,*) nsll         
+         if (nodeid.eq.1)
+     >write(4,*) nsll         
          iter = 0
          call hel(enionry,il,is,lpar,CI,w,fl,maxf,minf,iter)
          if (ncm.eq.0) cycle
@@ -658,7 +689,8 @@ c     This array will be sorted by insertion sort algorithm.
                Num_ioncore(j) = itmp
             end do
          end if
-c$$$         write(4,'(" Energies of the ion-core orbitals:")')
+c$$$         if (nodeid.eq.1)
+c$$$     >write(4,'(" Energies of the ion-core orbitals:")')
 c$$$         do j=1,nicm
 c$$$            nc = ncore(Num_ioncore(j))
 c$$$            write(4,'(" j,Num_ioncore(j),nc,lo(nc),e1r(nc,nc):",
@@ -666,10 +698,13 @@ c$$$     >         4i5,e15.5)') j,Num_ioncore(j),nc,lo(nc),e1r(nc,nc)
 c$$$         end do
 
 c     
-         write(15,'("    Nc  N label l s par  E(eV)  partstN(N)",9X,
+         if (nodeid.eq.1)
+     >write(15,'("    Nc  N label l s par  E(eV)  partstN(N)",9X,
      >        "corepart(N,nic)")')
-         write(15,'(29X," nic = ",10I6)') (i, i=1,nicm)
-         write(15,'(29X," l(i) =",10I6)') (lo(ncore(i)), i=1,nicm)
+         if (nodeid.eq.1)
+     >write(15,'(29X," nic = ",10I6)') (i, i=1,nicm)
+         if (nodeid.eq.1)
+     >write(15,'(29X," l(i) =",10I6)') (lo(ncore(i)), i=1,nicm)
          
          j_summed = i_exclude
  15      iplus = 0              ! if a state is not included then iplus = iplus + 1
@@ -722,7 +757,8 @@ c     To include more states j_summed is increased by 1.
                      stop
                   end if
                   Nadd = nstate(il,is,ip) - Nofgfcst
-                  write(15,'("required number of states=",I3,
+                  if (nodeid.eq.1)
+     >write(15,'("required number of states=",I3,
      >                 ", current number of states=",I3,", Nadd=",I3,
      >                 ", j_summed=",I3)') nstate(il,is,ip), Nofgfcst,
      >                 Nadd, j_summed
@@ -794,13 +830,16 @@ c     state excluded if jpartN=0
  25      continue   
 c     print*, '***** Nofgfcst=', Nofgfcst
          if(Nofgfcst.gt.nstate(il,is,ip)) then
-            write(10,'("Warning: ",I3,"  states were not included ",
+            if (nodeid.eq.1)
+     >write(10,'("Warning: ",I3,"  states were not included ",
      >           "for target symmetry (l,s,par)=", 3I3,
      >           " below energy (relative to ion core) en_max=",F10.5)')  
      >           Nofgfcst - nstate(il,is,ip), il, is, lpar, en_max
-            write(10,'("To include those states increase  ",
+            if (nodeid.eq.1)
+     >write(10,'("To include those states increase  ",
      >           "nstate(il,is,ip)  in  file F5.")')
-            write(10,*)
+            if (nodeid.eq.1)
+     >write(10,*)
          end if
          Nofgfcst_total = Nofgfcst_total + Nofgfcst
 c
@@ -896,14 +935,18 @@ c     call routine for making projection operator for nonuniqueness.
 
       if (inc.eq.1) then
 c     here s.p. states are rearranged in case of frozen core treatment of HE.
-         write(4,'("here s.p. states are rearranged")')
-         write(4,'("frozen core treatment of ",A20,"is assumed")') atom
+         if (nodeid.eq.1)
+     >write(4,'("here s.p. states are rearranged")')
+         if (nodeid.eq.1)
+     >write(4,'("frozen core treatment of ",A20,"is assumed")') atom
 c$$$         write(6,'("frozen core treatment of ",A20,"is assumed")') atom
          call find_nsp_tot(Nmax,nspmW,nspm,C,lo,nsp_tot)
          call rearrange(Nmax,nspmW,nspm,nsp_tot,lo,ko,
      >        fl,maxf,minf,C,los)
-         write(10,'("******************************************")') 
-         write(10,'("rearranged s.p. functions: HE state overlaps")') 
+         if (nodeid.eq.1)
+     >write(10,'("******************************************")') 
+         if (nodeid.eq.1)
+     >write(10,'("rearranged s.p. functions: HE state overlaps")') 
          if(i_ort.eq.1)
      >        call orthe(Nmax,nspmW,C)
          if(i_dipmom.gt.0)
@@ -912,16 +955,21 @@ c$$$         write(6,'("frozen core treatment of ",A20,"is assumed")') atom
          if(i_r_sq.eq.1)
      >        call r2s(Nmax,nspmW,C,fl,minf,maxf,lo)
          if(isubset.eq.1.and.nswitch.eq.1) then
-            write(4,*)
-            write(4,'("*******************************************",
+            if (nodeid.eq.1)
+     >write(4,*)
+            if (nodeid.eq.1)
+     >write(4,'("*******************************************",
      >         "*********************")')
-            write(4,*)
+            if (nodeid.eq.1)
+     >write(4,*)
             if(i_orb_subset .eq. 1) then
-               write(4,'("F.C. orbitals for triplet states are ",
+               if (nodeid.eq.1)
+     >write(4,'("F.C. orbitals for triplet states are ",
      >              "used as single particle basis",/,
      >              "to perform diagonalization")')
             else
-               write(4,'("F.C. orbitals for singlet states are ",
+               if (nodeid.eq.1)
+     >write(4,'("F.C. orbitals for singlet states are ",
      >              "used as single particle basis",/,
      >              "to perform diagonalization")')
 
@@ -991,8 +1039,10 @@ c
 
 c-------------------------------------------------------------------
       call find_namax(Nmax,namax)
-      write(4,*)
-      write(4,'("namax =",I5)') namax
+      if (nodeid.eq.1)
+     >write(4,*)
+      if (nodeid.eq.1)
+     >write(4,'("namax =",I5)') namax
       
 c-------------------------------------------------------------------
       call F90_make_new_C(C,Nmax,nspmW,namax)
@@ -1090,6 +1140,7 @@ c$$$  al = (almax + almin) / 2.0
       
 c-------------------------------------------------------------------
       subroutine find_major_config(Nmax,nspmW,C)
+      use vmat_module, only: nodeid
       include 'par.f'
       double precision  C(Nmax+1,nspmW,nspmW),ortint
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)
@@ -1106,7 +1157,8 @@ c-------------------------------------------------------------------
       integer  l_big(nspmCI)
 
 c     Find major configuration for each state.
-      write(10,'("Find major configuration for each state.")')
+      if (nodeid.eq.1)
+     >write(10,'("Find major configuration for each state.")')
       do il=0,lamax
          do is=0,1
             do ip=-1,1,2
@@ -1200,7 +1252,8 @@ c     In all other code it is other way around.
                      l2orb(N) = n_tmp   
 c                     
                      
-                     write(10,'("major config.:",5I5,F10.5)') N,
+                     if (nodeid.eq.1)
+     >write(10,'("major config.:",5I5,F10.5)') N,
      >                    l1orb(N), n1orb(N), l2orb(N), n2orb(N), f_big
                      config_maj(N) = f_big
                      if(f_big .eq. 0.0) then
@@ -1219,6 +1272,7 @@ c
       end
 c-------------------------------------------------------------------
       subroutine printCcoef(Nmax,nspmW,C,E)
+      use vmat_module, only: nodeid
       include 'par.f'
       parameter (ic_20 = 20)
       double precision  C(Nmax+1,nspmW,nspmW),  E(KNM),
@@ -1240,21 +1294,24 @@ c-------------------------------------------------------------------
       integer icp_c(ic_20)
       common /increarrange/ inc
 c     
-      write(10,'("Nmax =",I3)') Nmax
+      if (nodeid.eq.1)
+     >write(10,'("Nmax =",I3)') Nmax
 c$$$      if (lamax.gt.23) then 
 c$$$         print*, 'lorb(23) needs increasing'
 c$$$         print*, 'at least to lamax=',lamax
 c$$$         stop 
 c$$$      endif
       do N=1,Nmax
-         write(10,'(A3,", N=",I3,"  l=",I3,"  s=",I3," parity=",I3,
+         if (nodeid.eq.1)
+     >write(10,'(A3,", N=",I3,"  l=",I3,"  s=",I3," parity=",I3,
      >      ", energy=",F12.5,", major config.:(",2(I2,A1),")",
      >      F10.4)')
      >      chan(N), N, ll(N), ls(N), lparity(N), E(N),
      >      n1orb(N), lorb(l1orb(N)), n2orb(N), lorb(l2orb(N)),
      >      config_maj(N)
 
-         write(10,'("   n1   n2    l1  l2",8X,"-",7X,"CI weights")')
+         if (nodeid.eq.1)
+     >write(10,'("   n1   n2    l1  l2",8X,"-",7X,"CI weights")')
          sum = 0d0
          do j=1,nam(N)
             do i=1,nam(N)
@@ -1266,7 +1323,8 @@ c$$$      endif
                   tmp1 = tmp*dsqrt(ortint(n1,n1)*ortint(n2,n2))
                   sum = sum + tmp1*tmp1     
                   if(n1.eq.n2) then
-                     write(10,'(2I5,2X,2I4,2X,2E12.4)')
+                     if (nodeid.eq.1)
+     >write(10,'(2I5,2X,2I4,2X,2E12.4)')
      >                  n1,n2,lo(n1),lo(n2),
      >                  real(tmp1),real(tmp1*tmp1)
                   else
@@ -1294,11 +1352,13 @@ c     note: ion core orbitals (n2) form orthonomal set
                      kl_m = kl
 c
                      if(kl_m.eq.0) then
-                        write(10,'(2I5,2X,2I4,2X,2E12.4)')
+                        if (nodeid.eq.1)
+     >write(10,'(2I5,2X,2I4,2X,2E12.4)')
      >                     n1,n2,lo(n1),lo(n2),
      >                     real(tmp1),real(tmp1*tmp1)
                         else                           
-                           write(10,'(2I5,2X,2I4,2X,2E12.4,
+                           if (nodeid.eq.1)
+     >write(10,'(2I5,2X,2I4,2X,2E12.4,
      >                        "; rest**2:",
      >                        E10.3,20(",",I3,":",E10.3:))')
      >                        n1,n2,lo(n1),lo(n2),
@@ -1309,7 +1369,8 @@ c
                end if
             end do
         end do
-        write(10,'("sum =",F10.6)') sum
+        if (nodeid.eq.1)
+     >write(10,'("sum =",F10.6)') sum
       end do
       return
       end
@@ -1421,6 +1482,7 @@ c     N_opt  -  number of states to be optimized for given symmetry (il,is,ipar)
 c     Nmax - the number of states (of all symmetries)
 c     C(Nmax+1,nspmW,nspmW) - CI array
       subroutine optim_spf(Nmax,nspmW,C,atom)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
@@ -1455,9 +1517,12 @@ c     After f.c.orbitals are made in this routine the nspm is number
 c     of f.c.orbital plus number of core functions and 
 c     must be less then nspmax. (Usually nspmCI<<nspmax)
 
-      write(20,'("******************************************")') 
-      write(20,'("rearranged s.p. functions ")') 
-      write(4,'("Make optimized s.p.orbitals")')
+      if (nodeid.eq.1)
+     >write(20,'("******************************************")') 
+      if (nodeid.eq.1)
+     >write(20,'("rearranged s.p. functions ")') 
+      if (nodeid.eq.1)
+     >write(4,'("Make optimized s.p.orbitals")')
       print*, 'Making optimized s.p.orbitals and',
      >     ' starting new CI calculations'
 
@@ -1485,7 +1550,8 @@ c     |n1,n2> is not antisymmetrized. Do it only for the current symmetry (il,is
       
 c------------------------------------------------------------------------------------
       if(atom.eq."helium") then
-         write(4,'("!!! Special choice for He optimised states",
+         if (nodeid.eq.1)
+     >write(4,'("!!! Special choice for He optimised states",
      >      "have been made. See file structure.f, routine ",
      >      "optim_spf(Nmax,nspmW,C,atom), array local_nstate(,,)")')
          do ip=-1,1         
@@ -1741,7 +1807,8 @@ c     then one of the orbitals must be excluded to avoid linear dependence probl
                         end do
  20                     if(itest.eq.1) then
                            ko(n) = -1
-                           write(4,'("Excluded orbital: l=",i3,
+                           if (nodeid.eq.1)
+     >write(4,'("Excluded orbital: l=",i3,
      >                        ", Nsym=",i5,", ic=",i3,
      >                        ", ortint(n,nv)=",E10.4,
      >                        ", n,nv:",2i5)')
@@ -1813,7 +1880,8 @@ c     form new array e1r(nsp1,nsp2) and ortint(nsp1,nsp2)
          end do
       end do     
 c-------------------------------------------------------------------------------- 
-      write(4,'("Number of the optimized orbitals: N_opt =",I4)') N_opt  
+      if (nodeid.eq.1)
+     >write(4,'("Number of the optimized orbitals: N_opt =",I4)') N_opt  
 
 c     reset to zero all necessary arrays:
       do nic=1,nicm
@@ -1857,6 +1925,7 @@ c------------------------------------------------------------------------
 c     set optimized s.p. basis for the given symmetry. 
 c     Called from file hel-3.f, routine  hel(...).
       subroutine set_basis_optim(il,is,ip,nk1)
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension  nk1(0:lomax)   ! this array is passed here to exclude only those orbitals from old basis which will be used for given symmetry.
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)
@@ -1980,7 +2049,8 @@ c     include_opt(nn,ic) = -1 for ionic core orbitals in coding above.
                include_opt(nn_find,ic) = -1
                ko(nsp) = ko(nn_find)
             else
-               write(4,'("ATTENTION: Have not find old orbital",
+               if (nodeid.eq.1)
+     >write(4,'("ATTENTION: Have not find old orbital",
      >            " to form overlap, symmetry: l,s,p:",3I4,
      >            ", orbital: n,l,ic:",3I4)')
      >            il, is, ip, nsp, lo(nsp), ic
@@ -2015,7 +2085,8 @@ c
       do n=nspm-N_opt+1,nspm
          Nsym = ngivesym(n)
          if(Nsym.eq.Nsym_current) then
-            write(4,'(I5,", l s par:",3I3,
+            if (nodeid.eq.1)
+     >write(4,'(I5,", l s par:",3I3,
      >         ", n,lo(n),ko(n),ion_core: ",4I5)') 
      >         Nsym,il,is,ip,n,lo(n),ko(n), ngive_ion_orb(n)
          end if
@@ -2089,8 +2160,10 @@ C     This routine reads array iorder_st(k,il,is,ip) from file Set.order_of_stat
  10   do il=0,lam
          do is=0,1
             do ip=1,2
-               write(4,*) il,is,ip
-               write(4,'(50I3)') (iorder_st(k,il,is,ip),
+               if (nodeid.eq.1)
+     >write(4,*) il,is,ip
+               if (nodeid.eq.1)
+     >write(4,'(50I3)') (iorder_st(k,il,is,ip),
      >            k=1,nstate(il,is,ip))
             end do
          end do
@@ -2139,6 +2212,7 @@ c     all CI coefficients. The sign is positive if the sum is positive and
 c     negative if  the sum is negative. In the last case all CI coefficients will
 c     be multiplied by (-1.0).
       subroutine  resolve_sign_final(Nmax,nspmW,C)
+      use vmat_module, only: nodeid
       include 'par.f'
       
       double precision C(Nmax+1,nspmW,nspmW), ortint
@@ -2187,16 +2261,18 @@ c            print*, N, chan(N)
          end if
 c         print*,'***** N=',N,CI_sum(N)
          if(dabs(CI_sum(N)) .lt. small) then
-            print*,'Attention: for state ', chan(N), ' N=',N,
+	 if (nodeid.eq.1)
+     >      print*,'Attention: for state ', chan(N), ' N=',N,
      >         ' there can be a problem with the ',
      >         'sign of the wave function: CI coefficient sum ',
      >         'is too small in the absolute value:', CI_sum(N)
-            print*,'nam(N)=', nam(N)
+            if (nodeid.eq.1) print*,'nam(N)=', nam(N)
             do i=1,nam(N)
                do j=1,nam(N)
                   n1 = na(i,N)
                   n2 = na(j,N)
-                  print*, ' n1, n2, C(N,i,j):', n1, n2, C(N,i,j)
+                  if (nodeid.eq.1)
+     >		  print*, ' n1, n2, C(N,i,j):', n1, n2, C(N,i,j)
                end do
             end do
          end if
@@ -2212,8 +2288,11 @@ c         print*,'***** N=',N,sign_wf
          
       end do                    ! end  N  loop
 c$$$      print*,'!!!!!!'
-      open(534,file=adjustl(cnode//'save.sign.wf'//ench))
-      write(534,'("lable         N   WaveFunc(i1,i2)        CI_sum")')
+      if (nodeid.eq.1)
+c$$$     >   open(534,file='save.sign.wf'//ench)
+     >   open(534,file=adjustl(cnode//'save.sign.wf'//ench))
+      if (nodeid.eq.1)
+     >write(534,'("lable         N   WaveFunc(i1,i2)        CI_sum")')
       do N=1,Nmax
          tmp1 = 0.0
          do i=1,nam(N)

@@ -86,7 +86,7 @@ c-------- This part of the code is to find the number of   -------------
 c--------   frozen core func. N_fr_core = ionic core + frozen core orbitals ----------
 c     Assume that core orbitals are orthogonal.
       subroutine find_nsp_tot(Nmax,nspmW,nspm,C,lo,nsp_tot)
-      use vmat_module !nodeid only
+      use vmat_module, only: nodeid
       include 'par.f'
       double precision  C(Nmax+1,nspmW,nspmW)
       common /corearray/ nicm, ncore(nspmCI)
@@ -140,7 +140,8 @@ c     >                       (ltmp(i), i=1,nlct)
          print*,'nsp_tot =', nsp_tot, ',  nspmax =',  nspmax
          stop
       end if
-      write(4,'("Number of frozen core functions is  nsp_tot =",I6)') 
+      if (nodeid.eq.1)
+     >write(4,'("Number of frozen core functions is  nsp_tot =",I6)') 
      >      nsp_tot
       if (nodeid.eq.1)
      >   write(*,'("Number of frozen core functions is  nsp_tot =",I6)') 
@@ -151,6 +152,7 @@ c     >                       (ltmp(i), i=1,nlct)
 c********************************************************************************
       subroutine rearrange(Nmax,nspmW,nspm,nsp_tot,
      >     lo,ko,fl,maxf,minf,C,los)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)
       common/hame1/ e1r(nspmax,nspmax)
@@ -190,8 +192,10 @@ c     After f.c.orbitals are made in this routine the nspm is number
 c     of f.c.orbital plus number of core functions and 
 c     must be less then nspmax. (Usually nspmCI<<nspmax)
 
-      write(20,'("******************************************")') 
-      write(20,'("rearranged s.p. functions ")') 
+      if (nodeid.eq.1)
+     >write(20,'("******************************************")') 
+      if (nodeid.eq.1)
+     >write(20,'("rearranged s.p. functions ")') 
 c     
 
 c     restore the CI coef. to be as for antisymmetric configurations
@@ -607,22 +611,25 @@ c$$$      end if
 c-----------------------------------------------------------------           
       do n1=1,-nspm
          if(n1 .eq. 1) then
-            write(20,'("rearranged s.p. state overlaps")') 
-            write(20,'(4X,"l1   l2   n1   n2   s1   s2  <n1|n2>")')
+            if (nodeid.eq.1)
+     >write(20,'("rearranged s.p. state overlaps")') 
+            if (nodeid.eq.1)
+     >write(20,'(4X,"l1   l2   n1   n2   s1   s2  <n1|n2>")')
          endif
          do n2=n1,nspm
             if(loN(n1).eq.loN(n2)) then
                if(n1.ne.n2.and.dabs(ortint(n1,n2)).le.1.0D-08) then
                   ortint(n1,n2) = 0.0D0
                   ortint(n2,n1) = 0.0D0
-c                  write(20,'(" <n1|n2> <= 1.0D-08 ")')
+c                 write(20,'(" <n1|n2> <= 1.0D-08 ")')
                end if
                if(dabs(ortint(n1,n2) - 1.0D0).le.1.0D-08) then
                   ortint(n1,n2) = 1.0D0
                   ortint(n2,n1) = 1.0D0
 c                  write(20,'(" <n1|n2> - 1.0D0 <= 1.0D-08 ")')
                end if
-               write(20,'(6I5,1P,2E20.10E2)') loN(n1),loN(n2),n1,n2,
+               if (nodeid.eq.1)
+     >write(20,'(6I5,1P,2E20.10E2)') loN(n1),loN(n2),n1,n2,
      >              los(n1),los(n2),real(ortint(n1,n2))
      >             , r1elk(0,fl(1,n1),fl(1,n2),
      >               minf(n1),minf(n2),maxf(n1),maxf(n2))
@@ -638,13 +645,17 @@ c     After this routine the ion-core orbital are first nicm orbitals.
       do nic=1,nicm
          ncore(nic) = nic
       end do
-      write(20,'("rearranged s.p. functions:")')
-      write(20,'("if N=ngiveN(n) = 0, ic=ngiveic(n)=0  then ",
+      if (nodeid.eq.1)
+     >write(20,'("rearranged s.p. functions:")')
+      if (nodeid.eq.1)
+     >write(20,'("if N=ngiveN(n) = 0, ic=ngiveic(n)=0  then ",
      >   "this is a core function")')
-      write(20,'(4X,"n    l   los   N   ic  minf maxf")') 
+      if (nodeid.eq.1)
+     >write(20,'(4X,"n    l   los   N   ic  minf maxf")') 
       do n=1,nspm
 c     if ngiveN(n) = 0 and ngiveic(n)=0 then this is a core orbital
-         write(20,'(6I5,I6)') n,lo(n),los(n),ngiveN(n),ngiveic(n),
+         if (nodeid.eq.1)
+     >write(20,'(6I5,I6)') n,lo(n),los(n),ngiveN(n),ngiveic(n),
      >      minf(n),maxf(n)
       end do
 c---------------------------------------------------------------------
@@ -749,6 +760,7 @@ c----------------------------------------------------------------------
       subroutine stNcore(Nmax,nspmW,N,C,la,is,lpar,En,enionry,
      >     inum,Nofgfcst_add,jpartN,partN,en_max,partstN,
      >     j_summed,Nadd,Num_ioncore)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /corepartarray/ corepart(KNM,nicmax), ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
@@ -819,7 +831,8 @@ c
          tmp = tmp + corepart(N,nnic)
       end do
       if(abs(tmp).le.0.999.or.abs(tmp).ge.1.001) then
-         write(10,'("Warning: "," N =",i3,
+         if (nodeid.eq.1)
+     >write(10,'("Warning: "," N =",i3,
      >        " in subroutine stNcore(..):",
      >         " tmp.ne.1.0; tmp =",F10.5)') N,tmp
       end if
@@ -867,7 +880,8 @@ c               print*, inum,N,la,partstN(N), Nadd, Nofgfcst_add
       end if
       
       if(jpartN.eq.0) then
-         write(15,'(1A,1X,I3,1X,"- -",1X,"- -",1X,2I2,I3,
+         if (nodeid.eq.1)
+     >write(15,'(1A,1X,I3,1X,"- -",1X,"- -",1X,2I2,I3,
      >      F8.3,2X,F5.3,1X,100(1X,F5.3))') 
      >      inornot(2),inum, la, is, lpar,st_energy_eV, 
      >      partstN(N), (real(corepart(N,i)), i=1,nicm)
@@ -879,12 +893,14 @@ c               print*, inum,N,la,partstN(N), Nadd, Nofgfcst_add
             if(st_energy_eV.lt.en_max) jpartN = 1 ! state may be included     
          end if
          if(N.gt.Nmax.or.ii.eq.2) then         
-            write(15,'(1A,1X,I3,1X,"---",1X,"---",1X,2I2,I3,
+            if (nodeid.eq.1)
+     >write(15,'(1A,1X,I3,1X,"---",1X,"---",1X,2I2,I3,
      >         F8.3,2X,F5.3,1X,100(1X,F5.3))') 
      >         inornot(ii),inum, la, is, lpar,st_energy_eV, 
      >         partstN(N), (real(corepart(N,i)), i=1,nicm)
          else
-            write(15,'(1A,1X,I3,1X,I3,1X,A3,1X,2I2,I3,
+            if (nodeid.eq.1)
+     >write(15,'(1A,1X,I3,1X,I3,1X,A3,1X,2I2,I3,
      >         F8.3,2X,F5.3,1X,100(1X,F5.3))') 
      >         inornot(ii),inum, N, chan(N), la, is, lpar,st_energy_eV, 
      >         partstN(N), (real(corepart(N,i)), i=1,nicm)            
@@ -894,7 +910,7 @@ c               print*, inum,N,la,partstN(N), Nadd, Nofgfcst_add
       end
 c************************************************************************   
       subroutine printcoreparts(partN,Nmax,nspmW,C,E,Nofgfcst,partstN)
-      use vmat_module !nodeid only
+      use vmat_module, only: nodeid
       include 'par.f'
       common /corepartarray/ corepart(KNM,nicmax),ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
@@ -912,7 +928,8 @@ c************************************************************************
          stop
       end if
 c     
-      write(10,'("start printcoreparts(...)")')
+      if (nodeid.eq.1)
+     >write(10,'("start printcoreparts(...)")')
 
       if (nodeid.eq.1) then
          write(*,'("core orbitals:   n   l(n)   ko(n)")')
@@ -922,37 +939,50 @@ c
          end do
       endif
       
-      write(10,'("corepart(N,nic) is the probability ",
+      if (nodeid.eq.1)
+     >write(10,'("corepart(N,nic) is the probability ",
      >   " to find state N")')
-      write(10,'("in the manifold based on core orbital i=1,nicm")')
-      write(10,'("partstN(N) is the probability to find state N")')
-      write(10,'("in the manifold based on the core orbitals ")') 
-      write(10,
+      if (nodeid.eq.1)
+     >write(10,'("in the manifold based on core orbital i=1,nicm")')
+      if (nodeid.eq.1)
+     >write(10,'("partstN(N) is the probability to find state N")')
+      if (nodeid.eq.1)
+     >write(10,'("in the manifold based on the core orbitals ")') 
+      if (nodeid.eq.1)
+     >write(10,
      >   '("   nic  ic=ncore(nic) lo(ic)    ko(ic)   e1r(ic,ic)")')
       
       do nic=1,nicm
          ic = ncore(nic)
          ecore(nic) = e1r(ic,ic)
-         write(10,'(4(I5,5X),E12.5)') nic,ic,lo(ic),ko(ic),e1r(ic,ic)
+         if (nodeid.eq.1)
+     >write(10,'(4(I5,5X),E12.5)') nic,ic,lo(ic),ko(ic),e1r(ic,ic)
       end do
-      write(10,'("  N      l s par   E(N)a.u.     partstN(N)",12X,
+      if (nodeid.eq.1)
+     >write(10,'("  N      l s par   E(N)a.u.     partstN(N)",12X,
      >   "corepart(N,nic)")')
-      write(10,'(33X," nic= ",100I13)') (i, i=1,nicm)
-      write(10,'(33X," l(i)=",100I13)') (lo(ncore(i)), i=1,nicm)
+      if (nodeid.eq.1)
+     >write(10,'(33X," nic= ",100I13)') (i, i=1,nicm)
+      if (nodeid.eq.1)
+     >write(10,'(33X," l(i)=",100I13)') (lo(ncore(i)), i=1,nicm)
 
       ii = 0
       do N=1,Nmax
-         write(10,'(I3,1x,A3,1X,2I2,I3,E15.5,2X,E12.5,1X,
+         if (nodeid.eq.1)
+     >write(10,'(I3,1x,A3,1X,2I2,I3,E15.5,2X,E12.5,1X,
      >        100(1X,E12.5))') N, chan(N), ll(N), ls(N), lparity(N),
      >        real(E(N)), partstN(N), (real(corepart(N,i)), i=1,nicm)
          if(partstN(N).gt.partN) ii = ii + 1
       end do
-      write(10,'("There were ",I3," states with  ",
+      if (nodeid.eq.1)
+     >write(10,'("There were ",I3," states with  ",
      >     "partstN(N) > partN =",E10.5)') ii, partN
       if(ii.lt.Nofgfcst) then
-         write(10,'("But ",I3," of states with partstN(N) > partN",
+         if (nodeid.eq.1)
+     >write(10,'("But ",I3," of states with partstN(N) > partN",
      >        " were not included in the calculation.")') Nofgfcst - ii
-         write(10,'("To include those states increase  nstate(l,is,ip)",
+         if (nodeid.eq.1)
+     >write(10,'("To include those states increase  nstate(l,is,ip)",
      >        "  in file F5.")')
       end if
       
@@ -962,6 +992,7 @@ c
 
 c------------------------------------------------------------------------
       subroutine natorb(fl,minf,maxf,Nmax,nspmW,C)
+      use vmat_module, only: nodeid
       include 'par.f'
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       common/hame1/ e1r(nspmax,nspmax)
@@ -990,11 +1021,10 @@ c------------------------------------------------------------------------
       double precision  tmp
 !
 
-      write(*,*)
-      write(4,*)
-      write(*,'("making natural orbitals and associated work")')
-      write(4,'("making natural orbitals and associated work")')
-      
+      if (nodeid.eq.1) then
+         write(*,'("making natural orbitals and associated work")')
+         write(4,'("making natural orbitals and associated work")')
+      endif
       tmpfl(:) = 0.0
 
       CI(1:nspm,1:nspm) = C(1,1:nspm,1:nspm)
@@ -1108,13 +1138,19 @@ c     sorting by nat.orb. weights.
          enddo
       enddo
 
-      write(4,'("Nat.orb. weights:")')
-      write(*,'("Nat.orb. weights:")')
-      write(4,'(" Sorting: n,lop(n),kp(n),abs(w(n))")')
-      write(*,'(" Sorting: n,lop(n),kp(n),abs(w(n))")')
+      if (nodeid.eq.1)
+     >write(4,'("Nat.orb. weights:")')
+      if (nodeid.eq.1)
+     >write(*,'("Nat.orb. weights:")')
+      if (nodeid.eq.1)
+     >write(4,'(" Sorting: n,lop(n),kp(n),abs(w(n))")')
+      if (nodeid.eq.1)
+     >write(*,'(" Sorting: n,lop(n),kp(n),abs(w(n))")')
       do n=1,nspm
-         write(4,'(3I5,5E15.6)') n,lop(n),kp(n),w(n)*w(n)
-         write(*,'(3I5,5E15.6)') n,lop(n),kp(n),w(n)*w(n)
+         if (nodeid.eq.1)
+     >write(4,'(3I5,5E15.6)') n,lop(n),kp(n),w(n)*w(n)
+         if (nodeid.eq.1)
+     >write(*,'(3I5,5E15.6)') n,lop(n),kp(n),w(n)*w(n)
       enddo
 
 
@@ -1151,8 +1187,6 @@ c$$$     >        z(n,i3p),z(n,i4p),z(n,i3d)
 c$$$         write(4,'(I5,15E15.6)') n,z(n,i3s),z(n,i4s),
 c$$$     >        z(n,i3p),z(n,i4p),z(n,i3d)
       enddo
-      print*
-
 
 
 c     read array nk(l) from F5 file, defining how many nat. orb. will be used 
@@ -1160,20 +1194,27 @@ c     to substitute for original orbitals
       read(3,*) lnk, (nk(l), l=0,lnk)
       write(*,'("Defining how many nat. orb. will be used", 
      >     " to substitute for original orbitals")')
-      write(4,'("Defining how many nat. orb. will be used", 
+      if (nodeid.eq.1)
+     >write(4,'("Defining how many nat. orb. will be used", 
      >     " to substitute for original orbitals")')
-      write(*,*) lnk,  (nk(l), l=0,lnk), " */ lnk, nk(0:lnk)"      
-      write(4,*) lnk,  (nk(l), l=0,lnk), " */ lnk, nk(0:lnk)"      
+      if (nodeid.eq.1)
+     >write(*,*) lnk,  (nk(l), l=0,lnk), " */ lnk, nk(0:lnk)"      
+      if (nodeid.eq.1)
+     >write(4,*) lnk,  (nk(l), l=0,lnk), " */ lnk, nk(0:lnk)"      
 
 
 c     read array nkm(l) from F5 file, defining how many orbitals wil be used for each l
       read(3,*) lnkm, (nkm(l), l=0,lnkm)
-      write(*,'("Defining how many orbitals will be used ",
+      if (nodeid.eq.1)
+     >write(*,'("Defining how many orbitals will be used ",
      >     "for each l")')
-      write(4,'("Defining how many orbitals will be used ",
+      if (nodeid.eq.1)
+     >write(4,'("Defining how many orbitals will be used ",
      >     "for each l")')
-      write(*,*) lnkm,  (nkm(l), l=0,lnkm), " */ lnkm, nkm(0:lnkm)"      
-      write(4,*) lnkm,  (nkm(l), l=0,lnkm), " */ lnkm, nkm(0:lnkm)"      
+      if (nodeid.eq.1)
+     >write(*,*) lnkm,  (nkm(l), l=0,lnkm), " */ lnkm, nkm(0:lnkm)"      
+      if (nodeid.eq.1)
+     >write(4,*) lnkm,  (nkm(l), l=0,lnkm), " */ lnkm, nkm(0:lnkm)"      
 
       ioffset = 0   ! for nk(l) < 0 :adding some original orbitals - need to reduce the number of nat.orbital to be included - hope to avoid linear depend. and would not go out of bounds due to larger number of orbitals than nspm.
       if(lnk .ge. 0) then
@@ -1330,8 +1371,10 @@ c$$$               minfp(nn) = i1
 
       call gsort(nspm,fl,maxf,minf,ortint,e1r,lo)
 
-      write(*,*)
-      write(4,*)
+      if (nodeid.eq.1)
+     >write(*,*)
+      if (nodeid.eq.1)
+     >write(4,*)
 
       return
       end

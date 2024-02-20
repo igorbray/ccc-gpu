@@ -22,10 +22,7 @@
       il=-1                                       !Lf=Li-1
       if(lm-li.gt.0) il=1                         !Lf=Li+1
 
-
       call  DERIVATIVE(wi,wd)
-
-
 
       result = 0.d0
       do i=1,meshr
@@ -33,10 +30,7 @@
      >      *(-wd(i)+dble(il*Lm)*
      >      wi(i)/rmesh(i,1))
      >      * rmesh(i,3)                         !Simpson's weights added
-
-
       end do 
-
       result=result*const
 
       RETURN

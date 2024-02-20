@@ -1056,7 +1056,7 @@ c$$$            vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
 c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
 c$$$        endif
 c$$$        endif
-         if (scalapack) then !.and.ifirst.eq.1) then
+         if (scalapack.and.ifirst.eq.1) then !had ifirst commented out, not sure why. Put back for Ga with DW.
             vdon(nch,nch,0) = vmat01(npk(nch),npk(nch))
             vdon(nch,nch,1) = vdon(nch,nch,0)
          else
@@ -1165,6 +1165,7 @@ C  End of channel loop
       
 C  The following routine makes the core potential
       subroutine makevdcore(vdcore,minvdc,maxvdc,nznuci,u)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
@@ -1179,10 +1180,12 @@ c$$$      ch(i)=char(i+ichar('0'))
       
       minvdc = meshr
       maxvdc = 0
-      print '('' n l of the core states'')'
+      if (nodeid.eq.1)
+     >   print '('' n l of the core states'')'
       do lac = 0, lactop
          do nac = lac + 1, nabot(lac) - 1
-            print '(2i2)', nac, lac
+            if (nodeid.eq.1)
+     >         print '(2i2)', nac, lac
             const = float(4 * lac + 2)
             if (lac.eq.linc.and.nac.eq.ninc) then
                print*,'number of core electrons for this l:',4 * lac
