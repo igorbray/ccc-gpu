@@ -1,0 +1,8 @@
+FC := ftn -eZ  
+FCFLAGS_OPT2 := -dynamic -h omp -O3
+FCFLAGS_OPT1 := -dynamic -h omp -O1
+FCFLAGS_GPU := -dynamic -h omp -h acc -DGPU_ACC
+FCFLAGS_SAVE := -eT
+FCFLAGS_REAL8 := -s real64
+FCFLAGS_MODFLAG := -I
+LDFLAGS := -Wl,--no-relax
