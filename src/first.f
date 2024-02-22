@@ -6,8 +6,11 @@
      >   nchistart,nchistop,nodeid,scalapack,
      >   vmat01,vmat0,vmat1,
      >   vni,vnf,vnd,nodes,natomps,lnch)
-#ifdef GPU
+#ifdef GPU_ACC
       use openacc
+#endif
+#ifdef GPU_OMP
+      use omp_lib
 #endif
       use ubb_module
       use apar
@@ -84,8 +87,6 @@ C      allocatable :: chitemp(:,:)
 
       integer ngpus,ntpg,nnt,gpunum
       integer childim
-      integer, external :: omp_get_max_threads
-      integer, external :: omp_get_thread_num
 
 C      integer nchistart(:),nchistop(:)
 C      real vmat01(npk(nchistart(nodeid)):npk(nchistop(nodeid)+1)-1,
@@ -152,7 +153,7 @@ c$$$     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
 
 !      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
 
-#ifdef GPU
+#ifdef GPU_ACC
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
 c$$$      do gpunum=0,ngpus-1
       gpunum = mod(myid,ngpus)
@@ -167,6 +168,17 @@ c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 
 c$$$       end do
 #endif
+
+#ifdef GPU_OMP
+      ngpus=max(1,omp_get_num_devices())
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+      print*,'NODEID, MYID associated with GPU:',nodeid,myid,
+     >     omp_get_device_num()
+!$omp target enter data
+!$omp& map(to:chil(1:meshr,npkstart:npkstop,1:1),
+!$omp& npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
+#endif 
 
 #ifdef _single
 #define nbytes 4
@@ -257,7 +269,7 @@ C  which contains VDCORE.
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
-C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
+C$OMP& SHARED(ldw,rmesh,mintemp3,maxtemp3,temp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
@@ -436,7 +448,6 @@ C  pos-pos
 C  channels
             const = - nze * const
          endif ! pos
-
          do i = i1, i2
             temp3(i,nchf) = const * temp(i) + temp3(i,nchf)
          enddo
@@ -491,7 +502,7 @@ C  them.
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime
-      deallocate(temp2)
+      deallocate(temp2,temp3)
 
 
 c$$$      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
@@ -637,7 +648,7 @@ C  Define energy dependent exchange terms
 
 C  End of NCHI loop
 
-         deallocate(temp3,vmatt)
+         deallocate(vmatt)
          call date_and_time(date,time,zone,valuesout)
          if (nqmi.gt.1) then
 c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
@@ -651,7 +662,7 @@ c$$$     >         idiff(valuesin,valuesout)
          endif
       end do
 
-#ifdef GPU
+#ifdef GPU_ACC
 c$$$      do gpunum=0,ngpus-1
       gpunum = mod(myid,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
@@ -664,6 +675,15 @@ c$$$!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 
 c$$$      enddo
 #endif
+
+#ifdef GPU_OMP
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+!$omp target exit data map(delete:minchil,chil,npk)     
+!!$omp target exit data device(gpunum)
+!!$omp& map(release:chil,nchtop,npk,minchil)
+#endif
+
       if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)
       return
