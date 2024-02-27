@@ -3249,6 +3249,14 @@ c$$$            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
      >             ,nchtop
      >             ,wk,nd,bb(1,1,1,ns))
             enddo
+            if (mod(myid,nomp).eq.0) then
+               call date_and_time(date,time,zone,valuesout)
+               mt = idiff(valuesin,valuesout)
+               print '("Exited ScaLAPACK at: ",a10,
+     >            ", diff (secs):",i5)',
+     >            time,mt
+               valuesin = valuesout
+            endif
             call blacs_gridexit(nblacs_context)
          else ! .not.scalapack
 C Reconstruct full VMAT on the first node to use with LAPACK
@@ -3356,7 +3364,7 @@ c$$$         CALL MPI_REDUCE(ntime(1,ipar), nntime, nodes, MPI_INTEGER,
 c$$$     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
          if (myid.le.0) then
-            call date_and_time(date,time,zone,valuesout)
+c$$$            call date_and_time(date,time,zone,valuesout)
             if (ipar.eq.0) then
                open(42,file='time0'//ench,position='append')
             else
@@ -3396,7 +3404,7 @@ c$$$     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
      >         lg,ipar,n,nntime(n),nchistart(n),
      >         nchistop(n),nchprs(nchistart(n),nchistop(n),
      >         nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
-     >         idiff(valuesin,valuesout),
+     >         mt,!idiff(valuesin,valuesout),
      >         idiff(valuesinLG,valuesout),lgold(ipar),neff
             close(42)
 c$$$            endif 
@@ -3674,6 +3682,7 @@ c$$$     >      ntasks.eq.-1) go to 780
      
  780  call clock(stop)
 c$$$      print*,'Total CPU time:',stop-start
+      call MPI_Barrier(  MPI_COMM_WORLD, ierr)
       call MPI_FINALIZE(ierr)
       STOP 'Job completed'
       END

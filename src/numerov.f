@@ -21,7 +21,7 @@ C  Note that UCENTR(X) = V(X)/X and CNTFUG(X) = LN(LN+1)/X/X
       logical fast,match
       character file*10
       common /debye/dbyexists, dblp, rmudeb, zdby
-      logical::dbyexists
+      logical::dbyexists,localmatch
 
 c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
       s1 = 0.0
@@ -216,9 +216,27 @@ c$$$            if (jmatch.eq.min(nx,jstop))
 c$$$     >         print*,'WARNING: asymptotic potential must be Coulomb',
 c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
          endif
-
+C Check that the CHIL is sinusoidal at large r
+         j = jstop
+         if (wnn.gt.1.0) then
+            if (reg(j-1).lt.reg(j)) then
+               do while(reg(j-1).lt.reg(j))
+                  j = j - 1
+               enddo
+               localmatch=abs(1.0+reg(j)).gt.0.01.and.
+     >            abs(1.0+reg(j-1)).gt.0.01
+            else
+               do while(reg(j-1).gt.reg(j))
+                  j = j - 1
+               enddo
+               localmatch=abs(1.0-reg(j)).gt.0.01.and.
+     >            abs(1.0-reg(j-1)).gt.0.01
+            endif
+            if (localmatch) print*,'j,reg(j-1),reg(j),wnn:',
+     >            j,reg(j-1),reg(j),wnn
+         endif
 c$$$         print*,'match,ln,ldw:',match,ln,ldw
-         if (match.or.ln.le.ldw) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
+         if (match.or.ln.le.ldw.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
 c$$$            print*,'JMATCH, RMATCH,U',jmatch,gridx(jmatch),
 c$$$     >         ucentr(jmatch)
             if (abs(ecmn-34.527).lt.-1e-2) then
@@ -289,7 +307,8 @@ c$$$               endif
             if (jstart.gt.jstop) return
          end do
 
-         if (match.and.ln.gt.ldw) then
+C The following is disabled using "-ln"         
+         if (match.and.-ln.gt.ldw) then
 c$$$         if (match.and.ln.gt.ldw.and.eta.ne.0.0) then
             if (abs(aimag(phase)).gt.1e-5)
      >         print*,'Old phase (NOT reset to 1) for L, ecmn:',

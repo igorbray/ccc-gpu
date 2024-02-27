@@ -278,7 +278,7 @@ C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
             if (abs(eigv(nch)).gt.0.0) then
 c$$$               esum1 = esum1 + eigv(nch)
-               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
+!               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0)) crashes on Gadi GPUs
                esum2 = esum2 +
      >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
 c$$$  esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
