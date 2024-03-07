@@ -47,10 +47,16 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
             do jd = 2, njdouble - 1
                if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)-3
             end do
-            if (eta.ge.0.0) then
-               s1 = appf1(ln,ecmn,gridx(jstart-1),acc)
+            if (jstart.eq.1) then
+               s1 = 0.0
             else
-               s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+               if (eta.ge.0.0) then
+                  s1 = appf1(ln,ecmn,gridx(jstart-1),acc)
+               else
+                  s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+c$$$                  if (nodeid.eq.1) print*,'jstart,s1,acc,ecmn,rho,ln:',
+c$$$     >               jstart,s1,acc,ecmn,sqrt(ecmn)*gridx(jstart),ln
+               endif
             endif
          enddo
 C Special case below avoids inaccuracy         
@@ -232,6 +238,7 @@ c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
          endif
 C Check that the CHIL is sinusoidal at large r for wnn not too small or too big
          j = jstop
+         localmatch = .false.
          if (ln.gt.ldw.and.wnn.gt.2.0.and.wnn.lt.20.0) then
             if (reg(j-1).lt.reg(j)) then
                do while(reg(j-1).lt.reg(j))
