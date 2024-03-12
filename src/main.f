@@ -589,8 +589,11 @@ C MYID=0 writes the core states to disk, and the rest read.
                call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >            0, MPI_COMM_WORLD, ierr )
             enddo
+            print*,'nodeid completed makecorepsi:',nodeid
+         else
+            print*,'nodeid read          corepsi:',nodeid
          endif
-         print*,'myid completed makecorepsi:',myid
+
 C  Get the direct core potential.
          call makevdcore(temp,minvdc,maxvdc,nznuc,uplane)
 c$$$         print*,'MAXVDC, MESHR:',maxvdc,meshr
@@ -1029,8 +1032,10 @@ C  MYID=0 goes first so that fchf discrete functions are written to disk
                   call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >               0, MPI_COMM_WORLD, ierr )
                enddo
+               print*,'nodeid completed makeeigenpsi:',nodeid
+            else
+               print*,'nodeid read          eigenpsi:',nodeid
             endif
-c$$$            print*,'myid completed makeeigenpsi:',myid
          endif 
          npsstates(1,la) = 0
 
@@ -3687,6 +3692,7 @@ c$$$      print*,'Total CPU time:',stop-start
       STOP 'Job completed'
       END
 
+C Only run by first node, see call above.
       subroutine makecorepsi(nznuci,zasymi,ry,corepin,r0in)
       use vmat_module, only: nodeid
       include 'par.f'
@@ -3698,13 +3704,33 @@ c$$$      print*,'Total CPU time:',stop-start
      >   psinb(maxr,nnmax,0:lnabmax),istoppsinb(nnmax,0:lnabmax)
       common/smallr/ formcut,regcut,expcut,fast,match
       common /noblgegas_switch/ i_sw_ng
-
-      logical fast, match
+      logical fast, match, exists
       rmax = rmesh(meshr,1)
       r0 = 1.0
       corep = 0.0
       nnn = nznuc-nint(zasym)
-c$$$      print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
+
+c$$$  print*,'!!! nznuc, zasym:',nznuc,nint(zasym)
+C Check if the radial grid is already on disk, and stop if changed
+      if (nodeid.eq.1) then
+         inquire(file='hfrgrid',exist=exists)
+         if (exists) then
+            open(42,file='hfrgrid',status='old')
+            read(42,*) meshrold,hold,rmaxold
+            close(42)
+            if (meshrold.ne.meshr.or.abs((hold-rmesh(1,1))/
+     >         (hold+rmesh(1,1))).gt.1e-5.or.abs((rmaxold-
+     >         rmesh(meshr,1))/(rmaxold+rmesh(meshr,1))).gt.1e-5) then
+               print*,'Radial grid changed; delete hf* fc*'
+               stop 'Radial grid changed; delete hf* fc*'
+            endif
+         else
+            open(42,file='hfrgrid',status='new')
+            write(42,*) meshr,rmesh(1,1),rmesh(meshr,1)
+            close(42)
+         endif
+      endif
+      
       if (nznuc-nint(zasym).eq.11) then
          call hfz11(rmax, meshr, rmesh, expcut, nznuc, corep, r0)
       else if (nznuc-nint(zasym).eq.3) then

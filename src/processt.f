@@ -1162,7 +1162,7 @@ c$$$         endif
          j = j + 1
          go to 15
  20      print*  ! end of J loop
-         print*,'j,jstop:',j,jstop
+         print*,'J,JSTOP:',j,jstop
          if (j.le.jstop) then
             close(88)
             open (88,file=tfile,position='append',status='old',
