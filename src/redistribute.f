@@ -69,15 +69,15 @@ c$$$      integer, dimension(nodes) :: nchistop
       call mpi_comm_rank(MPI_COMM_WORLD,myid,ierr)
       call blacs_gridinfo(blacs_ctx,rows,cols,myrow,mycol)
 #ifdef SLATE
-      kblock(1)=min(384,nd/rows) ! min(1000,nd/rows)
-      kblock(2)=min(384,nd/cols) ! min(1000,nd/cols)
+      kblock(1)=min(1000,nd/rows) ! min(1000,nd/rows)
+      kblock(2)=min(1000,nd/cols) ! min(1000,nd/cols)
 #else
 #if defined _single
       kblock(1)=min(384,nd/rows) ! min(64,nd/rows)
       kblock(2)=min(384,nd/cols) ! min(64,nd/cols)
 #else
-      kblock(1)=min(384,nd/rows) ! min(64,nd/rows)
-      kblock(2)=min(384,nd/cols) ! min(64,nd/cols)
+      kblock(1)=min(192,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(192,nd/cols) ! min(64,nd/cols)
 #endif      
 #endif
       kblock(1)=min(kblock(1),kblock(2))

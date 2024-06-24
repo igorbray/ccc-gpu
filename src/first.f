@@ -1,28 +1,34 @@
-      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chilx,
-     >   minchilx,u,ldw,dwpot,phasel,itail,nznuci,nchtop,nchtope2e,qcut,
-     >   vdon,vmat,theta,vdcore,minvdc,maxvdc,lfast,lslow,slowery,td,
-     >   te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e,nchmaxe2e,
-     >   vmatp,nsmax,
-     >   nchistart,nchistop,nodeid,scalapack,
-     >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,natomps,lnch)
-#ifdef GPU
+      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,
+!     >   chilx,minchilx,
+     >   u,ldw,dwpot,phasel,itail,nznuci,nchtop,qcut,
+     >   vdon,theta,vdcore,minvdc,maxvdc,
+c$$$     >   lfast,lslow,slowery,td,
+c$$$     >   te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e,nchmaxe2e,
+c$$$     >   vmatp,nsmax,
+c$$$     >   nchistart,nchistop,nodeid,scalapack,
+c$$$     >   vmat01,vmat0,vmat1,
+c$$$  >   vni,vnf,vnd,nodes,
+     >   nsmax,natomps,lnch)
+#ifdef GPU_ACC
       use openacc
+#endif
+#ifdef GPU_OMP
+      use omp_lib
 #endif
       use ubb_module
       use apar
       use date_time_module
       use chil_module
-C      use vmat_module
+      use vmat_module
       include 'par.f'
 
-      integer:: vni,vnf,vnd,nodes
-      real, dimension(vnf+1:vnd,vni:vnf) :: vmat0
-      real, dimension(vni:vnf,vni:vnf+1) :: vmat01
-      real, dimension(vni:vnf,vnf+1+1:vnd+1) :: vmat1
-      integer,dimension(nodes):: nchistart, nchistop
-      integer::  nodeid
-      logical:: scalapack
+c$$$      integer:: vni,vnf,vnd,nodes
+c$$$      real, dimension(vnf+1:vnd,vni:vnf) :: vmat0
+c$$$      real, dimension(vni:vnf,vni:vnf+1) :: vmat01
+c$$$      real, dimension(vni:vnf,vnf+1+1:vnd+1) :: vmat1
+c$$$      integer,dimension(nodes):: nchistart, nchistop
+c$$$      integer::  nodeid
+c$$$      logical:: scalapack
 
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
      >   ,gpuin(8),gpuout(8),gputime,gputimetot
@@ -34,8 +40,8 @@ c$$$      dimension chil(meshr,npk(nchtop+1)-1,1),minchil(npk(nchtop+1)-1,1)
       complex phasei, phasef
       complex phasel(kmax,nchan),phasefast,phaseslow,sigc,
      >   dphasee2e(nchane2e),ephasee2e(nchane2e)
-      real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
-     >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
+c$$$      real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
+c$$$     >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
       character chan(knm)*3, nodetfile*20,ench*11,cnode*3
@@ -64,15 +70,15 @@ C      common/meshrr/ rmesh(maxr,3)
 
 C  Note that ve2eon will not be defined correctly due to the declaration
 C  in makev31d. However, ve2eon is not used.
-      real ve2ed(nchmaxe2e,npk(nchtop+1)-1),
-     >   ve2eon(nchane2e,nchan), uplane(maxr), ud(maxr),
-     >   ve2ee(nchmaxe2e,npk(nchtop+1)-1)
+c$$$      real ve2ed(nchmaxe2e,npk(nchtop+1)-1),
+c$$$     >   ve2eon(nchane2e,nchan), 
+c$$$     >   ve2ee(nchmaxe2e,npk(nchtop+1)-1)
       integer, allocatable :: nchansi(:), nchansf(:)
 C      allocatable :: chitemp(:,:), temp3(:,:),vmati(:,:,:)
 C      allocatable :: chitemp(:,:)
-      real,allocatable :: vmati(:,:,:),temp3(:,:),vmatt(:,:,:,:)
+      real,allocatable :: temp3(:,:),vmatt(:,:,:,:)!,vmati(:,:,:),
       real, allocatable :: temp2(:,:,:)
-      real vmatt_out(nchtop)
+      real vmatt_out(nchtop), uplane(maxr), ud(maxr)
 !      data pi/3.14159265358979/
       data uplane/maxr*0.0/
  
@@ -83,9 +89,7 @@ C      allocatable :: chitemp(:,:)
       integer maxpsii,maxpsif
 
       integer ngpus,ntpg,nnt,gpunum
-      integer childim
-      integer, external :: omp_get_max_threads
-      integer, external :: omp_get_thread_num
+!      integer ichildim in chil module
 
 C      integer nchistart(:),nchistop(:)
 C      real vmat01(npk(nchistart(nodeid)):npk(nchistop(nodeid)+1)-1,
@@ -114,7 +118,6 @@ c$$$      endif
       gputimetot = 0
       nnt=omp_get_max_threads()
 c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
-
 
       td = 0.0
       te1 = 0.0
@@ -145,21 +148,23 @@ c$$$     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
       nch = 0
 
       if(itail.lt.0) then
-        childim=2
+        ichildim=2
       else
-        childim=1
+        ichildim=1
       endif
 
 !      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
 
-#ifdef GPU
+#ifdef GPU_ACC
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
+      if (ngpus.gt.1) stop 'more than 1 GPU per MPI process'
 c$$$      do gpunum=0,ngpus-1
-      gpunum = mod(myid,ngpus)
-      call acc_set_device_num(gpunum,acc_device_nvidia)
-      print*,'NODEID, MYID associated with GPU:',nodeid,myid,
-     >     acc_get_device_num(acc_device_nvidia)
 
+c$$$      gpunum = mod(myid,ngpus)
+c$$$      call acc_set_device_num(gpunum,acc_device_nvidia)
+c$$$      print*,'NGPUS, NODEID, GPUNUM, acc_get_device_num:',ngpus,nodeid,
+c$$$     >   gpunum,acc_get_device_num(acc_device_nvidia)
+      
 c$$$!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
 c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 !$acc enter data copyin(chil(1:meshr,npkstart:npkstop,1:1),ifirst)
@@ -167,6 +172,19 @@ c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 
 c$$$       end do
 #endif
+
+#ifdef GPU_OMP
+      ngpus=max(1,omp_get_num_devices())
+      if (ngpus.gt.1) stop 'more than 1 GPU per MPI process'
+
+c$$$      gpunum=mod(myid,ngpus)
+c$$$      call omp_set_default_device(gpunum)
+c$$$      print*,'NODEID, MYID associated with GPU:',nodeid,myid,
+c$$$     >     omp_get_device_num()
+!$omp target enter data
+!$omp& map(to:chil(1:meshr,npkstart:npkstop,1:1),
+!$omp& npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
+#endif 
 
 #ifdef _single
 #define nbytes 4
@@ -241,23 +259,29 @@ C  which contains VDCORE.
 
          if (nqmfmax.gt.1) open(42,file=nodetfile)
          maxtemp3(:) = 0
-         allocate(temp3(1:meshr,nchi:nchtop),
-     >      vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
+         allocate(temp3(1:meshr,nchi:nchtop))
+         allocate(vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
          vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
          if (ifirst.eq.1) then
+            maxpsii2 = maxpsii
+            nqmi2 = nqmi
+            nchtop2 = nchtop
             allocate(temp2(maxpsii,nqmi,nchi:nchtop)) !allocate(temp2(meshr,nqmi,nchi:nchtop))
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
      >         lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
      >         nnt,ngpus,temp2) !vmatt not used
-         else 
-            allocate(temp2(1,1,nchi:nchi))
+         else
+            maxpsii2 = 1
+            nqmi2 = 1
+            nchtop2 = nchi
+            allocate(temp2(1:maxpsii2,1:nqmi2,nchi:nchtop2))
          endif
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
-C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
+C$OMP& SHARED(ldw,rmesh,mintemp3,maxtemp3,temp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
 C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
@@ -436,7 +460,6 @@ C  pos-pos
 C  channels
             const = - nze * const
          endif ! pos
-
          do i = i1, i2
             temp3(i,nchf) = const * temp(i) + temp3(i,nchf)
          enddo
@@ -485,13 +508,13 @@ C  them.
 
       call date_and_time(date,time,zone,gpuin)
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
-     >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxpsii,temp2,ifirst)
+     >     mintemp3,maxtemp3,temp3,!ltmin,minchil,chil,ctemp,itail,trat,
+     >     nchan,nqmfmax,vmatt,ichildim,ngpus,nnt,nchii,second,
+     >     maxpsii2,temp2,nqmi2,nchtop2,ifirst)
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime
-      deallocate(temp2)
+      deallocate(temp2,temp3)
 
 
 c$$$      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
@@ -637,7 +660,7 @@ C  Define energy dependent exchange terms
 
 C  End of NCHI loop
 
-         deallocate(temp3,vmatt)
+         deallocate(vmatt)
          call date_and_time(date,time,zone,valuesout)
          if (nqmi.gt.1) then
 c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
@@ -651,7 +674,7 @@ c$$$     >         idiff(valuesin,valuesout)
          endif
       end do
 
-#ifdef GPU
+#ifdef GPU_ACC
 c$$$      do gpunum=0,ngpus-1
       gpunum = mod(myid,ngpus)
       call acc_set_device_num(gpunum,acc_device_nvidia)
@@ -664,6 +687,15 @@ c$$$!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 
 c$$$      enddo
 #endif
+
+#ifdef GPU_OMP
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+!$omp target exit data map(delete:minchil,chil,npk)     
+!!$omp target exit data device(gpunum)
+!!$omp& map(release:chil,nchtop,npk,minchil)
+#endif
+
       if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)
       return

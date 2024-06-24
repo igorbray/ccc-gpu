@@ -1,6 +1,8 @@
       subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
      >   enionry,npk,vdcore,dwpot,nchm,Nmax,namax,
-     >   nze,td,te1,te2,te3,vdon,vmat,nsmax,itail,phasel)
+     >   nze,td,te1,te2,te3,vdon,
+!     >   vmat,
+     >   nsmax,itail,phasel)
       use mpi_f08 !avoids MPI argument missmatch warnings
       use CI_MODULE
       use chil_module
@@ -37,7 +39,7 @@ c$$$     >   npbot(0:lamax),nptop(0:lamax)
 c$$$      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1)
       dimension gridk(kmax,nchan), df(maxr), dwpot(maxr,nchan),
      >   vdcore(maxr,0:lamax),
-     >   vdon(nchan,nchan,0:1), vmat(npk(nchm+1)-1,npk(nchm+1)),
+     >   vdon(nchan,nchan,0:1), !vmat(npk(nchm+1)-1,npk(nchm+1)),
      >   temp(maxr),psii(maxr),psif(maxr)
 c$$$      real  ortchil(npk(nchm+1)-1,nspm),flchil(npk(nchm+1)-1,nspm)
       real, allocatable :: ortchil(:,:),flchil(:,:)

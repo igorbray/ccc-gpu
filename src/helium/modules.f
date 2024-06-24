@@ -30,7 +30,8 @@ c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
       end module photo_module
 
       module vmat_module
-      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
+      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:),
+     >   vmat(:,:),vmatp(:,:)
       integer, allocatable :: nchistart(:), nchistop(:)
       integer, allocatable ::  ntime(:,:), nodet(:),
      >   nntime(:),nchistartold(:,:),nchistopold(:,:)

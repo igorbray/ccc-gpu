@@ -208,7 +208,7 @@ C For inferior Hylleraas uncomment a reduced set of parameters
          a17 =  6.955161d-3     !              + a_{17}s^4                             
          a18 = -0.026701        !              + a_{18}st^2u                           
          a19 = -3.860425d-3     !              + a_{19}t^4                             
-         Etot=  7.279905
+         Etot=  7.279905       
 
 
 *         z1 = 2.800028          !Chandrasekhar PR 98, 1050 (1955): Li+ 10-term Hylleraas
@@ -301,8 +301,33 @@ C For inferior Hylleraas uncomment a reduced set of parameters
          Etot=  93.90679
       endif          
 
+c$$$      if(nznuc.eq.12)then       ! !Interpolated from Hart & Herzberg with Z*=11.8
+c$$$         z1 = 13.2511028571429
+c$$$         an = 475.196565240955
+c$$$         a1 = 0.44327819442
+c$$$         a2 = 1.30005349786201
+c$$$         a3 = 1.4856564538988
+c$$$         a4 = 1.61622600057648
+c$$$         a5 = -1.4918186370695
+c$$$         a6 = 1.0028913959833
+c$$$         a7 = -6.48350451984602
+c$$$         a8 = 2.75592843684733
+c$$$         a9 = 17.565062384811
+c$$$         a10 = 1.86370116795033
+c$$$         a11 = 0.0963752722588869
+c$$$         a12 = 7.16476932012719
+c$$$         a13 = -3.8349120833947
+c$$$         a14 = 2.1120670946911
+c$$$         a15 = -16.2938160371568
+c$$$         a16 = 2.37596495227564
+c$$$         a17 = 1.14624828549924
+c$$$         a18 = -5.57859449369512
+c$$$         a19 = -0.694322052034646
+c$$$         Etot = 132.009724562201
+c$$$      endif          
+
       if(nznuc.eq.12)then
-         z1  =  13.50000        !Hart & Herzberg PR 106, 79 (1957): B3+ 20-term Hylleraas
+         z1  =  13.50000        !Hart & Herzberg PR 106, 79 (1957): Mg10+ 20-term Hylleraas
          an  =  500.5882        !                                                      
          a1  =   0.443411       !              -Z(r1+r2)                          2    
          a2  =   1.325185       ! F(r r ) = N e          {1 + a1  R12 + a2 (r1-r2)     
@@ -323,7 +348,7 @@ C For inferior Hylleraas uncomment a reduced set of parameters
          a17 =   1.247697       !              + a_{17}s^4                             
          a18 =  -5.971432       !              + a_{18}st^2u                           
          a19 =  -0.738207       !              + a_{19}t^4                             
-         Etot= 136.65693
+         Etot= 136.65693  
       endif          
 
       if(nznuc.eq.13)then
@@ -351,6 +376,7 @@ C For inferior Hylleraas uncomment a reduced set of parameters
          Etot= 161.03    
       endif          
 
+
       if(nznuc.eq.14)then
           z1 =  15.72       !Extrapolation from Hart & Herzberg PR 106, 79 (1957)
           an = 805.89       !                                                      
@@ -375,6 +401,8 @@ C For inferior Hylleraas uncomment a reduced set of parameters
           a19=  -1.2890     !              + a_{19}t^4                             
          Etot= 187.40   
       endif          
+
+
 
       eps = 1.E-8                                    
       pi =acos(-1.0)    
@@ -1795,7 +1823,6 @@ C                   o
       
       subroutine xSATEL(nchtop,lg)
       use vmat_module, only: nodeid
-
 C  Satellite intensities in the high photon energy limit
 C  according to Aberg (1970)
 

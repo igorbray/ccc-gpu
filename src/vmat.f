@@ -128,7 +128,7 @@ c$$$      ch(n) = char(n + ichar('0'))
       character chan(knm)*3, getchchar*2, chspin(3)*1, chspinp(3)*1
       logical positron, first_time
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       common /channels/ nfich(nchan)
       integer satom
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
@@ -143,7 +143,7 @@ c-----------------------------------------------------------
       common /statenumber_str_to_scat/ Nstate_str_to_scat, na_ng(KNM)
       common /noblgegas_switch/ i_sw_ng    ! set in  cc/main.f
       type state
-         real radial(maxr), energy
+         real radial(maxr), energy, energydiff
          integer na, la, maxpsi, lapar
          character chn*3
       end type state
@@ -176,6 +176,11 @@ c
                   nfich(ncht) = nchp
                   enpsi = enpsinb(na,la)
                   enchan(nchp) = enpsi
+                  if (na.gt.la+1) then
+                     enchandiff(nchp)=enpsinb(na+1,la)-enpsinb(na-1,la)
+                  else
+                     enchandiff(nchp) = 1e0
+                  endif
 !            chan(nchp) = chspin(2*satom(nchp)+1)//getchchar(na,la)
 !            if (lpar(nchp).eq.-(-1)**latom(nchp)) chan(nchp) 
 !     >         = chspinp(2*satom(nchp)+1)//getchchar(na,la)
@@ -280,11 +285,17 @@ c$$$     >         .and.(la.ne.linc.or.na.ne.ninc)
      >                 chspinp(2*satom(nchp)+1)//getchchar(np(nchp),la)
                   endif
                   enchan(nchp) = enpsinb(na,la)
+                  if (na.gt.la+1) then
+                     enchandiff(nchp)=enpsinb(na+1,la)-enpsinb(na-1,la)
+                  else
+                     enchandiff(nchp) = 1e0
+                  endif
                   states(nchp)%la = la
                   states(nchp)%na = na
                   states(nchp)%lapar = lapar
                   states(nchp)%chn = chan(nchp)
                   states(nchp)%energy = enchan(nchp)
+                  states(nchp)%energydiff = enchandiff(nchp)
                   states(nchp)%radial(1:maxpsinb(na,la))=
      >                 psinb(1:maxpsinb(na,la),na,la)
                   states(nchp)%maxpsi=maxpsinb(na,la)
@@ -324,6 +335,7 @@ c$$$         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
                if (nch.eq.ncht) then
                   enpsi = states(nchp)%energy
                   enchan(nchp) = enpsi
+                  enchandiff(nchp) = states(nchp)%energydiff
                   na = states(nchp)%na
                   chan(nchp) = states(nchp)%chn
                   maxpsi = states(nchp)%maxpsi
@@ -343,7 +355,7 @@ c$$$         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
       include 'par.f'
       logical swapped,ps
       type state
-         real radial(maxr), energy
+         real radial(maxr), energy, energydiff
          integer na, la, maxpsi, lapar
          character chn*3
       end type state
@@ -974,7 +986,7 @@ c$$$      enddo
 c$$$      end
       
       subroutine core(ifirst,nznuci,lg,etot,chilx,minchilx,nchtop,
-     >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon,vmat,vmatp)
+     >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon)!,vmat,vmatp)
       use vmat_module
       use chil_module
       include 'par.f'
@@ -988,9 +1000,10 @@ c$$$      end
       integer npk(nchtop+1)
       common/smallr/ formcut,regcut,expcut,fast,match,analyticd,packed
       logical fast, match, analyticd, packed
-      real vmat(npk(nchtop+1)-1,npk(nchtop+1)), vdon(nchan,nchan,0:1)
+      real !vmat(npk(nchtop+1)-1,npk(nchtop+1)),
+     >   vdon(nchan,nchan,0:1)
       dimension psic(maxr),ovlp(kmax),vdcore(maxr,0:lamax),temp(maxr),
-     >   fun(maxr),u(maxr),vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:1)
+     >   fun(maxr),u(maxr)!,vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:1)
 c$$$      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
       data pi/3.1415927/
       logical posi, positron

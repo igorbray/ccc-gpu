@@ -64,7 +64,7 @@ c$$$      complex cv(nchan,ichi), cv2(ichi,nchtop)
       character chan(knm)*3, ch, csfile*(*), projectile*(*), pfile*80
       common /uniquev/unv(kmax*nchan)
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       COMMON /gstspin/   iSpin, meta
       common/meshrr/ meshr,rmesh(maxr,3)
 c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
@@ -984,7 +984,7 @@ c$$$     >         nchi,nchf,gk(k1+1,nchf),offshellk2
                if (etot.gt.enchan(nchfp)) write
      >            (42,'(4i4,'' <-'',4i4,1p,e12.4,0p,f12.5,f10.5)') 
      >            nchf,lf,laf,nf,nchi,li,lai,ni, real(ton(nchf,nchi))
-     >            /gk(1,nchi)/gk(1,nchf),ef,ovlpn(nchfp)
+     >            /gk(1,nchi)/gk(1,nchf),ef,enchandiff(nchfp)!ovlpn(nchfp)
 c$$$               if (ei.gt.etot/2.0.or.ef.gt.etot/2.0) then
 c$$$                  ton(nchf,nchi) = 0.0
 c$$$                  ton(nchi,nchf) = 0.0

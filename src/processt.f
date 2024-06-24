@@ -1938,7 +1938,7 @@ C  subtraction for total spin = 3/2 if the transition involves singlet states.
             
             open(42,file='amp.'//chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
 
-            write(42,"(a8,' - ',a6,'scattering:',1p,e10.3,'eV on ',a3,
+            write(42,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
 c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ' ->',a3,(2(e10.3,'eV'))/)") projectile,target,
      >         13.6058*(etot-enchan(ni)),chan(ni),chan(nf),
@@ -1971,7 +1971,7 @@ c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ''            end do''/
      >         ''         end do''/
      >         ''      end do'')')
-            write(42,'(2i2,i4,2f8.5,2i2,2f8.5,
+            write(42,'(2i2,i4,2f10.7,2i2,2f6.3,
      >         " Lf,Li,Nth,Kf,Ki,2Sf+1,Nsm,SpinW(ns)")')
      >         lfa, lia, 181/1,  onshellk(nf), onshellk(ni),
      >         nint(2.0*sf+1.0),nsmax,(spinw(ns),ns=0,1)

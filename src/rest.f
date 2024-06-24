@@ -2416,7 +2416,7 @@ C  This is for very large incident energies
       character projectile*(*), target*(*), csfile*(*), file_J*80,
      >   lockfile*80,cnode*3, ench*11
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
       integer lgold(0:1)
@@ -2803,9 +2803,10 @@ C  theorem not being satisfied to full precision.
             do nchp = 1, nchpmax
                sig = partcs(nchp,nchip,ns) * unit + oldp(nchp,nchip,ns)
                call getchnl(chan(nchp),n,l,nc)
-               write(42,'(3i3,1p,4e15.5,a4,'' <-'',a3)') 
+               write(42,'(3i3,1p,5e15.5,a4,'' <-'',a3)') 
      >            ns,nchp,nchip, sig,enchan(nchp), ovlp(nchp),
-     >            partcs(nchp,nchip,ns) * unit, chan(nchp),chan(nchip)
+     >            partcs(nchp,nchip,ns) * unit, enchandiff(nchp),
+     >            chan(nchp),chan(nchip)
                if (chan(nchp)(1:1).eq.'p') then
                   nbstart = npbot(l)
                else
@@ -3015,7 +3016,7 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
      >      asym(sigtope(nchip,0),sigtope(nchip,1),fac)
          write(42,'(79a)') ('-',i=1,79)
          write(42,'(''transition  cross section  extrapolated'',
-     >      ''     overlap       spin asym    energy'')')
+     >      ''     overlap       spin asym    energy     energydiff'')')
          write(43,'('' J   trans  cross section  extrap    PCS(V) '',
      >      ''   PCS(T) S=0 PCS(T) S=1  energy     ovlp  ip'')')
          do l = 0, ltop
@@ -3077,9 +3078,9 @@ c$$$     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
             canstop = canstop.and.(diff.lt.small.or.
      >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
-            write(42,'(a3,'' <-'',a3,1p,4e15.5,e11.3)') chan(nchp),
+            write(42,'(a3,'' <-'',a3,1p,4e15.5,2e11.3)') chan(nchp),
      >         chan(nchip),summedcs, extrapcs, ovlp(nchp), asymcs,
-     >         enchan(nchp)
+     >         enchan(nchp),enchandiff(nchp)
 c$$$     >         ,(diff.lt.small.or.
 c$$$     >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
             write(43,'(i3,a4,'' <-'',a3,1p,6e11.3,0p,f8.4,i2)') 
@@ -3323,9 +3324,9 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       subroutine getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-7
+      err = 1d-6
 #elif defined _double
-      err = 1d-14
+      err = 1d-12
 #endif
       do while (dk/startk.gt.err.or.abs(test).lt.err)
          startkold = startk

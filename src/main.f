@@ -28,7 +28,8 @@ c$$$      pointer (ptrvmat,vmat)
       pointer (ptre2ed,ve2ed)
       pointer (ptre2ee,ve2ee)
 c$$$      real vmat(kmax,nchan,kmax,nchan+1),vdon(nchan,nchan,0:1)
-      real, allocatable :: vmat(:,:), vmatp(:,:), AA(:,:), bb(:,:,:,:)
+      real, allocatable :: AA(:,:), bb(:,:,:,:)
+c$$$      real, allocatable :: vmat(:,:), vmatp(:,:), AA(:,:), bb(:,:,:,:)
       integer, allocatable :: ipvt(:)
       real vkeep(1,1),vdon(nchan,nchan,0:1),
      >   vdondum(nchan,nchan,0:1), ve2ed(1,nchane2e,kmax,nchan),
@@ -275,15 +276,15 @@ c note: make these your first (or nearly so) executable statements
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, ntasks, ierr )
-#ifdef _CRAYFTN
-      call pxfgetenv('OMP_STACKSIZE',0,stacksize,0,ierr)
-      print*, 'OMP_STACKSIZE:',stacksize
-#else
-c      print*, 'KMP_STACKSIZE:',kmp_get_stacksize_s()
-      CALL GET_ENVIRONMENT_VARIABLE('SLURM_TACC_RUNLIMIT_MINS',stime)
-c$$$      limit_time=limittime(stime)
-      if (myid.le.0) print*,'slurm time limit:',stime!,limit_time
-#endif
+c$$$#ifdef _CRAYFTN
+c$$$      call pxfgetenv('OMP_STACKSIZE',0,stacksize,0,ierr)
+c$$$      print*, 'OMP_STACKSIZE:',stacksize
+c$$$#else
+c$$$c      print*, 'KMP_STACKSIZE:',kmp_get_stacksize_s()
+c$$$      CALL GET_ENVIRONMENT_VARIABLE('SLURM_TACC_RUNLIMIT_MINS',stime)
+c$$$c$$$      limit_time=limittime(stime)
+c$$$      if (myid.le.0) print*,'slurm time limit:',stime!,limit_time
+c$$$#endif
       nomporig = max(1,OMP_GET_MAX_THREADS())
       nomp = 1 ! nomporig ! revert for many tasks per node, see same comment below and in redistribute.f
 c$$$      print*,'NUM_PROCESSES_PER_NODE:',NUM_PROCESSES_PER_NODE()
@@ -1032,9 +1033,9 @@ C  MYID=0 goes first so that fchf discrete functions are written to disk
                   call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >               0, MPI_COMM_WORLD, ierr )
                enddo
-               print*,'nodeid completed makeeigenpsi:',nodeid
+c$$$               print*,'nodeid completed makeeigenpsi:',nodeid
             else
-               print*,'nodeid read          eigenpsi:',nodeid
+c$$$               print*,'nodeid read          eigenpsi:',nodeid
             endif
          endif 
          npsstates(1,la) = 0
@@ -2671,7 +2672,7 @@ c$$$     >             nchtime(nch),chstateold(nch-inc),nchtimeold(nch-inc)
                nchtime(nch) = nchtimeold(nch-inc)*const
                if (nch.le.nchtop) then
                   n = nch
-                  do while (chstate(n).eq.chstate(nch))
+                  do while (n.gt.1.and.chstate(n).eq.chstate(nch))
                      call getchnl(chstate(n),nn,ln,nc)
                      nchtime(n) = nchtime(n) * (1.0+ln/100.0)
 c$$$                     if (nodeid.eq.1) print*,chstate(n),ln
@@ -2873,23 +2874,28 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
          if (firstrun) then !.and.projectile.ne.'photon') then
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
-     >         vdon,vmat,vmatp)
+     >         vdon)!,vmat,vmatp)
             if (hlike) then
                ne2e1 = 0
                nchmaxe2e1 = 0
                nchtope2e1 = 0            
 
-               call first(1,0,second,nold,etot,lg,gk,npkb,chil,minchil,
-     >            uplane,-1,dwpot,phasel,itail,nznuc,nchtop,nchtope2e1,
-     >            qcut,vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,
-     >            lslow,slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,
-     >            ephasee2e,ne2e1,nchmaxe2e1,vmatp,nsmax,
-     >            nchistart,nchistop,nodeid,scalapack,
-     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,natomps,lnch)
+               call first(1,0,second,nold,etot,lg,gk,npkb,
+!     >            chil,minchil,
+     >            uplane,-1,dwpot,phasel,itail,nznuc,nchtop,
+     >            qcut,vdon,theta,vdcore_pr,minvdc,maxvdc,
+c$$$     >            lfast,lslow,slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,
+c$$$     >            ephasee2e,ne2e1,nchmaxe2e1,
+!     >            vmatp,
+c$$$     >            nchistart,nchistop,nodeid,scalapack,
+c$$$     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,
+     >            nsmax,natomps,lnch)
             else
                call scattering(myid,0,theta,nold,etot,lg,gk,enionry,
      >            npkb,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
-     >            nze,td,te1,te2,t2nd,vdon,vmat,nsmax,itail,phasel)
+     >            nze,td,te1,te2,t2nd,vdon,
+!     >            vmat,
+     >            nsmax,itail,phasel)
             end if
 c$$$            print*,'After First Scattering: J, vdon:',lg,vdon(1,1,0)
             call date_and_time(date,time,zone,valuesout)
@@ -3086,7 +3092,7 @@ c
          if (nabot(labot).gt.1) then
             call clock(s1)
             call core(ifirst,nznuc,lg,etot,chil,minchil,nchtop,uplane,
-     >         ldw,vdcore_pr,minvdc,maxvdc,npk,vdondum,vmat,vmatp)
+     >         ldw,vdcore_pr,minvdc,maxvdc,npk,vdondum)!,vmat,vmatp)
             call clock(s2)
             tc = s2 - s1
 c$$$            print*,'After Second Core: J, vdon:',lg,vdondum(1,1,0)
@@ -3104,15 +3110,18 @@ c
 c$$$         print '(/,i4,": nodeid entering VMAT routines at: ",a10)',
 c$$$     >      nodeid,time
          if (hlike) then
-            call first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chil,
-     >         minchil,
-     >         ui,ldw,dwpot,phasel,itail,nznuc,nchtop,nchtope2e,qcut,
+            call first(ispeed,ifirst,second,nold,etot,lg,gk,npk,
+!     >         chil,minchil,
+     >         ui,ldw,dwpot,phasel,itail,nznuc,nchtop,qcut,
 c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
-     >         vdondum,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,            
-     >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
-     >         nchmaxe2e,vmatp,nsmax,
-     >         nchistart,nchistop,nodeid,scalapack,
-     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,natomps,lnch)
+     >         vdondum,theta,vdcore_pr,minvdc,maxvdc,
+c$$$     >         lfast,lslow,            
+c$$$     >         slowery,td,te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e0,
+c$$$     >         nchmaxe2e,
+!     >         vmatp,
+c$$$     >         nchistart,nchistop,nodeid,scalapack,
+c$$$     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,
+     >         nsmax,natomps,lnch)
             call clock(s1)
             if (isecond.ge.0) then
                stop 'Have not coded for LDW, NPK, or NQM'
@@ -3126,7 +3135,9 @@ c$$$     >         vdon,vmat,theta,vdcore_pr,minvdc,maxvdc,lfast,lslow,
          else
             call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
-     >         nze,td,te1,te2,t2nd,vdondum,vmat,nsmax,itail,phasel)
+     >         nze,td,te1,te2,t2nd,vdondum,
+!     >         vmat,
+     >         nsmax,itail,phasel)
          end if 
 c$$$         print*,'After Second scattering: J, vdon:',lg,vdondum(1,1,0)
          call date_and_time(date,time,zone,valuesout)
@@ -3254,7 +3265,7 @@ c$$$            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
      >             ,nchtop
      >             ,wk,nd,bb(1,1,1,ns))
             enddo
-            if (mod(myid,nomp).eq.0) then
+            if (nodeid.eq.1) then
                call date_and_time(date,time,zone,valuesout)
                mt = idiff(valuesin,valuesout)
                print '("Exited ScaLAPACK at: ",a10,
@@ -3370,48 +3381,6 @@ c$$$     >      MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
          if (myid.le.0) then
 c$$$            call date_and_time(date,time,zone,valuesout)
-            if (ipar.eq.0) then
-               open(42,file='time0'//ench,position='append')
-            else
-               open(42,file='time1'//ench,position='append')
-            endif
-            ntmax = 0
-            timetot = 0.0
-            do n=1,nodes
-               timetot = timetot + nntime(n)
-               if (nntime(n).gt.ntmax) ntmax = nntime(n)
-            enddo
-            neff = 0
-            if (ntmax.gt.0) neff = 100.0*timetot/nodes/ntmax
-            print*,'Actual efficiency:',neff,'%'
-            do n=1,nodes-1
-               naps = 0
-               do nch = nchistart(n), nchistop(n)
-                  naps = naps + natomps(nch)
-               enddo
-               timeperi = float(nntime(n))/
-     >            (nchistart(n+1)-nchistart(n))
-               write(42,'(3i4,3i7,2i8)') 
-     >            lg,ipar,n,
-     >            nntime(n),nchistart(n),nchistop(n),
-     >            nchprs(nchistart(n),nchistop(n),nchtop),
-     >            naps
-            enddo
-            n = nodes
-            naps = 0
-            do nch = nchistart(n), nchistop(n)
-               naps = naps + natomps(nch)
-            enddo
-            timeperi = float(nntime(n))/
-     >         (nchistop(n)-nchistart(n)+1)
-            write(42,'(3i4,3i7,7i8,i4,"% LG,ipar,node,vt,",
-     >         "i1,i2,nch,naps,NMAX,tave,mt,ttot,LGold,eff",/)')
-     >         lg,ipar,n,nntime(n),nchistart(n),
-     >         nchistop(n),nchprs(nchistart(n),nchistop(n),
-     >         nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
-     >         mt,!idiff(valuesin,valuesout),
-     >         idiff(valuesinLG,valuesout),lgold(ipar),neff
-            close(42)
 c$$$            endif 
  
 c$$$         do ns = 0, nsmax
@@ -3599,9 +3568,51 @@ c$$$     >                     (psi12(i,j)+(-1)**ns*psi12(j,i))
          call date_and_time(date,time,zone,valuesout)
          print '("SOLVET  exited at: ",a10,", diff (secs):",i5)',
      >      time, idiff(valuesin,valuesout)
-
+         if (nodes.eq.1) mt = idiff(valuesin,valuesout)
          if (allocated(bb)) deallocate(bb)
          if (allocated(dr)) deallocate(dr,dv,dx)
+            if (ipar.eq.0) then
+               open(42,file='time0'//ench,position='append')
+            else
+               open(42,file='time1'//ench,position='append')
+            endif
+            ntmax = 0
+            timetot = 0.0
+            do n=1,nodes
+               timetot = timetot + nntime(n)
+               if (nntime(n).gt.ntmax) ntmax = nntime(n)
+            enddo
+            neff = 0
+            if (ntmax.gt.0) neff = 100.0*timetot/nodes/ntmax
+            print*,'Actual efficiency:',neff,'%'
+            do n=1,nodes-1
+               naps = 0
+               do nch = nchistart(n), nchistop(n)
+                  naps = naps + natomps(nch)
+               enddo
+               timeperi = float(nntime(n))/
+     >            (nchistart(n+1)-nchistart(n))
+               write(42,'(3i4,3i7,2i8)') 
+     >            lg,ipar,n,
+     >            nntime(n),nchistart(n),nchistop(n),
+     >            nchprs(nchistart(n),nchistop(n),nchtop),
+     >            naps
+            enddo
+            n = nodes
+            naps = 0
+            do nch = nchistart(n), nchistop(n)
+               naps = naps + natomps(nch)
+            enddo
+            timeperi = float(nntime(n))/
+     >         (nchistop(n)-nchistart(n)+1)
+            write(42,'(3i4,3i7,7i8,i4,"% LG,ipar,node,vt,",
+     >         "i1,i2,nch,naps,NMAX,tave,mt,ttot,LGold,eff",/)')
+     >         lg,ipar,n,nntime(n),nchistart(n),
+     >         nchistop(n),nchprs(nchistart(n),nchistop(n),
+     >         nchtop),naps,npk(nchtop+1)-1,nint(timetot/nodes),
+     >         mt,!idiff(valuesin,valuesout),
+     >         idiff(valuesinLG,valuesout),lgold(ipar),neff
+            close(42)
 
          call clock(s3)
          tm = s3 - s2
@@ -4434,8 +4445,8 @@ c$$$         print*,'not found'
       endif 
 
       if (myid.le.0)
-     >   print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         ovlp",
-     >   "        proj/ovlp")'
+     >   print'(" LA NA  NRSTOP   E(1/cm)      E(eV)         norm",
+     >   "          proj/ovlp     ovlp2")'
 
       if (natop(l).eq.-99) then
          n = nps
@@ -4615,8 +4626,9 @@ C statement below to use in tmatcco.f
             sum = sum + psinb(i,n,l)*psinb(i,n,l) * rmesh(i,3)
          end do
          en = enpsinb(n,l)
+         ovlp2 = 0.0
          if (ery+enpsinb(ninc,linc)-enpsinb(n,l).gt.0.0.and.en.gt.0e0
-     >      .and.hlike.and.ne2e.gt.0) then
+     >      .and.hlike) then !.and.ne2e.gt.0) then
             if (ntype.eq.-3) then
                eta = -1.0 / sqrt(en)
                do i = 1, meshr
@@ -4643,10 +4655,12 @@ C  for state <f| with energy Ef, then the corresponding "true" T matrix
 C  T(Ef) = ovlp * <f|T|i>
             tmp1 = chi(j)/psinb(j,n,l)
             if (n-l.lt.nps.and.n-l-1.gt.0) then
-               tmp2 = sqrt(sqrt(en)*4.0/
-     >            (psen2(n-l+1)-psen2(n-l-1)))
+               ovlp2 = sqrt(sqrt(en)*4.0/
+     >            (psen2(n-l+1)-psen2(n-l-1))) !units of 1/sqrt(k)
+c$$$               print*,'prev,we:', sqrt(sqrt(abs(enpsinb(n-1,l)))*4.0/
+c$$$     >            (psen2(n-1-l+1)-psen2(n-1-l-1)))
             else
-               tmp2 = 0.0
+               ovlp2 = 0.0
             endif 
             tmp = 0.0
             do i = jstart, istoppsinb(n,l)
@@ -4654,8 +4668,9 @@ C  T(Ef) = ovlp * <f|T|i>
             enddo
 C  Note that the coulomb routine contains the CONST factor
             ovlp(n,l) = tmp
-            if (myid.le.0)
-     >         print*,'ovlp,chi/psi,we,phase',tmp,tmp1,tmp2,phasen(n,l)
+c$$$            if (myid.le.0)
+c$$$     >         print'("ovlp,chi/psi,ovlp2:",3f10.3)',tmp,tmp1,ovlp2!,phasen(n,l)
+c$$$            write(47,*) en, tmp, ovlp2 ! overlaps have units of 1/sqrt(k)
 c$$$  print*,'OVLP,en,phase:',tmp,en,
 c$$$     >         real(phasen(n,l)),imag(phasen(n,l))
 
@@ -4694,7 +4709,7 @@ C  will be included.
      >      natop(l) = min(ntop, n)
          if (natop(l).eq.-99.and.enpsinb(n,l).ge.etot/2.0) 
      >      natop(l) = min(ntop, n - 1)
-         if (natop(l).lt.0.and.opcl.eq.'closed') 
+         if (natop(l).lt.0.and.opcl.eq.'closed'.and.enpsinb(n,l).ge.0.0) 
      >      natop(l) = min(ntop, n - natop(l) - 2)
          if (n.le.natop(l).or.natop(l).le.0) then
             chin = '+'
@@ -4702,9 +4717,9 @@ C  will be included.
             chin = '-'
          endif      
          if (myid.le.0)
-     >      print'(2i3,i6,f12.1,f16.8,2f14.8,2x,a6,1x,a)',
+     >      print'(2i3,i6,f12.1,f16.8,3f14.8,2x,a6,1x,a)',
      >      l,n,istoppsinb(n,l),elevel,enpsinb(n,l)*ry,
-     >        sum,ovlp(n,l),opcl,chin
+     >        sum,ovlp(n,l),ovlp2,opcl,chin
          if (l.eq.1) then
             osc = oscil(enpsinb(n,l),psinb(1,n,l),istoppsinb(n,l),
      >      enpsinb(nabot(0),0),psinb(1,nabot(0),0),
@@ -5485,80 +5500,81 @@ c      close(57)
       end
 
       
-#define SLEEPY_BARRIER_TAG 678
-! not used any more
-      subroutine sleepy_barrier(comm)
-!      use mpi_f08 !avoids MPI argument missmatch warnings
-      implicit none
-      include 'mpif.h'
-      integer :: comm
-!      type(MPI_Comm) :: comm
-      integer, dimension(:), allocatable :: recvhandle,sendhandle,dataa
-!      type(MPI_Request), dimension(:), allocatable :: recvhandle,
-!     >   sendhandle,dataa
-      integer, dimension(:,:), allocatable :: statuses
-!      type(MPI_Status), dimension(:,:), allocatable :: statuses
-!      type(MPI_Status) :: stat
-      integer :: n,me
-      logical :: done
-      integer :: i,ierr
-#ifdef NEW_SLEEPY_BARRIER
-      integer buf,n1,n2,nomp,OMP_GET_MAX_THREADS,req
-!      type(MPI_Request) :: req
-#endif
-c$$$      return
-      call mpi_comm_size(comm,n,ierr)
-      call mpi_comm_rank(comm,me,ierr)
-#ifdef NEW_SLEEPY_BARRIER
-      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
-      n=(nomp*(1+me/nomp)-1)-(nomp*(me/nomp))+1
-      n1=nomp*(me/nomp)
-      n2=nomp*(1+me/nomp)-1
-      allocate(sendhandle(n1:n2))
-      if( mod(me,nomp).eq.0 ) then
-         call mpi_irecv(buf,1,MPI_INTEGER,n1,SLEEPY_BARRIER_TAG,
-     >         comm,req,ierr)
-         do i=n1,n2
-           call mpi_issend(1,1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
-     >            sendhandle(i),ierr)
-         end do
-         call mpi_waitall(n,sendhandle,MPI_STATUSES_IGNORE,ierr)
-!         call mpi_waitall(n,sendhandle,stat,ierr)
-         call mpi_wait(req,MPI_STATUSES_IGNORE,ierr)
-      else
-         call mpi_irecv(buf,1,MPI_INTEGER,n1,SLEEPY_BARRIER_TAG,
-     >         comm,req,ierr)
-         done=.false.
-         call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
-         do while ( .not.done)
-              call sleep(2)
-              call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
-         enddo
-         call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
-      endif
-      deallocate(sendhandle)
-      call mpi_barrier(MPI_COMM_WORLD,ierr)
-#else
-      allocate(sendhandle(0:n-1))
-      allocate(recvhandle(0:n-1))
-      allocate(dataa(0:n-1))
-      allocate(statuses(MPI_STATUS_SIZE,0:n-1))
-      do i=0,n-1
-        call mpi_irecv(dataa(i),1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
-     >          recvhandle(i),ierr)
-        call mpi_isend(1,1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
-     >          sendhandle(i),ierr)
-      end do
-      done=.false.
-      call mpi_testall(n,recvhandle,done,statuses,ierr)
-      do while ( .not.done)
-        call sleep(2)
-        call mpi_testall(n,recvhandle,done,statuses,ierr)
-      end do
-      call mpi_waitall(n,sendhandle,statuses,ierr)
-      deallocate(sendhandle,recvhandle,dataa,statuses)
-#endif
-      end subroutine sleepy_barrier
+c$$$#define SLEEPY_BARRIER_TAG 678
+c$$$! not used any more
+c$$$      subroutine sleepy_barrier(comm)
+c$$$!      use mpi_f08 !avoids MPI argument missmatch warnings
+c$$$      implicit none
+c$$$      include 'mpif.h'
+c$$$      integer :: comm
+c$$$!      type(MPI_Comm) :: comm
+c$$$      integer, dimension(:), allocatable :: recvhandle,sendhandle,dataa
+c$$$!      type(MPI_Request), dimension(:), allocatable :: recvhandle,
+c$$$!     >   sendhandle,dataa
+c$$$      integer, dimension(:,:), allocatable :: statuses
+c$$$!      type(MPI_Status), dimension(:,:), allocatable :: statuses
+c$$$!      type(MPI_Status) :: stat
+c$$$      integer :: n,me
+c$$$      logical :: done
+c$$$      integer :: i,ierr
+c$$$#ifdef NEW_SLEEPY_BARRIER
+c$$$      integer buf,n1,n2,nomp,OMP_GET_MAX_THREADS,req
+c$$$!      type(MPI_Request) :: req
+c$$$#endif
+c$$$c$$$      return
+c$$$      call mpi_comm_size(comm,n,ierr)
+c$$$      call mpi_comm_rank(comm,me,ierr)
+c$$$#ifdef NEW_SLEEPY_BARRIER
+c$$$      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
+c$$$      n=(nomp*(1+me/nomp)-1)-(nomp*(me/nomp))+1
+c$$$      n1=nomp*(me/nomp)
+c$$$      n2=nomp*(1+me/nomp)-1
+c$$$      allocate(sendhandle(n1:n2))
+c$$$      if( mod(me,nomp).eq.0 ) then
+c$$$         call mpi_irecv(buf,1,MPI_INTEGER,n1,SLEEPY_BARRIER_TAG,
+c$$$     >         comm,req,ierr)
+c$$$         do i=n1,n2
+c$$$           call mpi_issend(1,1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
+c$$$     >            sendhandle(i),ierr)
+c$$$         end do
+c$$$         call mpi_waitall(n,sendhandle,MPI_STATUSES_IGNORE,ierr)
+c$$$!         call mpi_waitall(n,sendhandle,stat,ierr)
+c$$$         call mpi_wait(req,MPI_STATUSES_IGNORE,ierr)
+c$$$      else
+c$$$         call mpi_irecv(buf,1,MPI_INTEGER,n1,SLEEPY_BARRIER_TAG,
+c$$$     >         comm,req,ierr)
+c$$$         done=.false.
+c$$$         call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
+c$$$         do while ( .not.done)
+c$$$              call sleep(2)
+c$$$              call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
+c$$$         enddo
+c$$$         call mpi_test(req,done,MPI_STATUSES_IGNORE,ierr)
+c$$$      endif
+c$$$      deallocate(sendhandle)
+c$$$      call mpi_barrier(MPI_COMM_WORLD,ierr)
+c$$$#else
+c$$$      allocate(sendhandle(0:n-1))
+c$$$      allocate(recvhandle(0:n-1))
+c$$$      allocate(dataa(0:n-1))
+c$$$      dataa(0:n-1) = 0
+c$$$      allocate(statuses(MPI_STATUS_SIZE,0:n-1))
+c$$$      do i=0,n-1
+c$$$        call mpi_irecv(dataa(i),1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
+c$$$     >          recvhandle(i),ierr)
+c$$$        call mpi_isend(1,1,MPI_INTEGER,i,SLEEPY_BARRIER_TAG,comm,
+c$$$     >          sendhandle(i),ierr)
+c$$$      end do
+c$$$      done=.false.
+c$$$      call mpi_testall(n,recvhandle,done,statuses,ierr)
+c$$$      do while ( .not.done)
+c$$$        call sleep(2)
+c$$$        call mpi_testall(n,recvhandle,done,statuses,ierr)
+c$$$      end do
+c$$$      call mpi_waitall(n,sendhandle,statuses,ierr)
+c$$$      deallocate(sendhandle,recvhandle,dataa,statuses)
+c$$$#endif
+c$$$      end subroutine sleepy_barrier
 
       subroutine date_and_time(date,time,zone,valuesin)
       character date*8,time*10,zone*5
@@ -5728,8 +5744,8 @@ c
       include 'par.f'
       integer npk(nchtop+1)
       complex wk(npk(nchtop+1))
-      dimension vmatgf(nii:nfi,nij:nfj)
-      dimension gf(kmaxgf,kmaxgf,nchtop)
+      real vmatgf(nii:nfi,nij:nfj)
+      real gf(kmaxgf,kmaxgf,nchtop)
 #ifdef _single
       call invertsymgfs(gf, kmaxgf, nchstart, nchstop, nchtop, npk)
 #elif defined _double

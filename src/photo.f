@@ -54,7 +54,8 @@ c DPI of Lithium
       if(nznuc.eq.18)GS = 5.464  !ArIII ^1S   energy in Ry by Saloman
       if(nznuc.eq.4  .and. Zasym.eq.3) GS =27.308 !Be^2+
       if(nznuc.eq.10 .and. Zasym.eq.9)GS =187.813 !Ne^8+ 
-      if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
+c$$$      if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
+      if(nznuc.eq.12 .and. Zasym.eq.11)GS = 201.01 !Mg 1s^-2
 c$$$      if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+
       if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.06 !Al^11+ 
       if(nznuc.eq.14 .and. Zasym.eq.13)GS =374.80 !Si^12+
