@@ -35,9 +35,9 @@
      >             ,nchtop
      >             ,wk,wklen,soln)
       use vmat_module
-      use mpi_f08 !avoids MPI argument missmatch warnings
+!      use mpi_f08 !avoids MPI argument missmatch warnings
       implicit none
-!      include 'mpif.h'
+      include 'mpif.h'
 c$$$      real, dimension(nf+1:nd,ni:nf) :: vmat0
 c$$$      real, dimension(ni:nf,ni:nf+1) :: vmat01
 c$$$      real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
@@ -288,9 +288,9 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
      >                      kdist,kldim,desc_kl,
      >             nodes,nchistart,nchistop,npklen,npk,
      >                      bctx,ns,part,kf,wk,wklen)
-      use mpi_f08 !avoids MPI argument missmatch warnings
+!      use mpi_f08 !avoids MPI argument missmatch warnings
       implicit none
-!      include 'mpif.h'
+      include 'mpif.h'
       real, dimension(nf+1:nd,ni:nf) :: vmat0
       real, dimension(ni:nf,ni:nf+1) :: vmat01
       real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
@@ -322,16 +322,20 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
       integer :: idx
       integer :: wklen
       complex, dimension(wklen) :: wk
-!      integer, dimension(:), allocatable :: sends, requests
-      type(MPI_Request), dimension(:), allocatable :: sends, requests
+
+      integer, dimension(:), allocatable :: sends, requests
+!      type(MPI_Request), dimension(:), allocatable :: sends, requests
+
       integer, dimension(:,:), allocatable :: reqbuffer
       integer, dimension(5) :: reqcord
       logical :: waiting, reqdone
       integer :: gproc
-!      integer, dimension(2) :: fillrequests
-      type(MPI_Request), dimension(2) :: fillrequests !mpi_f08
-!      integer, dimension(MPI_STATUS_SIZE,2) :: fillstats
-      type(MPI_Status), dimension(2) :: fillstats !mpi_f08
+
+      integer, dimension(2) :: fillrequests
+!      type(MPI_Request), dimension(2) :: fillrequests !mpi_f08
+      integer, dimension(MPI_STATUS_SIZE,2) :: fillstats
+!      type(MPI_Status), dimension(2) :: fillstats !mpi_f08
+
       integer, dimension(20) :: rowmap
       real, dimension(:,:,:), allocatable :: sendbuffer
       integer :: nodes
@@ -384,8 +388,10 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
           do while (waiting)
             call service_requests(vmat0,vmat1,vmat01,ni,nf,nd,sends,
      >              kblock,mpisize,requests,reqbuffer,sendbuffer)
-!            call mpi_test(fillrequests(2),reqdone,fillstats(:,2),ierr)
-            call mpi_test(fillrequests(2),reqdone,fillstats(2),ierr) !mpi_f08
+
+            call mpi_test(fillrequests(2),reqdone,fillstats(:,2),ierr)
+!            call mpi_test(fillrequests(2),reqdone,fillstats(2),ierr) !mpi_f08
+
             if (reqdone) then
               waiting=.false.
             end if
@@ -437,8 +443,8 @@ c$$$     >                       *sqrt(abs(real(wk(gidx(1)+i-lidx(1)))))
           idx=idx+1
         end if
       end do
-!      call mpi_wait(fillrequests(1),fillstats(:,1),ierr)
-      call mpi_wait(fillrequests(1),fillstats(1),ierr) !mpi_f08
+      call mpi_wait(fillrequests(1),fillstats(:,1),ierr)
+!      call mpi_wait(fillrequests(1),fillstats(1),ierr) !mpi_f08
       call mpi_barrier(MPI_COMM_WORLD,ierr)
 
       deallocate(sends)
@@ -458,25 +464,31 @@ c$$$     >                       *sqrt(abs(real(wk(gidx(1)+i-lidx(1)))))
       ! check if any more processors have requested a block of data and
       ! repeat
       ! if a processor requests a block at -1, its done
-      use mpi_f08               !avoids MPI argument missmatch warnings
+!      use mpi_f08               !avoids MPI argument missmatch warnings
       implicit none
-!      include 'mpif.h'
+      include 'mpif.h'
       real, dimension(nf+1:nd,ni:nf) :: vmat0
       real, dimension(ni:nf,ni:nf+1) :: vmat01
       real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
       integer :: ni,nf,nd
       integer, dimension(2) :: kblock
       integer :: finished
-!     integer, dimension(MPI_STATUS_SIZE) :: mpistat
-      type(MPI_Status) :: mpistat !mpi_f08
+
+      integer, dimension(MPI_STATUS_SIZE) :: mpistat
+!      type(MPI_Status) :: mpistat !mpi_f08
+
       integer :: ierr
       integer :: nprocs
-!     integer, dimension(nprocs) :: sends
-      type(MPI_Request), dimension(nprocs) :: sends !mpi_f08
+
+      integer, dimension(nprocs) :: sends
+!      type(MPI_Request), dimension(nprocs) :: sends !mpi_f08
+
       integer, dimension(5,nprocs) :: reqbuffer
       integer :: idxsize
-!     integer, dimension(nprocs) :: reqhandle
-      type(MPI_Request), dimension(nprocs) :: reqhandle !mpi_f08
+
+      integer, dimension(nprocs) :: reqhandle
+!      type(MPI_Request), dimension(nprocs) :: reqhandle !mpi_f08
+
       integer :: i,j
       integer :: idx
       logical :: flag

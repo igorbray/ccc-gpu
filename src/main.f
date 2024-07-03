@@ -17,8 +17,8 @@ c$$$      use chil_module
       use photo_module
 C      use date_time_module can't do this as time gets overwritten
 c MPI Fortran header file
-      use mpi_f08 !avoids MPI argument missmatch warnings
-!      include 'mpif.h'
+!      use mpi_f08 !avoids MPI argument missmatch warnings
+      include 'mpif.h'
       include 'par.f'
 c MPI declarations
       integer ntasks, myid, ierr
@@ -91,16 +91,18 @@ c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       complex ovlpnl, ovlpnn
       real, allocatable :: kon(:,:) !,chil(:,:,:)
       complex, allocatable :: ct(:,:), ckern(:,:), cwork(:), ct2(:),
-     $     psi12(:,:)
-      type(MPI_Status), allocatable :: statusesR(:),
-     >   statusesS(:)
-      type(MPI_Request), allocatable :: receiveHandle(:,:),
-     >   receiveType(:,:),sendHandle(:)      
-      type(MPI_Status) :: my_status
-      type(MPI_Datatype) :: !MY_MPI_REAL, MY_MPI_COMPLEX,
-     >   MY_MPI_REAL_NEW
-!      integer, allocatable :: sendHandle(:), statusesR(:,:),
-!     >   statusesS(:,:), receiveHandle(:,:), receiveType(:,:)
+     $   psi12(:,:)
+      
+c$$$      type(MPI_Status), allocatable :: statusesR(:),
+c$$$     >   statusesS(:)
+c$$$      type(MPI_Request), allocatable :: receiveHandle(:,:),
+c$$$     >   receiveType(:,:),sendHandle(:)      
+c$$$      type(MPI_Status) :: my_status
+c$$$      type(MPI_Datatype) :: !MY_MPI_REAL, MY_MPI_COMPLEX,
+c$$$     >   MY_MPI_REAL_NEW
+      integer, allocatable :: sendHandle(:), statusesR(:,:),
+     >   statusesS(:,:), receiveHandle(:,:), receiveType(:,:)
+
       integer ,allocatable :: nrange(:) !,minchil(:,:)
       real ,allocatable :: tscale(:)
 c$$$      pointer (ptrchi,chil)
@@ -310,13 +312,13 @@ C define the following here to stop "used without being defined" errors in do 77
       if (mod(myid,nomp).eq.0) then
          nodeid = myid/nomp + 1
       allocate(receiveType(nodes,3))!These calls are for LAPACK with many nodes
-!         allocate(receiveType(3)) !These calls are for LAPACK with many nodes
+!       allocate(receiveType(3)) !These calls are for LAPACK with many nodes
       allocate(receiveHandle(nodes,3))
-      allocate(statusesR(nodes))
-!      allocate(statusesR(MPI_STATUS_SIZE,nodes))
+!      allocate(statusesR(nodes))
+      allocate(statusesR(MPI_STATUS_SIZE,nodes))
       allocate(sendHandle(3))
-!     allocate(statusesS(MPI_STATUS_SIZE,3))
-      allocate(statusesS(3))
+      allocate(statusesS(MPI_STATUS_SIZE,3))
+!      allocate(statusesS(3))
 
       
       do n = 1, knm
@@ -3281,66 +3283,66 @@ C Reconstruct full VMAT on the first node to use with LAPACK
             allocate(bb(nd,nchtop,2,0:nsmax))
             bb(:,:,:,:) = 0.0
             receiveHandle(:,:)=MPI_REQUEST_NULL
-            do nn = 2, nodes
-               ni = npk(nchistart(nn))
-               nf = npk(nchistop(nn)+1)-1
-               call mpi_type_vector(nf-ni+2,nf-ni+1,nd,
-     >            MY_MPI_REAL,
-     >            MY_MPI_REAL_NEW,ierr)
-!     >            receiveType(nn,3), ierr) ! Defines the strided memory access to receive vmat01               
-!     call mpi_type_commit(receiveType(nn,3),ierr)
-               call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
-!               call mpi_type_commit(receiveType(nn,3),ierr)               
-!               call mpi_irecv(vmat(ni,ni), 1, receiveType(nn,3),
-               call mpi_irecv(vmat(ni,ni), 1, MY_MPI_REAL_NEW,
-     >               (nn-1)*nomp, TAG01, MPI_COMM_WORLD,
-     >               receiveHandle(nn,3),ierr)
-               
-               if (nf.lt.nd) then
-                  call mpi_type_vector(nf-ni+1,nd-nf,nd,
-     >            MY_MPI_REAL,
-     >               MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat0
-!     >               receiveType(nn,1), ierr) ! Defines the strided memory access to receive vmat0                  
-                  call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
-!                  call mpi_type_commit(receiveType(nn,1),ierr)
-!                  call mpi_irecv(vmat(nf+1,ni), 1, receiveType(nn,1),
-                  call mpi_irecv(vmat(nf+1,ni), 1, MY_MPI_REAL_NEW,
-     >               (nn-1)*nomp, TAG0, MPI_COMM_WORLD,
-     >               receiveHandle(nn,1),ierr)
-                  if (nsmax.eq.1) then ! second spin
-                     call mpi_type_vector(nd-nf,nf-ni+1,nd,
-     >               MY_MPI_REAL,
-     >                  MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat1
-!     >                  receiveType(nn,2), ierr) ! Defines the strided memory access to receive vmat1                     
-!     call mpi_type_commit(receiveType(nn,2),ierr)
-                     call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
-                     call mpi_irecv(vmat(ni,nf+1+1), 1, 
-     >                  MY_MPI_REAL_NEW,(nn-1)*nomp, TAG1,
-!     >                  receiveType(nn,2),(nn-1)*nomp, TAG1,                      
-     >                  MPI_COMM_WORLD,receiveHandle(nn,2),ierr)
-                  endif 
-               else
-                  receiveHandle(nn,1) = MPI_REQUEST_NULL
-               endif
-            enddo
-            do i = 1, 3
-               call mpi_waitall(nodes,receiveHandle(:,i),
-     >            statusesR(:),ierr)
-!     >            statusesR(:,:),ierr)               
-            end do
-            do nn=2,nodes
-               ni = npk(nchistart(nn))
-               nf = npk(nchistop(nn)+1)-1
-               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
-!               call mpi_type_free(receiveType(nn,3),ierr)               
-               if (nf.lt.nd) then
-                  call mpi_type_free(MY_MPI_REAL_NEW,ierr)
-!                  call mpi_type_free(receiveType(nn,1),ierr)                  
-                  if (nsmax.eq.1)
-     >               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
-!     >               call mpi_type_free(receiveType(nn,2),ierr)                  
-               end if
-            end do
+c$$$            do nn = 2, nodes
+c$$$               ni = npk(nchistart(nn))
+c$$$               nf = npk(nchistop(nn)+1)-1
+c$$$               call mpi_type_vector(nf-ni+2,nf-ni+1,nd,
+c$$$     >            MY_MPI_REAL,
+c$$$     >            MY_MPI_REAL_NEW,ierr)
+c$$$!     >            receiveType(nn,3), ierr) ! Defines the strided memory access to receive vmat01               
+c$$$!     call mpi_type_commit(receiveType(nn,3),ierr)
+c$$$               call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
+c$$$!               call mpi_type_commit(receiveType(nn,3),ierr)               
+c$$$!               call mpi_irecv(vmat(ni,ni), 1, receiveType(nn,3),
+c$$$               call mpi_irecv(vmat(ni,ni), 1, MY_MPI_REAL_NEW,
+c$$$     >               (nn-1)*nomp, TAG01, MPI_COMM_WORLD,
+c$$$     >               receiveHandle(nn,3),ierr)
+c$$$               
+c$$$               if (nf.lt.nd) then
+c$$$                  call mpi_type_vector(nf-ni+1,nd-nf,nd,
+c$$$     >            MY_MPI_REAL,
+c$$$     >               MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat0
+c$$$!     >               receiveType(nn,1), ierr) ! Defines the strided memory access to receive vmat0                  
+c$$$                  call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
+c$$$!                  call mpi_type_commit(receiveType(nn,1),ierr)
+c$$$!                  call mpi_irecv(vmat(nf+1,ni), 1, receiveType(nn,1),
+c$$$                  call mpi_irecv(vmat(nf+1,ni), 1, MY_MPI_REAL_NEW,
+c$$$     >               (nn-1)*nomp, TAG0, MPI_COMM_WORLD,
+c$$$     >               receiveHandle(nn,1),ierr)
+c$$$                  if (nsmax.eq.1) then ! second spin
+c$$$                     call mpi_type_vector(nd-nf,nf-ni+1,nd,
+c$$$     >               MY_MPI_REAL,
+c$$$     >                  MY_MPI_REAL_NEW, ierr) ! Defines the strided memory access to receive vmat1
+c$$$!     >                  receiveType(nn,2), ierr) ! Defines the strided memory access to receive vmat1                     
+c$$$!     call mpi_type_commit(receiveType(nn,2),ierr)
+c$$$                     call mpi_type_commit(MY_MPI_REAL_NEW,ierr)
+c$$$                     call mpi_irecv(vmat(ni,nf+1+1), 1, 
+c$$$     >                  MY_MPI_REAL_NEW,(nn-1)*nomp, TAG1,
+c$$$!     >                  receiveType(nn,2),(nn-1)*nomp, TAG1,                      
+c$$$     >                  MPI_COMM_WORLD,receiveHandle(nn,2),ierr)
+c$$$                  endif 
+c$$$               else
+c$$$                  receiveHandle(nn,1) = MPI_REQUEST_NULL
+c$$$               endif
+c$$$            enddo
+c$$$            do i = 1, 3
+c$$$               call mpi_waitall(nodes,receiveHandle(:,i),
+c$$$     >            statusesR(:),ierr)
+c$$$!     >            statusesR(:,:),ierr)               
+c$$$            end do
+c$$$            do nn=2,nodes
+c$$$               ni = npk(nchistart(nn))
+c$$$               nf = npk(nchistop(nn)+1)-1
+c$$$               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+c$$$!               call mpi_type_free(receiveType(nn,3),ierr)               
+c$$$               if (nf.lt.nd) then
+c$$$                  call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+c$$$!                  call mpi_type_free(receiveType(nn,1),ierr)                  
+c$$$                  if (nsmax.eq.1)
+c$$$     >               call mpi_type_free(MY_MPI_REAL_NEW,ierr)
+c$$$!     >               call mpi_type_free(receiveType(nn,2),ierr)                  
+c$$$               end if
+c$$$            end do
          else if (mod(myid,nomp).eq.0) then
             nd = npk(nchtop+1)-1
             ni = npk(nchistart(nodeid))
@@ -3363,8 +3365,8 @@ c$$$            enddo
      >            call mpi_isend(vmat1,(nf-ni+1)*(nd-nf),MY_MPI_REAL,
      >            0,TAG1,MPI_COMM_WORLD,sendHandle(2),ierr)
             endif 
-!     call mpi_waitall(3,sendHandle,statusesS(:,:))
-            call mpi_waitall(3,sendHandle,statusesS(:))
+            call mpi_waitall(3,sendHandle,statusesS(:,:))
+!            call mpi_waitall(3,sendHandle,statusesS(:))
          endif
          endif ! if scalapack
          if (allocated(vmat01)) deallocate(vmat01)
