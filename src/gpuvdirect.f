@@ -1,7 +1,7 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >   mintemp3,maxtemp3,temp3,!ltmin,minchilx,chilx,ctemp,itail,trat,
      >   nchan,nqmfmax,vmatt,ichildim_dum,ngpus,nnt,nchii_dummy,second,
-     >   maxpsii,temp2,nqmi2,nchtop2,ifirst)
+     >   maxpsii,temp2,nqmi2,nchtop2,nsmax)
       use chil_module
 #ifdef GPU_ACC
       use openacc
@@ -12,7 +12,7 @@
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
 c$$$      real tmp3(1:meshr,nchi:nchtop)
       real temp3(1:meshr,nchi:nchtop)
-      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax)
       real dotp1,dotp2
 !      real,allocatable :: chitemp(:,:),tmp(:,:)
       real chitemp(meshr,nqmi)
@@ -22,7 +22,7 @@ c$$$      real tmp3(1:meshr,nchi:nchtop)
       real temp2(1:maxpsii,1:nqmi2,nchi:nchtop2)
 
       maxi2 = maxpsii
-c$$$      if(ifirst.ne.1) then
+c$$$      if(nsmax.ne.1) then
 c$$$        maxi2=0
 c$$$      endif
 
@@ -41,7 +41,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 !$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
 !$omp& tnum)
 !$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
-!$omp& shared(nqmi,maxi2,ifirst)
+!$omp& shared(nqmi,maxi2,nsmax)
 !$omp do schedule(dynamic)
 #endif
 #endif
@@ -76,7 +76,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
 #endif
          do ki = 1, nqmi
-            do i = 1, maxi !minchil(ki+npk(nchi)-1), maxi !minki, maxi
+            do i = 1, maxi      !minchil(ki+npk(nchi)-1), maxi !minki, maxi
                chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1,1)
             enddo
          enddo
@@ -84,19 +84,25 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 !$omp end target teams distribute parallel do
 #endif
 !         tmp(1:nqmi,1:nqmf) = 0.0
-         if (ifirst.eq.1) then
+         if (nsmax.eq.1) then
 #ifdef GPU_ACC                 
 !$acc loop independent collapse(2)
 #endif
 #ifdef GPU_OMP
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
 #endif
-             do ki = 1, nqmi
+            do ki = 1, nqmi
                do kf=1,nqmf
                   kff = npk(nchf) + kf - 1
                   mini = minchil(kff,1)
-                  tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1)
-     >               ,temp2(mini:maxi2,ki,nchf))
+! this is not faster than below
+c$$$                  tmp(ki,kf) = 0.0 
+c$$$                  do i = mini, maxi2
+c$$$                     tmp(ki,kf) = tmp(ki,kf) + chil(i,kff,1) *
+c$$$     >                  temp2(i,ki,nchf)
+c$$$                  enddo
+                  tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1),
+     >               temp2(mini:maxi2,ki,nchf))
                enddo
             enddo
 #ifdef GPU_OMP
@@ -110,14 +116,14 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
 #endif         
          do ki = 1, nqmi
-            do kf=1,nqmf
-               kii = npk(nchi) + ki - 1
+            do kf = 1, nqmf
                kff = npk(nchf) + kf - 1
                mini = minchil(kff,1)
-               vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+dot_product(
-     >            chil(mini:maxi,kff,1),
-     >            chitemp(mini:maxi,ki))+tmp(ki,kf)
-               vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2*tmp(ki,kf)
+               vmatt(kf,ki,nchf,0) = tmp(ki,kf) + vmatt(kf,ki,nchf,0) +
+     >            dot_product(chil(mini:maxi,kff,1),
+     >            chitemp(mini:maxi,ki)) !the slow part
+               if (nsmax.eq.1)  !does not slow things down
+     >            vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2.0*tmp(ki,kf)
             end do
          end do
 #ifdef GPU_ACC
@@ -126,7 +132,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
-       end do
+       end do !nchf
 #ifdef GPU_OMP
 !$omp end target data
 #endif

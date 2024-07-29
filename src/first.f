@@ -260,8 +260,8 @@ C  which contains VDCORE.
          if (nqmfmax.gt.1) open(42,file=nodetfile)
          maxtemp3(:) = 0
          allocate(temp3(1:meshr,nchi:nchtop))
-         allocate(vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1))
-         vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:1) = 0.0
+         allocate(vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax))
+         vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:nsmax) = 0.0
          if (ifirst.eq.1) then
             maxpsii2 = maxpsii
             nqmi2 = nqmi
@@ -510,7 +510,7 @@ C  them.
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,!ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,nqmfmax,vmatt,ichildim,ngpus,nnt,nchii,second,
-     >     maxpsii2,temp2,nqmi2,nchtop2,ifirst)
+     >     maxpsii2,temp2,nqmi2,nchtop2,nsmax)
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime
@@ -527,10 +527,14 @@ C$OMP& SHARED(nchinew,nt_t,ei,chan)
       do nchftmp = nchi, nchtop
          nchf = nchftmp !nchinew(nchftmp,2)
          if(pos(nchi).eqv.pos(nchf)) then
-         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + (vmatt(1,1,nchf,0)
-     >                         + vmatt(1,1,nchf,1))/2 
-         vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
-         nqmf = npk(nchf+1) - npk(nchf)
+            if (nsmax.eq.0) then
+               vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vmatt(1,1,nchf,0)
+            else
+               vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + 
+     >            (vmatt(1,1,nchf,0) + vmatt(1,1,nchf,1))/2.0
+            endif
+            vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
+            nqmf = npk(nchf+1) - npk(nchf)
         else 
            nqmf = npk(nchf+1) - npk(nchf)
            do ns = 0, nsmax
@@ -570,8 +574,8 @@ c$$$           endif
         endif
       end do
 !$omp end parallel do
-      call clock(s2)
-      td = td + s2 - s1
+c$$$      call clock(s2)
+c$$$      td = td + s2 - s1
  
 C Define exchange terms if IFIRST = 1
       if (ifirst.eq.1) then
@@ -580,8 +584,8 @@ C Define exchange terms if IFIRST = 1
 !     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
 !     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,nnt,ngpus)
 
-            call clock(s3)
-            te1 = te1 + s3 - s2
+c$$$            call clock(s3)
+c$$$            te1 = te1 + s3 - s2
 
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
 !$omp& schedule(dynamic)
@@ -603,8 +607,8 @@ C  Define energy dependent exchange terms
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
      >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
      >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nchtop)
-         call clock(s4)
-         te2 = te2 + s4 - s3
+c$$$         call clock(s4)
+c$$$         te2 = te2 + s4 - s3
       end do
 !$omp end parallel do
       end if ! End of exchange
