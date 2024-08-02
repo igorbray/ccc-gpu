@@ -88,7 +88,7 @@ C      allocatable :: chitemp(:,:)
 
       integer maxpsii,maxpsif
 
-      integer ngpus,ntpg,nnt,gpunum
+      integer ngpus,ntpg,nnt,gpunum,OMP_GET_MAX_THREADS
 !      integer ichildim in chil module
 
 C      integer nchistart(:),nchistop(:)
@@ -212,19 +212,8 @@ c$$$      enddo
 c$$$C Put the larger l states first for OpenMP efficiency
 c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
 c$$$      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
-      if (ifirst.eq.1) then
-         rmem = 0.0
-         do nchi = nchii, nchif
-            nqmi = npk(nchi+1) - npk(nchi)
-            rmem = rmem + nqmi*(nchtop-nchi+1)*maxpsi_t(nchi) !total memory for all nchi of node
-         enddo
-         print"('nodeid will allocate Mb to temp2:',i4,i7)", 
-     >      nodeid,nint(1e-6*rmem*nbytes)
-      endif
 
-      do nchtmp = nchii, nchif
-         nchi = nchtmp !nchinew(nchtmp,1)
-c$$$      do nchi = nchii, nchif
+      do nchi = nchii, nchif    ! main nchi loop
          call date_and_time(date,time,zone,valuesin)
          psii(:)=psi_t(:,nchi)
          maxpsii=maxpsi_t(nchi)
@@ -260,13 +249,16 @@ C  which contains VDCORE.
          if (nqmfmax.gt.1) open(42,file=nodetfile)
          maxtemp3(:) = 0
          allocate(temp3(1:meshr,nchi:nchtop))
+         rmem3 = meshr*(nchtop+1-nchi)
          allocate(vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax))
+         rmemt = nqmfmax*nqmfmax*(nchtop+1-nchi)*(nsmax+1)
          vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:nsmax) = 0.0
          if (ifirst.eq.1) then
             maxpsii2 = maxpsii
             nqmi2 = nqmi
             nchtop2 = nchtop
             allocate(temp2(maxpsii,nqmi,nchi:nchtop)) !allocate(temp2(meshr,nqmi,nchi:nchtop))
+            rmem2=maxpsii*nqmi*(nchtop+1-nchi)
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
      >         lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
@@ -276,8 +268,12 @@ C  which contains VDCORE.
             nqmi2 = 1
             nchtop2 = nchi
             allocate(temp2(1:maxpsii2,1:nqmi2,nchi:nchtop2))
+            rmem2 = 1
          endif
-
+c$$$         print'("nodeid, nchi, mem2, mem3, memt(Mb):",5i6)',nodeid,nchi,
+c$$$     >      nint(rmem2*1e-6*nbytes),nint(rmem3*1e-6*nbytes),
+c$$$     >      nint(rmemt*1e-6*nbytes)
+         
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)

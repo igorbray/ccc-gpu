@@ -2740,7 +2740,7 @@ c$$$               write(42,*) nch, nchtime(nch)
             n = nodes
             nodet(n) = nint(tnchtimetot - tnttot) !time for last node
             if (nodet(n).gt.nodet(ntm)) ntm = n
-            neff = nint(100.0*tnchtimetot/nodet(ntm)/nodes)
+            neff = nint(100.0*tnchtimetot/(nodet(ntm)+1.0)/nodes)
             if (myid.le.0) print"(
      >         'LG,IPAR,n,nchistart,nchistop,nodet:',6i6,
      >         ' LGold, neff:',2i4,'%')",lg,ipar,n,
@@ -2757,7 +2757,7 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
      >            lg,ipar,n,nchistart(n),nchistop(n),nodet(n)
             enddo
             n= nodes
-            neff = nint(100.0*tnchtimetot/nodet(ntm)/nodes)
+            neff = nint(100.0*tnchtimetot/(nodet(ntm)+1.0)/nodes)
             if (myid.le.0) then
                limitt = limit_time-ntimeLG_IPARtot
                print"(
@@ -2772,8 +2772,8 @@ C  Marginally improve on above by seeing if nodes with max times can be reduced
             endif
          else
             LGold(ipar) = -1
-            print*,'nodeid,nchistart(nodes):',
-     >         nodeid,nchistart(nodes)
+c$$$            print*,'nodeid,nchistart(nodes):',
+c$$$     >         nodeid,nchistart(nodes)
          endif
          call MPI_Barrier(  MPI_COMM_WORLD, ierr)
          
@@ -2952,7 +2952,7 @@ c$$$     >      nodeid,time
 c$$$     >      npk,minchil,chil,phasel,nchtop,etot,nbnd,abnd,npsbnd,albnd,         
      >        sigma,mnnbtop,pos,lnch)
          call date_and_time(date,time,zone,valuesout)
-         print '(/,i4,": nodeid exited  second MAKECHIL at: ",a10,
+         print '(i4,": nodeid exited  second MAKECHIL at: ",a10,
      >   ", diff (secs):",i5)',nodeid,time,
      >   idiff(valuesin,valuesout)
 

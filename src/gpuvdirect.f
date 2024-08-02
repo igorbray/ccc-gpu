@@ -37,11 +37,11 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel num_threads(nnt)
+!$omp parallel num_threads(nnt) !default(private)
 !$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
 !$omp& tnum)
 !$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
-!$omp& shared(nqmi,maxi2,nsmax)
+!$omp&shared(nqmi,maxi2,nsmax,nnt,meshr,maxpsii,nchtop2,nqmfmax,minchil)
 !$omp do schedule(dynamic)
 #endif
 #endif
@@ -83,7 +83,6 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
-!         tmp(1:nqmi,1:nqmf) = 0.0
          if (nsmax.eq.1) then
 #ifdef GPU_ACC                 
 !$acc loop independent collapse(2)
@@ -108,6 +107,8 @@ c$$$                  enddo
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
+         else
+            tmp(1:nqmi,1:nqmf) = 0.0
          endif
 #ifdef GPU_ACC
 !$acc loop independent collapse(2)

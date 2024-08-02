@@ -534,6 +534,8 @@ c$$$               end do
                   do nchi = 1, min(9,nchtop)
                      do nchf = 1, min(9,nchtop)
                      open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
+            write(42,
+     >         '("#   rkf       rki          vmat       kff kii")')
                      do ki = npk(nchi)+1, npk(nchi+1) - 1
                         kii = ki - npk(nchi) + 1
                         rki = gk(kii,nchi)
@@ -2047,6 +2049,8 @@ c$$$      end
       do nchi = 1, min(nchtop,maxnch)
          do nchf = nchi, min(nchtop,maxnch)
             open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
+            write(42,
+     >         '("#   rkf       rki          vmat       kff kii")')
             do ki = npk(nchi) + 0, npk(nchi+1) - 1
                kii = ki - npk(nchi) + 1
                rki = gk(kii,nchi)
