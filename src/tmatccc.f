@@ -76,7 +76,7 @@ c$$$      data sprint,lprint/.false.,.false./
 c$$$      data sprint,lprint/.true.,.true./
 
 C     Added by Alex
-      real, allocatable :: kernel(:,:)
+c$$$      real, allocatable :: kernel(:,:)
       logical :: box
 C     End added by Alex
 
@@ -1719,7 +1719,7 @@ C  The following routine solves the set of linear equations where the
       parameter (nmax = kmax * nchan)
 c$$$      real, dimension(n*n) :: afi
 c$$$      pointer (ptrafi,afi)
-      real, dimension(:), allocatable :: afi
+c$$$      real, dimension(:), allocatable :: afi
 c$$$      real kernel(lda,lda+1)
       real kernel(lda,lda)
       real*8 fact

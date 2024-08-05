@@ -3328,7 +3328,8 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
 #elif defined _double
       err = 1d-12
 #endif
-      do while (abs(test).gt.err)!.and.dk/startk.gt.err
+      startkold = -1.0
+      do while (abs(test).gt.err.and.startk.ne.startkold)!.and.dk/startk.gt.err
          startkold = startk
          if (test.gt.0.0) then
             startk = startk - dk
@@ -3361,7 +3362,8 @@ c$$$     >      test,dk,startk,stopk,nmin
 #elif defined _double
       err = 1d-12
 #endif
-      do while (abs(test).gt.err)!.and.dk/stopk.gt.err)
+      stopkold = -1.0
+      do while (abs(test).gt.err.and.stopkold.ne.stopk)!.and.dk/stopk.gt.err)
          stopkold = stopk
          if (test.gt.0.0) then
             stopk = stopk - dk
