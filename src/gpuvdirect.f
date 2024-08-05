@@ -48,7 +48,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 
 #ifdef GPU_ACC
 !$acc data if(nqmi>100) 
-!$acc& copy(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
+!$acc& copy(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:nsmax))
 !$acc& present(npk(1:nchtop+1))
 !$acc& present(chil(1:meshr,npkstart:npkstop,1))
 !$acc& present(minchil(npkstart:npkstop,1))
@@ -63,7 +63,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 !$omp target data if(nqmi>100)
 !$omp& map(to:temp3,temp2,maxtemp3)
 !$omp& map(alloc:tmp,chitemp)
-!$omp& map(tofrom:vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
+!$omp& map(tofrom:vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:nsmax))
 #endif
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)

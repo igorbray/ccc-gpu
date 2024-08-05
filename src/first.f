@@ -88,8 +88,14 @@ C      allocatable :: chitemp(:,:)
 
       integer maxpsii,maxpsif
 
-      integer ngpus,ntpg,nnt,gpunum,OMP_GET_MAX_THREADS
-!      integer ichildim in chil module
+      integer ngpus,ntpg,nnt,gpunum
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+      integer OMP_GET_MAX_THREADS !If GPU get a compiler error on Cray
+#endif
+#endif
+
+!     integer ichildim in chil module
 
 C      integer nchistart(:),nchistop(:)
 C      real vmat01(npk(nchistart(nodeid)):npk(nchistop(nodeid)+1)-1,
@@ -157,7 +163,10 @@ c$$$     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
 
 #ifdef GPU_ACC
       ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
-      if (ngpus.gt.1) stop 'more than 1 GPU per MPI process'
+      if (ngpus.gt.1) then
+         print*,'ACC GPUS:',ngpus
+         stop 'more than 1 GPU per MPI process'
+      endif
 c$$$      do gpunum=0,ngpus-1
 
 c$$$      gpunum = mod(myid,ngpus)
@@ -175,7 +184,10 @@ c$$$       end do
 
 #ifdef GPU_OMP
       ngpus=max(1,omp_get_num_devices())
-      if (ngpus.gt.1) stop 'more than 1 GPU per MPI process'
+      if (ngpus.gt.1) then
+         print*,'OMP GPUS:',ngpus
+         stop 'more than 1 GPU per MPI process'
+      endif
 
 c$$$      gpunum=mod(myid,ngpus)
 c$$$      call omp_set_default_device(gpunum)
