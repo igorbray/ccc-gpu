@@ -1,7 +1,7 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >   mintemp3,maxtemp3,temp3,!ltmin,minchilx,chilx,ctemp,itail,trat,
      >   nchan,nqmfmax,vmatt,ichildim_dum,ngpus,nnt,nchii_dummy,second,
-     >   maxpsii,temp2,nqmi2,nchtop2,nsmax)
+     >   maxpsii,temp2,nqmi2,nchtop2,nsmax,ifirst)
       use chil_module
 #ifdef GPU_ACC
       use openacc
@@ -69,7 +69,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = min(maxtemp3(nchf),meshr)
 #ifdef GPU_ACC
-!$acc kernels if(nqmi>100)
+!$acc kernels if(nqmi>100) !parallel
 !$acc loop independent collapse(2)
 #endif
 #ifdef GPU_OMP
@@ -83,7 +83,7 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
-         if (nsmax.eq.1) then
+         if (ifirst.eq.1) then !for photons nsmax=0
 #ifdef GPU_ACC                 
 !$acc loop independent collapse(2)
 #endif
@@ -128,7 +128,7 @@ c$$$                  enddo
             end do
          end do
 #ifdef GPU_ACC
-!$acc end kernels
+!$acc end kernels !parallel
 #endif
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
@@ -155,11 +155,10 @@ c$$$                  enddo
 
 
       subroutine makev3e(chilx,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
-     >   li,lf,minchilx,nqmi,lg,rnorm,second,npk,
-     >   nqmfmax,vmatt,nchtop,nnt,ngpus,temp2)
+     >   li,lf,minchilx,nqmi,lg,rnorm,second,npk,nchtop,nnt,temp2)
       use chil_module
       include 'par.f'
-      integer nnt,gpunum
+      integer nnt
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension npk(nchtop+1),fun(maxr)
 c$$$      dimension chil(meshr,npk(nchtop+1)-1)
@@ -170,7 +169,7 @@ c$$$      dimension minchil(npk(nchtop+1)-1)
       real temp2(maxpsii,nqmi,nchi:nchtop) !temp2(meshr,nqmi,nchi:nchtop)
       real, allocatable :: temp(:)
 !      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
-      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
+!      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -234,7 +233,7 @@ c$$$               stop 'CJ6 and W do not agree'
 !$omp& schedule(dynamic)
 !$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
 !$omp& rpow2,temp2,nqmi,minchil,maxpsii,gamma,pol,minrp,maxrp,maxpsif,
-!$omp& nchtop,gpunum)
+!$omp& nchtop)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1

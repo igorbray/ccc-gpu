@@ -3,7 +3,6 @@
      >   nze,td,te1,te2,te3,vdon,
 !     >   vmat,
      >   nsmax,itail,phasel)
-      use mpi_f08 !avoids MPI argument missmatch warnings
       use CI_MODULE
       use chil_module
       use po_module
@@ -13,13 +12,15 @@
 #ifdef GPU
       use openacc
 #endif
+!      use mpi_f08 !avoids MPI argument missmatch warnings
+      include 'mpif.h'
       
       include 'par.f'
       include 'par.pos'
 c      implicit real*8 (a-h,o-z)       
       parameter (maxl=2*ltmax+1)
-      type(MPI_Status) :: my_status
-      type(MPI_Request) :: my_request
+c$$$      type(MPI_Status) :: my_status
+c$$$      type(MPI_Request) :: my_request
       integer sa, npk(nchm+1)
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
       common /ortog/  ortint(nspmax,nspmax)

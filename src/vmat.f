@@ -409,7 +409,7 @@ c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
      >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,gkf,nf,
 !     >   lg,const,nqmfmax,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,vmatt,
      >   lg,const,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,nqmfmax,vmatt,
-     >   nchtop)
+     >   nsmax,nchtop)
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax)
@@ -417,7 +417,7 @@ c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
       dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
      >          npk(nchan+1)
 !      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
-      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1),ve2e(nf,ni), 
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax),ve2e(nf,ni), 
      >   temp(maxr), ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
@@ -472,9 +472,10 @@ c$$$c$$$                  endif
 c$$$                  vmat(kff,kii) = vmat(kff,kii) +
 c$$$     >               tmp * ovlpf(kf) * ovlpi
                   vmatt(kf,ki,nchf,0) = vmatt(kf,ki,nchf,0) 
-     >                                  +tmp*ovlpf(kf)*ovlpi
-                  vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) 
-     >                                  +tmp*ovlpf(kf)*ovlpi
+     >               +tmp*ovlpf(kf)*ovlpi
+                  if (nsmax.eq.1)
+     >               vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) 
+     >               +tmp*ovlpf(kf)*ovlpi
  5             continue 
             enddo
          enddo 
@@ -569,7 +570,8 @@ c$$$     >                - tmp * const * sign
 c$$$                  vmat(kff,kii) = vmat(kff,kii) 
 c$$$     >                + tmp * const * sign
                vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+tmp*const*sign
-               vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,1)-tmp*const*sign
+               if (nsmax.eq.1)
+     >            vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,1)-tmp*const*sign
 
 c$$$  endif 
  10         continue 

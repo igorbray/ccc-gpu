@@ -273,8 +273,7 @@ C  which contains VDCORE.
             rmem2=maxpsii*nqmi*(nchtop+1-nchi)
             call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
      >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
-     >         lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
-     >         nnt,ngpus,temp2) !vmatt not used
+     >         lg,rnorm,second,npk,nchtop,nnt,temp2)
          else
             maxpsii2 = 1
             nqmi2 = 1
@@ -518,7 +517,7 @@ C  them.
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
      >     mintemp3,maxtemp3,temp3,!ltmin,minchil,chil,ctemp,itail,trat,
      >     nchan,nqmfmax,vmatt,ichildim,ngpus,nnt,nchii,second,
-     >     maxpsii2,temp2,nqmi2,nchtop2,nsmax)
+     >     maxpsii2,temp2,nqmi2,nchtop2,nsmax,ifirst)
       call date_and_time(date,time,zone,gpuout)
       gputime=idiff(gpuin,gpuout)
       gputimetot = gputimetot + gputime
@@ -613,8 +612,8 @@ C  Define energy dependent exchange terms
      >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
      >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
-     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
-     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nchtop)
+     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,uf,ui,
+     >      nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nsmax,nchtop)
 c$$$         call clock(s4)
 c$$$         te2 = te2 + s4 - s3
       end do
