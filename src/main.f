@@ -4658,7 +4658,7 @@ C  T(Ef) = ovlp * <f|T|i>
             tmp1 = chi(j)/psinb(j,n,l)
             if (n-l.lt.nps.and.n-l-1.gt.0) then
                ovlp2 = sqrt(sqrt(en)*4.0/
-     >            (psen2(n-l+1)-psen2(n-l-1))) !units of 1/sqrt(k)
+     >            (psen2(min(n-l+1,ntop))-psen2(n-l-1))) !units of 1/sqrt(k)
 c$$$               print*,'prev,we:', sqrt(sqrt(abs(enpsinb(n-1,l)))*4.0/
 c$$$     >            (psen2(n-1-l+1)-psen2(n-1-l-1)))
             else

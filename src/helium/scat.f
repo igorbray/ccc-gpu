@@ -556,7 +556,7 @@ c$$$               call clock(s1)
      >            chiform,minchiform,maxchiform,nmr,km,na,nam,namax)
 c$$$               call clock(s2)
 C  Store time for e2 matrix elements
-               te2 = te2 + s2 - s1
+c$$$               te2 = te2 + s2 - s1
                call ve1me(nchm,Nmax,Ni,Li,la,sa,lpar,nspm,lo,
      >            C,fl,maxf,minf,npk,chil,minchil,
      >            nchm,Nmax,Nf,Lf,la,sa,lpar,nspm,lo,
@@ -567,7 +567,7 @@ C  Store time for e2 matrix elements
 
 c$$$  call clock(s3)
 C  Store time for e1 matrix elements
-               te1 = te1 + s3 - s2
+c$$$               te1 = te1 + s3 - s2
 c
 c$$$               if(abs(theta) .ge. 1000.0) then
 c$$$                  if(nchnsp_max .gt. 0) then
@@ -592,7 +592,7 @@ c$$$     >              flchil,Etot_ve,KJ,gridk,thetao,inc,vmatt,nchf,
      >              ncore,is_core_orb)  
 c$$$               call clock(s4)
 C     Store time for both two electron exchange matrix elements
-               te3 = te3 + s4 - s3
+c$$$               te3 = te3 + s4 - s3
 !               print*,'!!finish ve2me12'
             endif 
 c$$$            call clock(s1)
@@ -656,7 +656,7 @@ CRRR end of adds by Rav
 
 c$$$            call clock(s2)
 C  Store time for direct matrix elements
-            td = td + s2 - s1 
+c$$$            td = td + s2 - s1 
 c$$$            vdon(nchf,nchi,0) = vmat(npk(nchf),npk(nchi)) +
 c$$$     >         vdon(nchf,nchi,0)
 c$$$            vdon(nchf,nchi,1) = vmat(npk(nchi),npk(nchf)+1) +
