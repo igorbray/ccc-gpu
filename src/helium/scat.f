@@ -12,13 +12,14 @@
 #ifdef GPU
       use openacc
 #endif
-!      use mpi_f08 !avoids MPI argument missmatch warnings
+c$$$      use mpi_f08 !avoids MPI argument missmatch warnings
       include 'mpif.h'
       
       include 'par.f'
       include 'par.pos'
 c      implicit real*8 (a-h,o-z)       
       parameter (maxl=2*ltmax+1)
+      integer my_status(MPI_STATUS_SIZE)
 c$$$      type(MPI_Status) :: my_status
 c$$$      type(MPI_Request) :: my_request
       integer sa, npk(nchm+1)
@@ -36,7 +37,7 @@ c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
 c$$$     >   npbot(0:lamax),nptop(0:lamax)
       common /increarrange/ inc
       dimension minchiform(kmax),maxchiform(kmax)!,chiform(maxr,kmax)
-      allocatable :: chiform(:,:), ortsr(:,:), flsr(:,:)
+      allocatable :: chiform(:,:),orts(:,:),fls(:,:),ortr(:,:),flr(:,:)
 c$$$      dimension chil(nr,npk(nchm+1)-1),minc(npk(nchm+1)-1)
       dimension gridk(kmax,nchan), df(maxr), dwpot(maxr,nchan),
      >   vdcore(maxr,0:lamax),
@@ -327,44 +328,51 @@ C  was from nchii to nchm, which is nchtop, now to nchif with MPI below
          print '(i4,": nodeid, ortchilnsp call complete at: ",a10,
      >", diff (secs):",i5)',nodeid,time, idiff(valuesin,valuesout)
 !MPI section begins         
+! nodeid needs ortchil/flchil for nodeid to nodes, but calculates only for nodeid, and reads from nodeid+1 to nodes.
+! nodeid sends ortchil/flchil: 1 to nodeid-1
          ntagort = 10
          ntagfl = 11
          npkstart = npk(nchii)
          npkstop = npk(nchif+1)-1
          nt = npkstop - npkstart + 1
          nsend = nt * nspm
-         allocate(ortsr(nt,nspm),flsr(nt,nspm))
+         allocate(orts(nt,nspm),fls(nt,nspm))
          do nsp = 1, nspm
-            ortsr(1:nt,nsp) =
+            orts(1:nt,nsp) =
      >         ortchil(npkstart:npkstop,nsp)
-            flsr(1:nt,nsp) =
+            fls(1:nt,nsp) =
      >         flchil(npkstart:npkstop,nsp)
          enddo
          do nn = 1, nodeid - 1
-c$$$            print*,'Will send for nodeid to n:',nodeid,nn,nsend
-            call MPI_SEND(ortsr,nsend, 
-     >         MY_MPI_REAL,nn-1,ntagort,MPI_COMM_WORLD,ierr)
-            call MPI_SEND(flsr,nsend, 
-     >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,ierr)
+c$$$            print*,'Will send for nodeid to n:',nodeid,nn,npkstart,
+c$$$     >         npkstop
+            call MPI_ISEND(orts,nsend, 
+     >         MY_MPI_REAL,nn-1,ntagort,MPI_COMM_WORLD,my_request,ierr)
+            call MPI_ISEND(fls,nsend, 
+     >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,my_request,ierr)
+c$$$            print*,'Sent for nodeid to n:',nodeid,nn
          enddo
-         deallocate(ortsr,flsr) !Hence, cannot use MPI_ISEND above
          do nn = nodeid+1, nodes
             nt = npk(nchistop(nn)+1) - npk(nchistart(nn))
-            allocate(ortsr(nt,nspm),flsr(nt,nspm))
+            allocate(ortr(nt,nspm),flr(nt,nspm))
             nrcv = nt * nspm
-c$$$            print*,'Will receive on nodeid from n:',nodeid,nn,nrcv
-            call MPI_RECV(ortsr,nrcv, 
+c$$$            print*,'Will receive on nodeid from n:',nodeid,nn,
+c$$$     >         npk(nchistart(nn)),npk(nchistop(nn)+1)-1
+            call MPI_RECV(ortr,nrcv, 
      >         MY_MPI_REAL,nn-1,ntagort,MPI_COMM_WORLD,my_status,ierr)
-            call MPI_RECV(flsr,nrcv, 
+            call MPI_RECV(flr,nrcv, 
      >         MY_MPI_REAL,nn-1,ntagfl,MPI_COMM_WORLD,my_status,ierr)
+c$$$            print*,'Received on nodeid from n:',nodeid,nn
             do nsp = 1, nspm
                ortchil(npk(nchistart(nn)):npk(nchistop(nn)+1)-1,nsp) =
-     >            ortsr(1:nt,nsp)
+     >            ortr(1:nt,nsp)
                flchil(npk(nchistart(nn)):npk(nchistop(nn)+1)-1,nsp) =
-     >            flsr(1:nt,nsp)
+     >            flr(1:nt,nsp)
             enddo
-            deallocate(ortsr,flsr)
+            deallocate(ortr,flr)
          enddo
+         call mpi_barrier(MPI_COMM_WORLD,ierr)
+         deallocate(orts,fls) 
 !MPI section ends
          valuesin = valuesout
          if(theta .ne. 0.0) then

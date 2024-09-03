@@ -4493,7 +4493,8 @@ C           cray compiler bug workaround
          endif 
          open(42,file='dwpot')
          do i = 1, meshr
-            write(42,*) i,rmesh(i,1),ui(i)
+            write(42,'(1p,5e16.5)') rmesh(i,1),ui(i)!,cntfug(i,l),
+!     >       float(l)*float(l+1)/rmesh(i,1)**2,sin(gk(1,nch)*rmesh(i,1))
          enddo
          close(42)
          if (nodeid.eq.1)print*,'Written chil for NCH, ZASYM:',nch,zasym

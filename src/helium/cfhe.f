@@ -435,9 +435,9 @@ c     make sure that we are not near a point where DX doubles
                asympot = 2.0*eta*ecmn/wnn/gridx(jmatch)
                tmp = abs(ucentr(jmatch)/asympot-1.0)
             enddo 
-            if (jmatch.eq.min(nx,jstop).and.jmatch.gt.jstart+40
-     >         .and.ecmn.gt.1.0)
-     >         print*,'WARNING: asymptotic potential must be Coulomb'
+c$$$            if (jmatch.eq.min(nx,jstop).and.jmatch.gt.jstart+40
+c$$$     >         .and.ecmn.gt.1.0)
+c$$$     >         print*,'WARNING: asymptotic potential must be Coulomb'
          endif             
 
          if (match.or.ucentr(1).ne.0.0.or.ecmn.lt.0.0) then

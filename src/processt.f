@@ -1720,14 +1720,19 @@ C the factor of 1/Kb multiplying the TDCS. Note OVLPQ will be squared for TDCS.
             endif
 c$$$            jextrap = jstop
             rki = onshellk(ni)
-            if (ni.eq.nf) then
-c$$$               print*,'Elastic extrapolation is set to J = 80'
-c$$$               jextrap = 80
-               alpha = real(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+
+
+            if (chan(ni)(3:3).eq.chan(nf)(3:3).and.chan(ni)(3:3).eq.'S')
+     >         then
+c$$$            if (ni.eq.nf) then
+               nchi = nonnew(nchfi(ni,0),0,0,jstop)
+               nchf = nonnew(nchfi(nf,0),0,0,jstop)
+               alpha = real(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3)
-               beta = aimag(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+               beta = aimag(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3) * (2*jstop+5) * (2*jstop+7)
-               print*,'ALPHA, BETA:',alpha/rki, beta/rki
+               print*,'nchf,nchi,ALPHA, BETA:',nchf,nchi,
+     >            -alpha/rki, -beta/rki
                do j = jstop+1, jextrap
                   c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
                   treal = alpha / (2*j-1) / (2*j+1) / (2*j+3)
@@ -1746,7 +1751,10 @@ c$$$               jextrap = 80
                      enddo
                   enddo
                enddo
+            else
+               jextrap = jstop
             endif 
+            print*,'J extrapolation is set to:',jextrap
 c$$$            open (77,file='klaus.25ev.bsr')
 c$$$            read(77,*)
             do j = 0, jextrap
@@ -1824,14 +1832,20 @@ c$$$     >                              (2.0*pi*sqrt(rki*rkf))
      >                              vdon(nchf,nchi,ns,ipar,jstop-1))
                               enddo 
                               if (j.eq.jstop+1) then
-                                 t = getT(0,jstop,ton(nchf,nchi,0,
-     >                              ipar,jstop))
-                                 print*,'ALPHA, BETA:',-real(t)/rki
-     >                              *3.0,-aimag(t)/rki*105.0
-                                 do jpr = jstop - 3, jstop
-                                    print*, jpr, getT(jpr,jstop,
+c$$$                                 t = getT(0,jstop,ton(nchf,nchi,0,
+c$$$     >                              ipar,jstop))
+c$$$                                 print*,'ALPHA, BETA:',-real(t)/rki
+c$$$     >                              *3.0,-aimag(t)/rki*105.0
+                                 do jpr = jstop, jstop - 9, -1
+                                    print'("getT,T,err(%)",i4,1p,4e12.3,
+     >                                 0p,f5.1)', jpr, getT(jpr,jstop,
      >                                 ton(nchf,nchi,0,ipar,jstop)),
-     >                                 ton(nchf,nchi,0,ipar,jpr)
+     >                                 ton(nchf,nchi,0,ipar,jpr),
+     >                                 abs(getT(jpr,jstop,
+     >                                 ton(nchf,nchi,0,ipar,jstop))-
+     >                                 ton(nchf,nchi,0,ipar,jpr))/
+     >                                 abs(ton(nchf,nchi,0,ipar,jpr))
+     >                                 *100.0
                                  enddo
                               endif 
                            endif 

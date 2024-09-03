@@ -16,6 +16,15 @@ C
       RETURN
       END
 
+      function fakdiv(n,m)      !(n-1)!/(m-1)! for m >= n
+      real*8 fakdiv
+      fakdiv = 1d0
+      do i = n, m-1
+         fakdiv = fakdiv / dfloat(i)
+      enddo
+      return
+      end
+      
       DOUBLE PRECISION FUNCTION PL(L,X)
       IMPLICIT REAL*8(A-H,O-Z)
 C
@@ -309,7 +318,11 @@ C
       MABS = IABS(M)
       SP = PLM(L,MABS,X)
       RL = DBLE(2*L+1)/PI4
-      SP = SP*SQRT(RL*FAK(L-MABS+1)/FAK(L+MABS+1))/(YNN**MABS)
+c$$$      if (mabs.gt.1)
+c$$$     >   print*,'n,m,fakred:',FAK(L-MABS+1)/FAK(L+MABS+1)/YNN**(2*MABS),
+c$$$     >   fakdiv(L-MABS+1,L+MABS+1),L-MABS+1,L+MABS+1
+      SP = SP*SQRT(RL*fakdiv(L-MABS+1,L+MABS+1))
+c$$$      SP = SP*SQRT(RL*FAK(L-MABS+1)/FAK(L+MABS+1))/(YNN**MABS)
       IF(M.GE.0.AND.MOD(MABS,2).NE.0) SP = -SP
       if (theta.lt.0d0) sp = sp * (-1) ** m
       RYLM = SP

@@ -1783,7 +1783,11 @@ c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
 c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
-c$$$      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
+c$$$      if (rk.lt.0.0) then       !closed channel
+c$$$         npoints2 = 2
+c$$$         nendk = 2
+c$$$      endif
+c$$$  if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
 c$$$      usetrapz = nkor(4,lset,ispeed).lt.0
 c$$$      if (width.lt.0.0) then
 c$$$         dstart = 0d0
@@ -2550,7 +2554,7 @@ C
 C     FG03A & FG03B - WIGNER 9-J SYMBOL
 C
 C
-      parameter (mmax=1001)
+      parameter (mmax=1010)
       COMMON / CNJSAVE / H(mmax), J(mmax)
 c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)
@@ -2660,7 +2664,7 @@ C
       M9=M9/2+1
       M10=M10/2+1
       if (max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10).gt.mmax) then
-         print*,'Recompile wigner.f with mmax at least:',
+         print*,'Recompile wigner.f with new mmax at least:',
      >      max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10)
          stop 'Increse MMAX in CNJ (file wigner.f)'
       endif 

@@ -69,7 +69,8 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
          nqmf = npk(nchf+1) - npk(nchf)
          maxi = min(maxtemp3(nchf),meshr)
 #ifdef GPU_ACC
-!$acc kernels if(nqmi>100) !parallel
+!!!$acc parallel if(nqmi>100)
+!$acc kernels if(nqmi>100)         
 !$acc loop independent collapse(2)
 #endif
 #ifdef GPU_OMP
@@ -128,7 +129,8 @@ c$$$                  enddo
             end do
          end do
 #ifdef GPU_ACC
-!$acc end kernels !parallel
+!!!$acc end parallel
+!$acc end kernels         
 #endif
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do

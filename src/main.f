@@ -2603,7 +2603,7 @@ c$$$               nchtimetot = nchtimetot + nchtimeold(nch)
             endif
          enddo
          if (lg.eq.lgold(ipar).and.nchtop.ne.nchtopold) exists = .false.
-         if (.not.exists.and.lg.gt.0) then
+         if (.not.exists.and.lg.ge.0) then
 C     check if time_all exists to get an estimate of how long each NCHI takes
             nodetfile = 'time_all'
             inquire(file=nodetfile,exist=exists)

@@ -37,12 +37,13 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
 !      s3=appf1(ln,ecmn,gridx(1),acc)
 !      s4 = coulrho(ln,0.0,ecmn,gridx(1),acc)
 !      print*,'ecmn,s3,s4',ecmn,s3,s4
+
       if (ecmn.le.0.0.or.ln.gt.3.or.ucentr(1).ne.0.0) then
          jstart = jfirst1(ln,ecmn,gridx,nx,jdouble,njdouble,regcut)
          if (jstart.ge.nx) return
 
          acc = 0.0
-         do while (jstart.ge.2.and.(abs(s1).gt.regcut.or.acc.lt.1e-6))
+         do while (jstart.ge.2.and.(abs(s1).gt.regcut.or.acc.lt.1e-3))
             jstart = jstart - 1
             do jd = 2, njdouble - 1
                if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)-3
@@ -52,6 +53,8 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
             else
                if (eta.ge.0.0) then
                   s1 = appf1(ln,ecmn,gridx(jstart-1),acc)
+c$$$                  print*,'ln,ecmn,jstart-1,gridx(jstart-1),acc,s1:',
+c$$$     >               ln,ecmn,jstart-1,gridx(jstart-1),acc,s1
                else
                   s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
 c$$$                  if (nodeid.eq.1) print*,'jstart,s1,acc,ecmn,rho,ln:',
@@ -239,26 +242,43 @@ c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
 C Check that the CHIL is sinusoidal at large r for wnn not too small or too big
          j = jstop
          localmatch = .false.
-         if (ln.gt.ldw.and.wnn.gt.2.0.and.wnn.lt.20.0) then
+         if (ln.gt.ldw.and.cntfug(j)/ecmn.lt.1e-3) then
             if (reg(j-1).lt.reg(j)) then
                do while(reg(j-1).lt.reg(j))
                   j = j - 1
                enddo
-               localmatch=abs(1.0+reg(j)).gt.0.01.and.
-     >            abs(1.0+reg(j-1)).gt.0.01
+               if (j.gt.jstart) then
+                  localmatch=abs(1.0+reg(j)).gt.0.01.and.
+     >               abs(1.0+reg(j-1)).gt.0.01
+c$$$                  div = min(reg(j),reg(j-1))
+c$$$                  print*,'wnn,jstart,j,jstop,reg(j-1),reg(j),div:',
+c$$$     >               wnn,jstart,j,jstop,reg(j-1),reg(j),div
+c$$$                  do i = jstart, jstop
+c$$$                     reg(i) = reg(i)/abs(div)
+c$$$                  enddo
+               endif
             else
                do while(reg(j-1).gt.reg(j))
                   j = j - 1
                enddo
-               localmatch=abs(1.0-reg(j)).gt.0.01.and.
-     >            abs(1.0-reg(j-1)).gt.0.01
+               if (j.gt.jstart) then
+                  localmatch=abs(1.0-reg(j)).gt.0.01.and.
+     >               abs(1.0-reg(j-1)).gt.0.01
+c$$$                  div = max(reg(j),reg(j-1))
+c$$$                  print*,'wnn,jstart,j,jstop,reg(j-1),reg(j),div:',
+c$$$     >               wnn,jstart,j,jstop,reg(j-1),reg(j),div
+c$$$                  do i = jstart,jstop
+c$$$                     reg(i) = reg(i)/div
+c$$$                  enddo
+               endif
             endif
             if (localmatch.and.nodeid.eq.1) print'(
-     >         "CAUTION: ln,ldw,jstart,r,reg(j-1),reg(j),wnn,eta:",
-     >        3i8,5f8.3)',ln,ldw,jstart,gridx(j),reg(j-1),reg(j),wnn,eta
+     >         "CAUTION: ln,ldw,j,jstop,reg(j-1),reg(j),wnn,eta,test:",
+     >        4i8,4f8.3,1p,e15.5)',ln,ldw,j,jstop,reg(j-1),
+     >         reg(j),wnn,eta,cntfug(j)/ecmn
          endif
 c$$$         print*,'match,ln,ldw:',match,ln,ldw
-         if (match.or.ln.le.ldw.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
+         if (match.or.ln.le.ldw) then !.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
 c$$$            print*,'JMATCH, RMATCH,U',jmatch,gridx(jmatch),
 c$$$     >         ucentr(jmatch)
             if (abs(ecmn-34.527).lt.-1e-2) then
@@ -866,8 +886,8 @@ c$$$            print '(2f9.3,i4,4e24.14)', w,x,k,sump,-s*summ, sum
             if (abs(s*summ/sump-1d0).lt.1d-12.and.(k.ge.kmax
      >           .or.abs(sum).lt.1d-300)) then
 c$$$               k = kmax
-               print'("Precision loss in APPF1 for ln, k, rho:",
-     >            2i5,1p,e11.3,3e18.10)',ln,k,rho,-s*summ,sump,sum
+c$$$               print'("Precision loss in APPF1 for ln, k, rho:",
+c$$$     >            2i5,1p,e11.3,3e18.10)',ln,k,rho,-s*summ,sump,sum
                acc = 0.0
                appf1 = 0.0
                return
