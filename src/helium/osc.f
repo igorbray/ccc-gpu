@@ -5,6 +5,8 @@ c*****************************************************************************
 
       if(atom.eq.'helium') then
          call dataHe
+      else  if(atom.eq.'LiII') then  
+         call dataLiII
       else  if(atom.eq.'beryllium') then  
          call  dataBe
       else  if(atom.eq.'oxygenV') then  
@@ -34,6 +36,7 @@ c*****************************************************************************
 C-----------------------------------------------------------------------------
       subroutine dipmom(i_dipmom,atom,Nmax,nspmW,C,E,fl,minf,
      >     maxf,lo,enionry)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)
       dimension fl(nmaxr,nspmax), numcore(0:lomax), ncount(KNM)
@@ -52,6 +55,8 @@ c
       common /charchan/ chan
       real br(KNM,KNM)
       common /noblgegas_switch/ i_sw_ng  
+      common /MPI_info/myid, ntasks, cnode, ench
+      character cnode*3, ench*11
 c
       eV = 27.2116
       
@@ -116,39 +121,48 @@ c
 c         print*, l, numcore(l)
       end do
 c
-      write(4,'("dipole moments and oscillator strength ",
-     >   "are calculated and written in files ",
-     >   "osc.strength and dip.moment")')
-      close(197)
-      open(197,file='osc.strength')
-      write(197,'("oscillator strength for ",A20)') atom
-      if(i_dipmom.eq.1) then
-         write(197,'("E(np) > E(n): This is absorption oscillator ",
-     >        "strengths")')
-      end if
-      if(i_dipmom.eq.2) then
-         write(197,'("lp > l: This is sometimes absorption and ",
-     >        "sometimes emission oscillator strengths")')
-      end if
-      if(atom.eq.'helium') then
-         write(197,'(14X,"   & FCM(l)& FCM(v)&",
+      if (nodeid.eq.1) then
+         write(4,'("dipole moments and oscillator strength ",
+     >"are calculated and written in files ",
+     >"osc.strength and dip.moment")')
+         close(197)
+         open(197,file=adjustl(cnode//'osc.strength'//ench),
+     >      action='WRITE')
+c$$$         open(197,file='osc.strength')
+
+         write(197,'("oscillator strength for ",A20)') atom
+         if(i_dipmom.eq.1) then
+            write(197,'("E(np) > E(n): This is absorption oscillator ",
+     >         "strengths")')
+         end if
+         if(i_dipmom.eq.2) then
+            write(197,'("lp > l: This is sometimes absorption and ",
+     >"sometimes emission oscillator strengths")')
+         end if
+         if(atom.eq.'helium') then
+            write(197,'(14X,"   & FCM(l)& FCM(v)&",
      >        "Perimetric /&Hylleraas // /hline")')
-      else if(atom.eq.'beryllium') then
-         write(197,'(14X,"& CCC-l & CCC-v &",
-     >        " RM-l  & RM-v   // /hline")')
-      else if(atom.eq.'magnesium') then
-         write(197,'(14X,"& CCC-l & CCC-v &",
-     >        "MCHF-l &MCHF-v  // /hline")')
-      else
-         write(197,'(14X,"& length&velocity& // /hline")')
-      end if
+         else if(atom.eq.'beryllium') then
+            write(197,'(14X,"& CCC-l & CCC-v &",
+     >       " RM-l  & RM-v   // /hline")')
+         else if(atom.eq.'magnesium') then
+            write(197,'(14X,"& CCC-l & CCC-v &",
+     >      "MCHF-l &MCHF-v  // /hline")')
+         else
+            write(197,'(14X,"& length&velocity& // /hline")')
+         end if
 c      
-      if(i_dipmom.eq.3) then
-         open(232,file='dip.mom')
-         open(233,file='moments_S(k)')
-         write(233,'("Moments S(k), L(-1), see Eqs. 2 and 3 in ",
-     >      "J.S.Bigs and Y-k.Kim Phys.Rev.A 3(971)1342")')
-      end if
+         if(i_dipmom.eq.3) then
+c$$$            open(232,file='dip.mom')
+c$$$            open(233,file='moments_S(k)')
+            open(232,file=adjustl(cnode//'dip.mom'//ench),
+     >         action='WRITE')
+            open(233,file=adjustl(cnode//'moments_S(k)'//ench),
+     >         action='WRITE')
+               write(233,'("Moments S(k), L(-1), see Eqs. 2 and 3 in ",
+     >         "J.S.Bigs and Y-k.Kim Phys.Rev.A 3(971)1342")')
+         end if
+      endif
 
 c     
       do ispin=0,1
@@ -179,12 +193,15 @@ c
                sp1_v = 0.0
                rlm1_v = 0.0
 
-               write(232,'("dipole polarazability of ",A3,
+               if (nodeid.eq.1)
+     >write(232,'("dipole polarazability of ",A3,
      >            " state N =",I3)') chan(NN),NN
-               write(232,'("E(Np),E(N) - eV; lp, l, modif.osc.str.:",
+               if (nodeid.eq.1)
+     >write(232,'("E(Np),E(N) - eV; lp, l, modif.osc.str.:",
      >            "current state Np,summed; ",
      >            "standard osc.str.: current state Np,summed")')
-               write(233,'(6X,"Energy, Moments S(k), k=-2,-1,0,1,",
+               if (nodeid.eq.1)
+     >write(233,'(6X,"Energy, Moments S(k), k=-2,-1,0,1,",
      >            " L(-1)  for  ",A3,
      >            " state N =",I3)') chan(NN),NN
             end if
@@ -257,13 +274,15 @@ c
                      rlm1_v = rlm1_v + fvel *
      >                  log(2.0*abs(en_dif))/(2.0*en_dif)
 
-                     write(232,'(A3,2E13.4,2I3,1P,4E13.4)')
+                     if (nodeid.eq.1)
+     >write(232,'(A3,2E13.4,2I3,1P,4E13.4)')
      >                  chan(NNp),
      >                  (E(NNp) - enionry/2.)*eV,
      >                  (E(NN) - enionry/2.)*eV,
      >                  lp,l, tmp_pol, dipsum_pol, tmp, dipsum
 
-                     write(233,'(A3,1P,6E12.3)')
+                     if (nodeid.eq.1)
+     >write(233,'(A3,1P,6E12.3)')
      >                  chan(NNp),
      >                  (E(NNp) - enionry/2.)*eV,
      >                  dipsum/4., sm1, fl_sum, sp1, rlm1
@@ -279,7 +298,8 @@ c     Get emmision osc.str. to calculate branching ratious
                      br(NN,NNp) = flen_pol * (2*l+1.0)/(2*lp+1.0)
                   end if                  
          
-                  write(4,'(A3,"-",A3,"   f-len =",
+                  if (nodeid.eq.1)
+     >write(4,'(A3,"-",A3,"   f-len =",
      >               F8.4,"(",F8.4,")","   f-vel =",F8.4,
      >               "   dipmom =",F8.4,"  deriv =",F8.4)')
      >               chan(NNp),chan(NN),
@@ -288,20 +308,23 @@ c     Get emmision osc.str. to calculate branching ratious
                   if(atom.eq.'helium') then               
                      call exp_osc(atom,ncount(NN),ncount(NNp),l,lp,is,
      >                  lpar,exp_osc_l,exp_osc_v)
-                     write(197,'(" $ ",A3," - ",A3," $ & ",F5.3," & ",
+                     if (nodeid.eq.1)
+     >write(197,'(" $ ",A3," - ",A3," $ & ",F5.3," & ",
      >                  F5.3," & " ,F5.3,"  // ")')
      >                  chan(NNp),chan(NN),flen,fvel,exp_osc_l
                   else if(atom.eq.'beryllium'.or.
      >                  atom.eq.'magnesium') then
                      call exp_osc(atom,ncount(NN),ncount(NNp),l,lp,is,
      >                  lpar,exp_osc_l,exp_osc_v)
-                     write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
+                     if (nodeid.eq.1)
+     >write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
      >                  " (",F5.3,")"," & ",F5.3,
      >                  " & " ,F5.3," & " ,F5.3,"  // ")')
      >                  chan(NNp),chan(NN),flen,flen_pol,
      >                  fvel,exp_osc_l,exp_osc_v
                   else
-                     write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
+                     if (nodeid.eq.1)
+     >write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
      >                  " (",F5.3,")"," & " ,F5.3," &   // ")')
      >                  chan(NNp),chan(NN),flen,flen_pol,fvel
                   end if
@@ -310,35 +333,43 @@ c     >               (2.0*abs(enci(nump,lp,is)-enci(num,l,is))) )
                end if
  10         end do
             if(i_dipmom.eq.3) then
-               write(232,'(5X,A3,": full polarizability: modified:",
+               if (nodeid.eq.1)
+     >write(232,'(5X,A3,": full polarizability: modified:",
      >            1P,E12.4,", stand.:",E12.4,
      >            ", from discreet spectrum: modified:",E12.4,
      >            ", stand.:",E12.4)')
      >            chan(NN),dipsum_pol,dipsum,pos_sum_pol, pos_sum
-               write(232,'("Summed osc.strength: length:",F10.4,
+               if (nodeid.eq.1)
+     >write(232,'("Summed osc.strength: length:",F10.4,
      >            ", length modif.:",F10.4,", velocity :",F10.4)')
      >            fl_sum, fl_sum_pol, fv_sum
 
-               write(233,'("Standard length, Summed values for ",
+               if (nodeid.eq.1)
+     >write(233,'("Standard length, Summed values for ",
      >            A3,2X,1P,5E12.3)')
      >            chan(NN), dipsum/4., sm1, fl_sum, sp1, rlm1               
-               write(233,'("Modified length, Summed values for ",
+               if (nodeid.eq.1)
+     >write(233,'("Modified length, Summed values for ",
      >            A3,2X,1P,5E12.3)')
      >            chan(NN), dipsum_pol/4., sm1_m, fl_sum_pol,
      >            sp1_m, rlm1_m
-               write(233,'("Stand. velocity, Summed values for ",
+               if (nodeid.eq.1)
+     >write(233,'("Stand. velocity, Summed values for ",
      >            A3,2X,1P,5E12.3)')
      >            chan(NN), dipsum_v/4., sm1_v, fv_sum, sp1_v, rlm1_v
 
-               write(232,*)
-               write(233,*)
+               if (nodeid.eq.1)
+     >write(232,*)
+               if (nodeid.eq.1)
+     >write(233,*)
                
             end if
  20      end do
       end do
       close(197)
 
-      write(4,'("Branching ratios and emmision osc.str. f_l: ",
+      if (nodeid.eq.1)
+     >write(4,'("Branching ratios and emmision osc.str. f_l: ",
      >   "ordinary and modified transition operator")')
       do NN=1,Nmax
          if((2.0*E(NN) - enionry).lt.0d0) then
@@ -351,11 +382,12 @@ c     >               (2.0*abs(enci(nump,lp,is)-enci(num,l,is))) )
                end if
             end do
             if(sum.ne.0.0.or.sumpol.ne.0.0) then
-               write(4,*) chan(NN)
+               if (nodeid.eq.1)
+     >write(4,*) chan(NN)
                do NNp=1,Nmax
-                  if(E(NNp).lt.E(NN)) then
+                  if(E(NNp).lt.E(NN).and.nodeid.eq.1) then
                      if(br(NNp,NN).ne.0.0) 
-     >                  write(4,'(3X,A3,3X,2F10.5,5X,2F10.5)')chan(NNp),
+     >write(4,'(3X,A3,3X,2F10.5,5X,2F10.5)')chan(NNp),
      >                  br(NNp,NN) * (E(NN)-E(NNp))**2/sum, br(NNp,NN),
      >                  br(NN,NNp) * (E(NN)-E(NNp))**2/sumpol,br(NN,NNp)
                   end if
@@ -730,6 +762,99 @@ c      gs_wave_number =  0.0     ! to print exciation energies
                do n=1,nmax
                   enHe(n,l,is,lpar)=(enHe(n,l,is,lpar)-gs_wave_number)/
      >                 8065.7
+               end do
+            end do
+         end do
+      end do
+            
+
+
+      return
+      end
+      subroutine dataLiII
+c     This is data for LiII
+c     index 'ip' is not used here: it is assumed that lparity = (-1)**l
+      parameter (nmax=8,llmax=5)
+      common /enLiII/ enLiII(nmax,0:llmax,0:1,-1:1)
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enLiII(n,l,is,lpar)= 1e10
+               end do
+            end do
+         end do
+      end do
+            
+c     sS
+      enLiII(1,0,0,1)= 0.0
+      enLiII(2,0,0,1)= 491373.71
+      enLiII(3,0,0,1)= 558777.01
+      enLiII(4,0,0,1)= 581595.90
+      enLiII(5,0,0,1)= 591988.68
+      enLiII(6,0,0,1)= 597579.66
+      enLiII(7,0,0,1)= 600929.7
+      enLiII(8,0,0,1)= 603091.84
+c     sP
+      enLiII(1,1,0,-1)= 501807.72
+      enLiII(2,1,0,-1)= 561751.95
+      enLiII(3,1,0,-1)= 582836.5
+      enLiII(4,1,0,-1)= 592618.4
+      enLiII(5,1,0,-1)= 597936.4
+      enLiII(6,1,0,-1)= 601169
+      enLiII(7,1,0,-1)= 603244.7
+c     sD
+      enLiII(1,2,0,1)= 561272.75
+      enLiII(2,2,0,1)= 582630.08
+      enLiII(3,2,0,1)= 592513.56
+      enLiII(4,2,0,1)= 597881.65
+      enLiII(5,2,0,1)= 601118.15
+      enLiII(6,2,0,1)= 603218.63
+c     sF
+      enLiII(1,3,0,-1)= 582643.17
+      enLiII(2,3,0,-1)= 592520.24
+      enLiII(3,3,0,-1)= 597885.61
+      enLiII(4,3,0,-1)= 601120.68
+      enLiII(5,3,0,-1)= 603220.34
+c     tS
+      enLiII(1,0,1,1)= 476034.11
+      enLiII(2,0,1,1)= 554753.58
+      enLiII(3,0,1,1)= 579980.46
+      enLiII(4,0,1,1)= 591183.39
+      enLiII(5,0,1,1)= 597121.08
+      enLiII(6,0,1,1)= 600643.03
+      enLiII(7,0,1,1)= 602902.11
+c     tP
+      enLiII(1,1,1,-1)= 494262.57
+      enLiII(2,1,1,-1)= 559500.55
+      enLiII(3,1,1,-1)= 581885.11
+      enLiII(4,1,1,-1)= 592133.16
+      enLiII(5,1,1,-1)= 597661.86
+      enLiII(6,1,1,-1)= 600979.87
+      enLiII(7,1,1,-1)= 603125.99
+c     tD
+      enLiII(1,2,1,1)= 561242.90
+      enLiII(2,2,1,1)= 582612.54
+      enLiII(3,2,1,1)= 592503.22
+      enLiII(4,2,1,1)= 597875.07
+      enLiII(5,2,1,1)= 601113.58
+      enLiII(6,2,1,1)= 603215.34
+c     tF 
+      enLiII(1,3,1,-1)= 582642.10
+      enLiII(2,3,1,-1)= 592519.24
+      enLiII(3,3,1,-1)= 597884.56
+      enLiII(4,3,1,-1)= 601119.54
+      enLiII(5,3,1,-1)= 603219.16
+c     Convert to ionization energies (LiIII) in eV.
+c     Ground state ionization energy is 610078.5260 cm^{-1}
+      gs_wave_number = 610078.5260
+c      gs_wave_number =  0.0     ! to print exciation energies
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enLiII(n,l,is,lpar)=
+     >               (enLiII(n,l,is,lpar)-gs_wave_number)/8065.7
                end do
             end do
          end do
@@ -2243,6 +2368,7 @@ c**************************************************************************
       end
 c**************************************************************************
       subroutine print_energy(Nstmax,E,enionry,atom)
+      use vmat_module, only: nodeid
       include 'par.f'     
       parameter (nmax=8,llmax=5)
       double precision  E(KNM),tmp
@@ -2260,6 +2386,7 @@ c**************************************************************************
       common /enOV/ enOV(nmax,0:llmax,0:1,-1:1)
       common /enBe/ enBe(nmax,0:llmax,0:1,-1:1)
       common /enHe/ enHe(nmax,0:llmax,0:1,-1:1)
+      common /enLiII/ enLiII(nmax,0:llmax,0:1,-1:1)
       common /enHe_th/ enci(nmax,0:llmax,0:1)
       common /Nsarray/ Ns(0:lomax,0:1,komax,2)
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)    
@@ -2286,7 +2413,8 @@ c     find  minimum energy of the states:
      >      'value of lmax_a = -1'
          stop
       end if
-      write(4,'(4X,"excitation energy in au and in eV,",
+      if (nodeid.eq.1)
+     >write(4,'(4X,"excitation energy in au and in eV,",
      >     " calculated and experimental ionization energies (eV)")')
       do is=0,1
          do il=0,lmax_a ! llmax
@@ -2308,6 +2436,8 @@ c     find  minimum energy of the states:
                      if(en_eV.lt.0.0 .and. il .le. llmax) then
                         if(atom.eq.'helium') then
                            en_exp = enHe(n,il,is,ip) ! -(enci(n,il,is)-2.0)*27.2116
+                        else  if(atom.eq.'LiII') then
+                           en_exp = enLiII(n,il,is,ip)
                         else  if(atom.eq.'beryllium') then
                            en_exp = enBe(n,il,is,ip)
                         else  if(atom.eq.'oxygenV') then
@@ -2339,13 +2469,15 @@ c     find  minimum energy of the states:
                            imode = 0
                         end if
                         if(imode .eq. 1) then
-                           write(4,'(I3,I5,A7," (",2(I2,A1),")",
+                           if (nodeid.eq.1)
+     >write(4,'(I3,I5,A7," (",2(I2,A1),")",
      >                          4(2X,F10.5))')
      >                          n,Nst,chan(Nst),n1,
      >                          lorb(l1),n2,lorb(l2),
      >                          ex_en,ex_en_eV,en_eV,en_exp
                         else
-                           write(4,'(I3,I5,A7," (",2(I2,A1),")",
+                           if (nodeid.eq.1)
+     >write(4,'(I3,I5,A7," (",2(I2,A1),")",
      >                          3(2X,F10.5),
      >                          (2X,"**********"))')
      >                          n,Nst,chan(Nst),n1,
