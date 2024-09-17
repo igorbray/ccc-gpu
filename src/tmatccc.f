@@ -841,8 +841,8 @@ C$OMP END PARALLEL DO
             do nchi = 1, min(nchtop,74) !nchf
                if (nchi.lt.nistart.or.nchi.gt.nistop) cycle
 C               write(lfile,'"lplot.",2i2) nchf,nchi
-               open(52,file="lplot."//ch(nchf)//ch(nchi)//'_'//ch(lg)
-     >            //ch(ns)//ch(ipar))
+               open(52,file="lplot."//ch(nchf)//ch(nchi)//'_'//
+     >            ch(mod(lg,10))//ch(ns)//ch(ipar))
             divk = gk(1,nchi) * gk(1,nchf)
             if (divk.eq.0.0) divk = 1.0
 c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),

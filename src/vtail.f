@@ -298,7 +298,7 @@ c               print*,lambda,'=lambda. Tail set to zero.'
       IMPLICIT INTEGER*4(I-N)
       include 'par.f'
       parameter(lll=lcoul*2+20)
-      COMMON/GAMMA/GS(lll)
+      COMMON/GAMMA/GS(lll),scale
 C
 C ****  THIS SUBROUTINE RETURNS THE VALUE OF THE GAMMA
 C ****  FUNCTION FOR X = I*0.5D0
@@ -307,7 +307,6 @@ C ****  IF ITEN > 0,  RETURN GAMX(X) = GAMMA(X)
 C ****  IF I < 0 AND EVEN, NO VALUE IS RETURNED SINCE THE GAMMA
 C ****  FUNCTION HAS POLES AT NEGATIVE INTEGERS
 C
-      scale = 1d3
       II = I
       IF(II.LE.0) THEN
          IF(MOD(II,2).EQ.0) THEN
@@ -342,6 +341,7 @@ C
             GAMX = GAMX*WGX/(0.5D0*DBLE(J))
 10       CONTINUE
       END IF
+c$$$      print*,'GAMX:',gamx,gs(ii),iten
       RETURN
 20    FORMAT(1X,' GAMMA FUNCTION UNDEFINED FOR X =',I3,'/2'
      >   ,'  GAMX = 0.0 RETURNED')
@@ -351,12 +351,12 @@ C
       IMPLICIT REAL*8(A-H,O-Z)
       include 'par.f'
       parameter(lll=lcoul*2+20)
-      COMMON/GAMMA/GS(lll)
+      COMMON/GAMMA/GS(lll),scale !here we set scale
 C
 C ****  COMPUTES VALUES OF THE GAMMA FUNCTION TIMES A SCALE FACTOR.
 C ****  GS(I)  CONTAINS GAMMA(I/2)/(10**(I/2))
 C
-      scale = 1d3
+      scale = 1d2
 !      GS(2) = 1.0D0/10.0D0
       GS(2) = 1.0D0/scale
       DO 10 I = 4,lll,2
@@ -374,14 +374,14 @@ C
 
       SUBROUTINE PSISET
       IMPLICIT REAL*8(A-H,O-Z)
-      COMMON/PSVAL/PSI(600)
+      COMMON/PSVAL/PSI(1000)
 C
 C ****  COMPUTES THE VALUE OF THE PSI(DIGAMMA) FUNCTION.
 C ****  DIGAMMA(I/2) IS STORED IN PSI(I)
 C
       PSI(1) = -1.96351002602143D0
       PSI(2) = -0.577215664901533D0
-      DO 10 I = 3,600
+      DO 10 I = 3,1000
          PSI(I) = PSI(I-2) + 2.0D0/DBLE(I-2)
 10    CONTINUE
       RETURN
@@ -433,7 +433,7 @@ c         end while
       IMPLICIT REAL*8(A-H,O-Z)
       IMPLICIT INTEGER*4(I-N)
       COMMON/GMFN/FGS(34)
-      COMMON/PSVAL/PSI(600)
+      COMMON/PSVAL/PSI(1000)
 C
 C ****  THIS FUNCTION SUMS THE INFINITE PART OF THE ALTERNATE
 C ****  FORM OF THE HYPERGEOMETRIC FUNCTION. THE ACCURACY TOLERANCE
@@ -464,7 +464,7 @@ c      end while
        go to 9997
        endif
       FDHY2 = S1
-      IF(i+4.GT.(600/2)) THEN
+      IF(i+4.GT.(1000/2)) THEN
          WRITE(6,20)A,B,C,X,i
       END IF
       RETURN

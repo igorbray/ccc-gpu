@@ -168,10 +168,9 @@ c$$$     >         jstart
 c$$$         endif 
 
          if (s1.eq.s2.and.s2.eq.0.0) then
-            print*,'S1=S2=0 for jor,j,jstop,ln,ecmn,regs:',
-     >         jstartorig,jstart,jstop,ln,ecmn,reg(jstartorig),
-     >         reg(jstart-3),reg(jstart-2),reg(jstart-1),
-     >         reg(jstart)
+            print*,'S1=S2=0 for jstart,ln,ecmn,eta: Hence reg(:)=0.0',
+     >         jstart,ln,ecmn,eta
+            reg(:)= 0.0
             jstart = jstop+1
          endif 
 C     numerovf used to fail for ECMN=0 for l=1, but restoring the - sign (see comment inside) fixes it. Workaround below no-longer necessary.
@@ -242,7 +241,8 @@ c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
 C Check that the CHIL is sinusoidal at large r for wnn not too small or too big
          j = jstop
          localmatch = .false.
-         if (ln.gt.ldw.and.cntfug(j)/ecmn.lt.1e-3) then
+         if (ln.gt.ldw.and.cntfug(j)/ecmn.lt.1e-3.and.
+     >      abs(ucentr(j)).lt.1e-3) then
             if (reg(j-1).lt.reg(j)) then
                do while(reg(j-1).lt.reg(j))
                   j = j - 1
@@ -1667,6 +1667,8 @@ c$$$     >         abs(cfc(1)),abs(cgc(1)),j
       dimension psen2(nps)
       n = 1
       small = 1e10
+      almax = 1e10
+      almin = 0.0
       do while (psen2(n).lt.position.and.n.lt.nps)
          n = n + 1
       enddo

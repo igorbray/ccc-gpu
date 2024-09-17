@@ -1389,6 +1389,8 @@ C as r**(-lt-1). The input projectiles are chi(Rkr), where R=rmesh(meshr,1).
 c$$$      use gf_module
       include 'par.f'
       implicit double precision (a-h,o-z)
+      parameter(lll=lcoul*2+20)
+      COMMON/GAMMA/GS(lll),scale
       common/meshrr/ meshr,rmesh(maxr,3)
       common/matchph/rphase(kmax,nchan),trat
       real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmfmax),chii(meshr,nqmi),r
@@ -1441,7 +1443,6 @@ c$$$      if (itail.lt.0.and.ltmin.le.-itail) then
          lm = lt
          IZR = 0
          IONE = 1
-         scale = 1d3
 !         RT10 = SQRT(10.0D0)
          RT10 = SQRT(scale)
          T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
@@ -1464,7 +1465,6 @@ c$$$      if (itail.lt.0.and.ltmin.le.-itail) then
          T10 = GAMX(IONE,L1-L2-LM+1)
          T11 = GAMX(IONE,L2-L1-LM+1)
          TWOL = DBLE(2**LM)
-
 c$$$         open(42,file='chif'//ch(lf))
 c$$$         write(42,'("#           ",200i12)') (minchif(k),k=1,nqmf)
 c$$$         do i = 1, meshr

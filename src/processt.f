@@ -1633,9 +1633,9 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       print*,
      >   'Enter max J for extrapolation' ! and bornsub (1 or 0)'
 c$$$      read(*,err=100), jextrap
-      read(*,*) jextrap
+      read(*,*) jextrapor
       bornsub = bornsubin
-      print*, 'JEXTRAP, BORNSUBIN:',jextrap, bornsubin
+      print*, 'JEXTRAP, BORNSUBIN:',jextrapor, bornsubin
  
  37   print*,'Please enter NISTART, NISTOP, NFSTART and NFSTOP:'
 c$$$      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
@@ -1722,9 +1722,8 @@ c$$$            jextrap = jstop
             rki = onshellk(ni)
 
 
-            if (chan(ni)(3:3).eq.chan(nf)(3:3).and.chan(ni)(3:3).eq.'S')
-     >         then
-c$$$            if (ni.eq.nf) then
+            if (ni.eq.nf) then
+               jextrap = jextrapor
                nchi = nonnew(nchfi(ni,0),0,0,jstop)
                nchf = nonnew(nchfi(nf,0),0,0,jstop)
                alpha = real(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
@@ -1746,15 +1745,55 @@ c$$$            if (ni.eq.nf) then
                      if (nth.gt.180) theta = (nth - 180) / 21.0
                      thrad = theta * pi / 180.0
                      sh=rylm(j,0,dble(thrad))
+c$$$                     if (nth.eq.135) print*,'j,sh,c2:'
+c$$$     >                  ,chan(nf),j,sh,cfac(0)
                      do ns = 0, nsmax
-                        f(nth,ns,0,0) = sh * cfac(ns)+ f(nth,ns,0,0) 
+                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
                      enddo
                   enddo
                enddo
+            elseif (chan(ni)(3:3).eq.chan(nf)(3:3).and.
+     >            chan(ni)(3:3).eq.'S') then
+               jextrap = jextrapor
+               js = jstop
+               nchi = nonnew(nchfi(ni,0),0,0,js)
+               nchf = nonnew(nchfi(nf,0),0,0,js)
+               jp = jstop -5
+               nchip = nonnew(nchfi(ni,0),0,0,jp)
+               nchfp = nonnew(nchfi(nf,0),0,0,jp)
+               rts = real(ton(nchf,nchi,0,0,js))
+               rtp = real(ton(nchf,nchi,0,0,jp))
+               aits = aimag(ton(nchf,nchi,0,0,js))
+               aitp = aimag(ton(nchf,nchi,0,0,jp))
+               rc1 = log(rts/rtp)/(jp-js)
+               rc2 = rts/exp(-rc1*js)
+               aic1 = log(aits/aitp)/(jp-js)
+               aic2 = aits/exp(-aic1*js)
+c$$$               do j = jp, js
+c$$$                  print*,ton(nchf,nchi,0,0,j),rc2*exp(-rc1*j),
+c$$$     >               aic2*exp(-aic1*j)
+c$$$               enddo
+c$$$               do j = jstop+1, jextrap
+c$$$                  c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
+c$$$                  treal = rc2*exp(-rc1*j)
+c$$$                  timag = aic2*exp(-aic1*j)
+c$$$                  do ns = 0, nsmax
+c$$$                     cfac(ns) = c2*cmplx(treal,timag)
+c$$$                  enddo
+c$$$                  do nth = 0, 200, nstep
+c$$$                     theta = float(nth)
+c$$$                     if (nth.gt.180) theta = (nth - 180) / 21.0
+c$$$                     thrad = theta * pi / 180.0
+c$$$                     sh=rylm(j,0,dble(thrad))
+c$$$                     do ns = 0, nsmax
+c$$$                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
+c$$$                     enddo
+c$$$                  enddo
+c$$$               enddo
             else
                jextrap = jstop
             endif 
-            print*,'J extrapolation is set to:',jextrap
+            print*,'J extrapolation used:',jextrap
 c$$$            open (77,file='klaus.25ev.bsr')
 c$$$            read(77,*)
             do j = 0, jextrap
@@ -1800,6 +1839,8 @@ c$$$            read(77,*)
                               do ns = 0, nsmax
                                  Tel(ns) = ton(nchf,nchi,ns,ipar,j)
                                  Vel(ns) = vdon(nchf,nchi,ns,ipar,j)
+c$$$                                 Tel(ns) = Vel(ns) !Born approximation
+
 c$$$                                 read(77,*) xx,kj,ks,kp,kli,klf,trk,tik
 c$$$                                 write(*,'(5i5,1p,4e15.5)')
 c$$$     >                              j,ipar,li,lf,ns,
@@ -1824,30 +1865,34 @@ c$$$     >                              (2.0*pi*sqrt(rki*rkf))
 !     >                              ton(nchf,nchi,ns,ipar,jstop))
 !                                 Vel(ns) = getT(j,jstop,
 !     >                              vdon(nchf,nchi,ns,ipar,jstop))
-                                 Tel(ns) = getTextr(j,jstop,
+                                 Tel(ns) = getTextr(j,jstop, !geometric extrapolation
      >                              ton(nchf,nchi,ns,ipar,jstop),
-     >                                ton(nchf,nchi,ns,ipar,jstop-1))
+     >                              ton(nchf,nchi,ns,ipar,jstop-1))
+c$$$                                 treal = rc2*exp(-rc1*j) !exponential extrapolation
+c$$$                                 timag = aic2*exp(-aic1*j)
+c$$$                                 print*,'j,t:',j,Tel(ns),treal,timag
+c$$$                                 Tel(ns) = cmplx(treal,timag)
                                  Vel(ns) = getTextr(j,jstop,
      >                              vdon(nchf,nchi,ns,ipar,jstop),
      >                              vdon(nchf,nchi,ns,ipar,jstop-1))
                               enddo 
-                              if (j.eq.jstop+1) then
+c$$$                              if (j.eq.jstop+1) then
 c$$$                                 t = getT(0,jstop,ton(nchf,nchi,0,
 c$$$     >                              ipar,jstop))
 c$$$                                 print*,'ALPHA, BETA:',-real(t)/rki
 c$$$     >                              *3.0,-aimag(t)/rki*105.0
-                                 do jpr = jstop, jstop - 9, -1
-                                    print'("getT,T,err(%)",i4,1p,4e12.3,
-     >                                 0p,f5.1)', jpr, getT(jpr,jstop,
-     >                                 ton(nchf,nchi,0,ipar,jstop)),
-     >                                 ton(nchf,nchi,0,ipar,jpr),
-     >                                 abs(getT(jpr,jstop,
-     >                                 ton(nchf,nchi,0,ipar,jstop))-
-     >                                 ton(nchf,nchi,0,ipar,jpr))/
-     >                                 abs(ton(nchf,nchi,0,ipar,jpr))
-     >                                 *100.0
-                                 enddo
-                              endif 
+c$$$                                 do jpr = jstop, jstop - 9, -1
+c$$$                                    print'("getT,T,err(%)",i4,1p,4e12.3,
+c$$$     >                                 0p,f5.1)', jpr, getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop)),
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr),
+c$$$     >                                 abs(getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop))-
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr))/
+c$$$     >                                 abs(ton(nchf,nchi,0,ipar,jpr))
+c$$$     >                                 *100.0
+c$$$                                 enddo
+c$$$                              endif 
                            endif 
                            rlf  = lf
                            cip = (0d0,1d0)**dfloat(li-lf)

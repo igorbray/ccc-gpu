@@ -471,8 +471,30 @@ c$$$         call update(88)
             
          
 C  Print out the results
-         j = mod(lg,100)
-         do nchf = 1, nymax !min(nymax,50)
+         j = lg !mod(lg,100)
+         elrealt = real(wton(1,1))
+         elimagt = aimag(wton(1,1))
+         polfac = - elrealt * (2*j+3) * (2*j+1) * (2*j-1) /
+     >      gk(1,1)
+         if (target .eq. 'H  I') then
+            exact = 4.5
+         else if (target .eq. 'He I') then
+            exact = 1.3832
+         else if (target .eq. 'Li I') then
+            exact = 161.77
+         else if (target .eq. 'Na I') then
+            exact = 164.7
+         else if (target .eq. 'K I') then
+            exact = 279.7
+         else if (target .eq. 'Cs I') then
+            exact = 401.0
+         else
+            exact = 0.0
+         endif 
+         print'(i3,2f10.3,f10.5,
+     >     '' J, target polarization, exact, Imag(T)/Re(T)'')',
+     >      j, polfac, exact, elimagt/(elrealt+1e-30)
+         do nchf = 1, nymax     !min(nymax,50)
             call getchinfo(nychan(nchf),nchp,
      >         lg,temp,maxpsi,ef,lfa,nfa,lf)
             do nchi = 1, lent
@@ -3017,8 +3039,8 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
          write(42,'(79a)') ('-',i=1,79)
          write(42,'(''transition  cross section  extrapolated'',
      >      ''     overlap       spin asym    energy     energydiff'')')
-         write(43,'('' J   trans  cross section  extrap    PCS(V) '',
-     >      ''   PCS(T) S=0 PCS(T) S=1  energy     ovlp  ip'')')
+         write(43,'(" J   trans    cross section    extrap      PCS(V)",
+     >   "       PCS(T) S=0   PCS(T) S=1   energy     ovlp  ip")')
          do l = 0, ltop
             nt(l) = 0
          enddo 
@@ -3083,7 +3105,7 @@ c$$$     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
      >         enchan(nchp),enchandiff(nchp)
 c$$$     >         ,(diff.lt.small.or.
 c$$$     >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
-            write(43,'(i3,a4,'' <-'',a3,1p,6e11.3,0p,f8.4,i2)') 
+            write(43,'(i3,a4,'' <-'',a3,1p,6e13.5,0p,f8.4,i2)') 
      >         lg,chan(nchp),chan(nchip),summedcs,extrapcs,
      >         BornPCS(nchp,nchip)*unit,
      >         partcs(nchp,nchip,0)*unit,partcs(nchp,nchip,1)*unit, 
