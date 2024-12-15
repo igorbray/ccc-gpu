@@ -1,6 +1,6 @@
       subroutine pwrite(nent,instate,nopen,energy,nznuci,
-     >   zasymi,ry,noprint,ovlp,
-     >   ovlpn,phasen,phaseq,jstart,jstop,projectile,target,nsmax,
+     >   zasymi,ry,noprint,ovlp,ovlpn,phasen,phaseq,
+     >   jstart,ipstart,jstop,projectile,target,nsmax,
      >   nchimax,nchanmax,npar,hlike,NTunit,vdcore,minvdc,maxvdc,ne2e,
      >   slowery,iborn,bornICS,tfile,nnbtop,ovlpnl,ovlpnn)
       implicit real (a-h,o-z)
@@ -8,7 +8,7 @@
       parameter (ntype=2*(lamax+1),npoints=ncmax+10)
       character projectile*8,target*6,chunit(3)*8,chun*8,tfile*(*)
       dimension lea(nchan),onshellk(nchan),onshold(nchan),temp(maxr),
-     >   psii(maxr),psif(maxr),ff(0:200,0:lamax),chi(maxr),ovlpn(knm),
+     >   psii(maxr),psif(maxr),ff(0:200,0:2*lamax),chi(maxr),ovlpn(knm),
      >   sweight(0:200,10),bornICS(knm,knm),ovlp(ncmax,0:lamax),
      >   ucentr(maxr),units(3),BornPCS(nchan,nchan),esum(0:1),
      >   partcs(nchan,nchan,0:1),sigtop(nchan,0:1),rcond(0:1),
@@ -39,7 +39,7 @@ C  XIN,...,YOUT are used for (e,2e) and BORN interpolation
      >   nonnew(knm,-lamax:lamax,0:1,0:lmax)
       integer nstep(10),nnset(3),nopen(0:1),nopenold(0:1),
      >   nchfi(knm,0:1), iwf(2*100), nttop(0:1), instate(100)
-      parameter (lentr=8,lexit=lamax)
+      parameter (lentr=10,lexit=lamax)
 C ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), 
       complex phase, sigc, !vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop),
      >   phaseq(nchan),
@@ -236,26 +236,28 @@ c$$$     >         ,phasediv(nch),nch
          call getchinfo (nch, nchp, ipar, temp, maxpsi, ea, la, na, l)
          if (nch.ne.0) go to 10
       enddo 
+      print* !give a clean finish to the above state printouts
 C  restore ipar to zero
       ipar = 0
       xerr = 0.1
       yerr = 0.0
-      print*
-      if (cnode.eq.'') then
-         open(42,file='cfile')
-         open(43,file='cfile1')
-         open(44,file='dfile')
-         open(45,file='dfile1')
-      else
-         open(42,file=cnode//'cfile'//ench)
-         open(43,file=cnode//'cfile1'//ench)
-         open(44,file=cnode//'dfile'//ench)
-         open(45,file=cnode//'dfile1'//ench)
-      endif 
-      do ip = 0, 1
-         do nt = 1, nttop(ip)
-            do np = 1, npt(nt,ip)
-               if (enf(np,nt,ip).gt.0.0) then
+c$$$      print*
+c$$$      if (cnode.eq.'') then
+c$$$         open(42,file='cfile')
+c$$$         open(43,file='cfile1')
+c$$$         open(44,file='dfile')
+c$$$         open(45,file='dfile1')
+c$$$      else
+      if (jstart.eq.0) then
+         open(42,file=adjustl(cnode//'cfile'//ench))
+         open(43,file=adjustl(cnode//'cfile1'//ench))
+         open(44,file=adjustl(cnode//'dfile'//ench))
+         open(45,file=adjustl(cnode//'dfile1'//ench))
+c$$$      endif 
+         do ip = 0, 1
+            do nt = 1, nttop(ip)
+               do np = 1, npt(nt,ip)
+                  if (enf(np,nt,ip).gt.0.0) then
 c$$$                  if (np.le.npt(nt,ip)-2) then
 c$$$                     check = (enf(np,nt,ip)*4.0-enf(np+1,nt,ip)-
 c$$$     >                  enf(np+2,nt,ip))/enf(np,nt,ip)
@@ -265,30 +267,31 @@ c$$$     >                  enf(np,nt,ip)
 c$$$                  else
 c$$$                     check = 0.0
 c$$$                  endif 
-                  if (np.gt.1) then
+                     if (np.gt.1) then
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  (enf(np-1,nt,ip)+enf(np,nt,ip))/2.0*ry,
      >                  enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
-                  else
+                     else
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  enf(np,nt,ip)/2.0*ry,enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
+                     endif 
+                  else
+                     write(44+ip,'(i2,1p,100e13.5)')
+     >                  nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
                   endif 
-               else
-                  write(44+ip,'(i2,1p,100e13.5)')
-     >               nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
-               endif 
+               enddo
             enddo
-         enddo
-      enddo 
-      print*,'efiles written to disk'
-      close(42)
-      close(43)
-      close(44)
-      close(45)
+         enddo 
+         print*,'efiles written to disk'
+         close(42)
+         close(43)
+         close(44)
+         close(45)
+      endif !jstart=0
       ip = 0
       
       nsp = nsmax + 1
@@ -337,16 +340,21 @@ C  from the 'tcs' file.
      >      recl=irecl)
          print*,'POTL and IRECL:',tfile,irecl
          call update(6)
-c         open(88,file=tfile)
-         read(88,*,err=25,end=25)
-         read(88,*,err=25,end=25) enold, zasymold,nold
+c     open(88,file=tfile)
+         j = jstart
+         read(88,*,err=20,end=20) ! At 20 will append to potl
+         read(88,*,err=20,end=20) enold, zasymold,nold
+         print*,'enold,energy:', enold,energy
          if (abs(enold-energy)/energy.gt.1e-4) then
 c$$$            print*,'Stopping: incident energy is not same in potl'
 c$$$            call update(6)
 c$$$            call mpi_finalize(ierr)
 c$$$            print*,'MPI_FINALIZE returned:',ierr
 c$$$            call update(6)
-            stop 'incident energy is not same in potl'
+c$$$            stop 'incident energy is not same in potl'
+            print*,'Will append to:',tfile
+            j = jstart
+            goto 20
          endif
          read(88,'(1000(i2,2(e12.4)))',err=25,end=25)
      >      (laold(n),ovlpnold(n),onshold(n),n=1,nold)
@@ -631,16 +639,16 @@ C  channels after say J=20, even though these cross sections are set to zero
 C  for J > 8. Note that this affects the accuracy of the TCS test using the
 C     optical theorem, since the imaginary part of the elastic amplitude
 C     is not altered. 
-                        if (j.gt.8) then 
-                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
-     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
-                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
-     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
-                              if (q.gt.1.0) q = 0.0
-                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
-     >                           ton(nchf,nchi,ns,np,j-1)
-                           endif
-                        endif 
+c$$$                        if (j.gt.8) then 
+c$$$                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
+c$$$     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
+c$$$                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
+c$$$     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
+c$$$                              if (q.gt.1.0) q = 0.0
+c$$$                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
+c$$$     >                           ton(nchf,nchi,ns,np,j-1)
+c$$$                           endif
+c$$$                        endif 
                         partcs(nchpf,nchpi,ns) = partcs(nchpf,nchpi,ns) 
      >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
                         tcs(ns) = tcs(ns)
@@ -1154,11 +1162,13 @@ c$$$         endif
          j = j + 1
          go to 15
  20      print*  ! end of J loop
+         print*,'J,JSTOP:',j,jstop
          if (j.le.jstop) then
             close(88)
             open (88,file=tfile,position='append',status='old',
      >         recl=irecl)
-            jstart = j
+            jstart = max(j,jstart) ! bad file name can result j=0
+            ipstart = ipar
 c$$$            call memfree(ptrv)
 c$$$            call memfree(ptrt)
             deallocate(ton,stat=istat1)
@@ -1572,9 +1582,9 @@ C  Incident on a hydrogenic target. Total spin S = ns.
      >   nunit,projectile,target,hlike,vdcore,minvdc,maxvdc,bornsubin,
      >   nchfi,ovlpn,phaseq,ne2e,slowery,nonnew,tfile)
       include 'par.f'
-      parameter (lentr=8,lexit=lamax,npoints=30,ntype=20)
+      parameter (lentr=10,lexit=lamax,npoints=30,ntype=20)
       character projectile*(*), target*(*), tfile*(*)
-      integer nchfi(nomax,0:1)
+      integer nchfi(nomax,0:1),nopen(0:1)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),
      >   ovlp(20,100), chi(maxr), sweight(0:200), spinw(0:1), units(3),
      >   psii(maxr), psif(maxr), vdcore(maxr,0:lamax),slowery(ne2e),
@@ -1622,12 +1632,14 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       crossmt(:) = 0.0
       print*,
      >   'Enter max J for extrapolation' ! and bornsub (1 or 0)'
-      read(*,err=100), jextrap
+c$$$      read(*,err=100), jextrap
+      read(*,*) jextrapor
       bornsub = bornsubin
-      print*, 'JEXTRAP, BORNSUBIN:',jextrap, bornsubin
+      print*, 'JEXTRAP, BORNSUBIN:',jextrapor, bornsubin
  
  37   print*,'Please enter NISTART, NISTOP, NFSTART and NFSTOP:'
-      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+c$$$      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+      read(*,*) NISTART, NISTOP, NFSTART, NFSTOP
       print*,'NISTART, NISTOP, NFSTART, NFSTOP:',
      >   NISTART, NISTOP, NFSTART, NFSTOP
       if (nistart.le.0) then
@@ -1708,14 +1720,18 @@ C the factor of 1/Kb multiplying the TDCS. Note OVLPQ will be squared for TDCS.
             endif
 c$$$            jextrap = jstop
             rki = onshellk(ni)
+
+
             if (ni.eq.nf) then
-c$$$               print*,'Elastic extrapolation is set to J = 80'
-c$$$               jextrap = 80
-               alpha = real(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+               jextrap = jextrapor
+               nchi = nonnew(nchfi(ni,0),0,0,jstop)
+               nchf = nonnew(nchfi(nf,0),0,0,jstop)
+               alpha = real(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3)
-               beta = aimag(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+               beta = aimag(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3) * (2*jstop+5) * (2*jstop+7)
-               print*,'ALPHA, BETA:',alpha/rki, beta/rki
+               print*,'nchf,nchi,ALPHA, BETA:',nchf,nchi,
+     >            -alpha/rki, -beta/rki
                do j = jstop+1, jextrap
                   c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
                   treal = alpha / (2*j-1) / (2*j+1) / (2*j+3)
@@ -1729,12 +1745,55 @@ c$$$               jextrap = 80
                      if (nth.gt.180) theta = (nth - 180) / 21.0
                      thrad = theta * pi / 180.0
                      sh=rylm(j,0,dble(thrad))
+c$$$                     if (nth.eq.135) print*,'j,sh,c2:'
+c$$$     >                  ,chan(nf),j,sh,cfac(0)
                      do ns = 0, nsmax
-                        f(nth,ns,0,0) = sh * cfac(ns)+ f(nth,ns,0,0) 
+                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
                      enddo
                   enddo
                enddo
+            elseif (chan(ni)(3:3).eq.chan(nf)(3:3).and.
+     >            chan(ni)(3:3).eq.'S') then
+               jextrap = jextrapor
+               js = jstop
+               nchi = nonnew(nchfi(ni,0),0,0,js)
+               nchf = nonnew(nchfi(nf,0),0,0,js)
+               jp = jstop -5
+               nchip = nonnew(nchfi(ni,0),0,0,jp)
+               nchfp = nonnew(nchfi(nf,0),0,0,jp)
+               rts = real(ton(nchf,nchi,0,0,js))
+               rtp = real(ton(nchf,nchi,0,0,jp))
+               aits = aimag(ton(nchf,nchi,0,0,js))
+               aitp = aimag(ton(nchf,nchi,0,0,jp))
+               rc1 = log(rts/rtp)/(jp-js)
+               rc2 = rts/exp(-rc1*js)
+               aic1 = log(aits/aitp)/(jp-js)
+               aic2 = aits/exp(-aic1*js)
+c$$$               do j = jp, js
+c$$$                  print*,ton(nchf,nchi,0,0,j),rc2*exp(-rc1*j),
+c$$$     >               aic2*exp(-aic1*j)
+c$$$               enddo
+c$$$               do j = jstop+1, jextrap
+c$$$                  c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
+c$$$                  treal = rc2*exp(-rc1*j)
+c$$$                  timag = aic2*exp(-aic1*j)
+c$$$                  do ns = 0, nsmax
+c$$$                     cfac(ns) = c2*cmplx(treal,timag)
+c$$$                  enddo
+c$$$                  do nth = 0, 200, nstep
+c$$$                     theta = float(nth)
+c$$$                     if (nth.gt.180) theta = (nth - 180) / 21.0
+c$$$                     thrad = theta * pi / 180.0
+c$$$                     sh=rylm(j,0,dble(thrad))
+c$$$                     do ns = 0, nsmax
+c$$$                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
+c$$$                     enddo
+c$$$                  enddo
+c$$$               enddo
+            else
+               jextrap = jstop
             endif 
+            print*,'J extrapolation used:',jextrap
 c$$$            open (77,file='klaus.25ev.bsr')
 c$$$            read(77,*)
             do j = 0, jextrap
@@ -1780,6 +1839,8 @@ c$$$            read(77,*)
                               do ns = 0, nsmax
                                  Tel(ns) = ton(nchf,nchi,ns,ipar,j)
                                  Vel(ns) = vdon(nchf,nchi,ns,ipar,j)
+c$$$                                 Tel(ns) = Vel(ns) !Born approximation
+
 c$$$                                 read(77,*) xx,kj,ks,kp,kli,klf,trk,tik
 c$$$                                 write(*,'(5i5,1p,4e15.5)')
 c$$$     >                              j,ipar,li,lf,ns,
@@ -1804,24 +1865,34 @@ c$$$     >                              (2.0*pi*sqrt(rki*rkf))
 !     >                              ton(nchf,nchi,ns,ipar,jstop))
 !                                 Vel(ns) = getT(j,jstop,
 !     >                              vdon(nchf,nchi,ns,ipar,jstop))
-                                 Tel(ns) = getTextr(j,jstop,
+                                 Tel(ns) = getTextr(j,jstop, !geometric extrapolation
      >                              ton(nchf,nchi,ns,ipar,jstop),
-     >                                ton(nchf,nchi,ns,ipar,jstop-1))
+     >                              ton(nchf,nchi,ns,ipar,jstop-1))
+c$$$                                 treal = rc2*exp(-rc1*j) !exponential extrapolation
+c$$$                                 timag = aic2*exp(-aic1*j)
+c$$$                                 print*,'j,t:',j,Tel(ns),treal,timag
+c$$$                                 Tel(ns) = cmplx(treal,timag)
                                  Vel(ns) = getTextr(j,jstop,
      >                              vdon(nchf,nchi,ns,ipar,jstop),
      >                              vdon(nchf,nchi,ns,ipar,jstop-1))
                               enddo 
-                              if (j.eq.jstop+1) then
-                                 t = getT(0,jstop,ton(nchf,nchi,0,
-     >                              ipar,jstop))
-                                 print*,'ALPHA, BETA:',-real(t)/rki
-     >                              *3.0,-aimag(t)/rki*105.0
-                                 do jpr = jstop - 3, jstop
-                                    print*, jpr, getT(jpr,jstop,
-     >                                 ton(nchf,nchi,0,ipar,jstop)),
-     >                                 ton(nchf,nchi,0,ipar,jpr)
-                                 enddo
-                              endif 
+c$$$                              if (j.eq.jstop+1) then
+c$$$                                 t = getT(0,jstop,ton(nchf,nchi,0,
+c$$$     >                              ipar,jstop))
+c$$$                                 print*,'ALPHA, BETA:',-real(t)/rki
+c$$$     >                              *3.0,-aimag(t)/rki*105.0
+c$$$                                 do jpr = jstop, jstop - 9, -1
+c$$$                                    print'("getT,T,err(%)",i4,1p,4e12.3,
+c$$$     >                                 0p,f5.1)', jpr, getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop)),
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr),
+c$$$     >                                 abs(getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop))-
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr))/
+c$$$     >                                 abs(ton(nchf,nchi,0,ipar,jpr))
+c$$$     >                                 *100.0
+c$$$                                 enddo
+c$$$                              endif 
                            endif 
                            rlf  = lf
                            cip = (0d0,1d0)**dfloat(li-lf)
@@ -1926,7 +1997,7 @@ C  subtraction for total spin = 3/2 if the transition involves singlet states.
             
             open(42,file='amp.'//chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
 
-            write(42,"(a8,' - ',a6,'scattering:',1p,e10.3,'eV on ',a3,
+            write(42,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
 c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ' ->',a3,(2(e10.3,'eV'))/)") projectile,target,
      >         13.6058*(etot-enchan(ni)),chan(ni),chan(nf),
@@ -1959,7 +2030,7 @@ c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ''            end do''/
      >         ''         end do''/
      >         ''      end do'')')
-            write(42,'(2i2,i4,2f8.5,2i2,2f8.5,
+            write(42,'(2i2,i4,2f10.7,2i2,2f6.3,
      >         " Lf,Li,Nth,Kf,Ki,2Sf+1,Nsm,SpinW(ns)")')
      >         lfa, lia, 181/1,  onshellk(nf), onshellk(ni),
      >         nint(2.0*sf+1.0),nsmax,(spinw(ns),ns=0,1)
@@ -2118,7 +2189,7 @@ C  and phi angles
       logical hlike
       dimension psif(maxr), psii(maxr), vdcore(maxr,0:lamax), 
      >   temp(maxr), ucentr(maxr), q(0:200), qth(0:200), vc(0:200),
-     >   ff(0:200,0:lamax)
+     >   ff(0:200,0:2*lamax)
       common/meshrr/ meshr,rmesh(maxr,3)
       real*8 rylm,dtheta,thrad,pi,dki,dkf,tmp
       common /double/njdouble,jdouble(22)
@@ -2153,7 +2224,7 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
       do i = 1, maxr
          temp(i) = 0.0
       enddo
-      if (lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax) then
+      if (lf.gt.lexit.or.li.gt.lentr) then !.or.li+lf.gt.lamax) then
          print*,lf,lexit,li,lentr,li+lf,lamax
          stop 'lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax'
       endif
