@@ -494,7 +494,8 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      if (itail.ne.0.and.ctemp(nchf).ne.0.0) then
+      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.
+     >   (li.gt.latop.or.lf.gt.latop)) then
          call maketail(itail,ctemp(nchf),chil(1,npk(nchi),ichildim),
      >      minchil(npk(nchi),ichildim),gk(1,nchi),phasei,li,nqmi,
      >      chil(1,npk(nchf),ichildim),minchil(npk(nchf),ichildim),

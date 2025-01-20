@@ -81,7 +81,7 @@ c$$$      real, allocatable :: kernel(:,:)
 C     End added by Alex
 
       call date_and_time(date,time,zone,valuesin)
-
+      sprint = .false.
       inquire (file='sprint',exist=sprint)
       inquire (file='lprint',exist=lprint)
       if (lprint) then
@@ -922,7 +922,7 @@ c$$$     >            ' K matrix: K, F, I', real(ton(nchf,nchi)),
 c$$$     >            real(ton(nchi,nchf)), nchf, nchi
             endif 
 c$$$            ton(nchf,nchi) = (ton(nchf,nchi) + ton(nchi,nchf)) / 2.0
-            ton(nchi,nchf) = ton(nchf,nchi)
+!            ton(nchi,nchf) = ton(nchf,nchi)
 c$$$            k1 = 0
 c$$$            do n = npk(nchf) + 1, npk(nchf+1) - 1
 c$$$               kn = n - npk(nchf) + 1
@@ -981,7 +981,7 @@ c$$$     >         nchi,nchf,gk(k1+1,nchf),offshellk2
          if (etot.gt.enchan(nchip)) then
          write(42,'(''#nchf Lf  lf  nf <-nchi  Li  li  ni Re(K-mat)'',
      >      ''        ef       ovlp'')')
-            do nchf = nchi, nchtop
+            do nchf = 1, nchtop !nchi, nchtop
                call getchinfo (nchf,nchfp,lg,temp,maxpsf,ef,laf,nf,lf)
                if (etot.gt.enchan(nchfp)) write
      >            (42,'(4i4,'' <-'',4i4,1p,e12.4,0p,f12.5,f10.5)') 
@@ -2045,33 +2045,33 @@ c$$$      end
       character ch*1
       ch(n) = char(n + ichar('0'))
 
-      maxnch = 100
+      maxnch = 9
       do nchi = 1, min(nchtop,maxnch)
          do nchf = nchi, min(nchtop,maxnch)
             open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
             write(42,
      >         '("#   rkf       rki          vmat       kff kii")')
-            do ki = npk(nchi) + 0, npk(nchi+1) - 1
+            do ki = npk(nchi) + 1, npk(nchi+1) - 1
                kii = ki - npk(nchi) + 1
                rki = gk(kii,nchi)
-               do kf = npk(nchf) + 0, npk(nchf+1) - 1
+               do kf = npk(nchf) + 1, npk(nchf+1) - 1
                   kff = kf - npk(nchf) + 1
                   rkf = gk(kff,nchf)
-                  d = 1.0 ! rkf * rki
+                  d = rkf * rki
                   if (ns.eq.0) then
                      if (kf.ge.ki) then
-                        write(42,'(2f10.6,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i4)')
      >                     rkf,rki,vmat(kf,ki)/d,kff,kii
                      else
-                        write(42,'(2f10.6,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i4)')
      >                     rkf,rki,vmat(ki,kf)/d,kff,kii
                      endif
                   else 
                      if (kf.ge.ki) then
-                        write(42,'(2f10.6,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i4)')
      >                     rkf,rki,vmat(ki,kf+1)/d,kff,kii
                      else
-                        write(42,'(2f10.6,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i4)')
      >                     rkf,rki,vmat(kf,ki+1)/d,kff,kii
                      endif
                   endif

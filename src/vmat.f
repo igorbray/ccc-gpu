@@ -1916,8 +1916,8 @@ c$$$               if (lprint) print*,'Using n-point quadratures',
 c$$$     >            nt,nkor(j,lset,ispeed)
             else
                if (mod(nkor(j,lset,ispeed),2).eq.0) then
-                  npts = 2
-                  if (lprint) print*,'Using 2-point quadratures'
+                  npts = nt !2
+c$$$                  if (lprint) print*,'Using 2-point quadratures'
                else
                   npts = nt
                endif

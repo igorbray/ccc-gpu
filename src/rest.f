@@ -276,11 +276,14 @@ c$$$     >      cwork,lwork,rwork,bwork,info)
 c$$$         if (info.ne.0) print*,'INFO from CGEES:',info
 C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
+c$$$            print*,'eigenphase:',eigv(nch),
+c$$$     >         real(log(eigv(nch))/2.0/(0.0,1.0)),
+c$$$     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
             if (abs(eigv(nch)).gt.0.0) then
 c$$$               esum1 = esum1 + eigv(nch)
 !               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0)) crashes on Gadi GPUs
                esum2 = esum2 +
-     >              atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
 c$$$  esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
 c$$$               print*,'nch,eigenphase:',nch,
 c$$$     >            real(log(eigv(nch))/2.0/(0.0,1.0)),
@@ -288,6 +291,7 @@ c$$$     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
             endif
          enddo
          esum(ns) = esum2
+         print*,'phasesum:',ns,esum(ns)
          nchi = 0
          nchip = 0
          incount = 1
@@ -552,7 +556,7 @@ c$$$     >                  coulphase(dble(-(zasym+1.0)/sqrt(ef)),lfa)
                sigtop(1,ns) = sigt
             endif 
          endif
-         eigmod = esum1
+c$$$         eigmod = esum1
 c$$$         n = 0
 c$$$         do while (eigmod .lt. 0.0)
 c$$$            n = n + 1
@@ -563,11 +567,11 @@ c$$$            n = n + 1
 c$$$            eigmod = eigmod - pi / 2.0
 c$$$         enddo 
 
-         esum(ns) = eigmod
+c$$$         esum(ns) = eigmod
          do nchi = 1, 1 !lent
             print '(''N='',i6,'' Rcond:'',1p,e9.2, '', Eigphase sums:'',
      >         0p,2f9.4,i3,'' test:'',10i2)',
-     >         nds,rcond(ns),eigmod,esum1,n,(nmpow(err(nchf,nchi)),
+     >         nds,rcond(ns),eigmod,esum(ns),n,(nmpow(err(nchf,nchi)),
      >         nchf=1,min(10,nymax))
          enddo 
          call update(6)
@@ -3059,18 +3063,21 @@ c$$$     >         oldpj(nchp,nchip,1), Borne) + oldp(nchp,nchip,1)
 c$$$            asymcs = asym(extrapcs0, extrapcs1,fac)
             asymcs = asym(partcs(nchp,nchip,0)*unit+oldp(nchp,nchip,0),
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1), fac)
-            if (chan(nchip).eq.chan(nchp)) then ! elastic scattering
-               if (target.ne.'H  I'.or.chan(nchp)(2:2).eq.'1') then
-                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
-     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*(2*lg+5)*(2*lg+7)*unit
-                  extrapcs = const/8.0/(2*lg+1)/(2*lg+3)/
-     >               (2*lg+5)/(2*lg+7)
-               else !excited H state elastic scattering
-                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
-     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*unit
-                  extrapcs = const/4.0/(4.0*(lg+1)**2-1.0)
-               endif 
-            else if (BornICS(nchp,nchip).ne.0.0) then
+c$$$            if (chan(nchip).eq.chan(nchp)) then ! elastic scattering
+c$$$               if (target.ne.'H  I'.or.chan(nchp)(2:2).eq.'1') then
+c$$$                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
+c$$$     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*(2*lg+5)*(2*lg+7)*unit
+c$$$                  extrapcs = const/8.0/(2*lg+1)/(2*lg+3)/
+c$$$     >               (2*lg+5)/(2*lg+7)
+c$$$               else !excited H state elastic scattering
+c$$$                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
+c$$$     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*unit
+c$$$                  extrapcs = const/4.0/(4.0*(lg+1)**2-1.0)
+c$$$               endif
+c$$$               extrapcs = Borne
+c$$$            else
+C Keep it simple. The above screws up high-n elastic channels when IPAR=1
+            if (BornICS(nchp,nchip).ne.0.0) then
                extrapcs = Borne
             else 
                extrapcs = extrap((partcs(nchp,nchip,0)+
@@ -3541,7 +3548,7 @@ c$$$      print*,'Entered MAKECHIL with ZASYM:',zasym
       alpha = 0.0
       utemp(:) = 0.0
 
-      if (npot.lt.0.and.ldw.ge.0) ui(:)=dwpot(:,-npot) ! Redefine UI
+      if (npot.lt.0.and.npot.ne.-99.and.ldw.ge.0) ui(:)=dwpot(:,-npot) ! Redefine UI
       inquire(file='anatoli_dw',exist=exists)
       if (exists) then
 c$$$               b = 14.7
@@ -3722,7 +3729,39 @@ C  l is the projectile angular momentum (L)
          if (l.le.ldw) then
 c$$$            call makehart(lg,la,l,ltmax,psi,maxpsi,ea,1,-1,ui)
 C  Distorted-waves
-            dwpot(:,nch) = ui(:)
+            if (npot.eq.-99) then
+               ui(:) = dwpot(:,nch)
+               utemp(1:meshr)=-nze*(2.0*vdcore(1:meshr,l)+ui(1:meshr))
+               nps = abs(npsbndin) !-l
+               alpha = abnd(l)
+               if (nodeid.eq.1)
+     >            print*,"Projectile diagonalisation: N, L, al",
+     >            nps,l,alpha
+               call makeps(zasym,torf,alpha,l,expcut,nps,ps2,
+     >            psen2,minps2,maxps2,rmesh,utemp,meshr,meshr,dummy)
+               n = l + 1
+               psibd(n,l)%en = psen2(n-l)
+               do while (psibd(n,l)%en.lt.0.0)
+                  proj = 0.0
+                  psibd(n,l)%max = maxps2(n-l)
+                  psibd(n,l)%radial(1:maxr) = 0.0
+                  psibd(n,l)%radial(1:maxps2(n-l)) =
+     >               ps2(1:maxps2(n-l),n-l)
+                  imax = psibd(n,l)%max
+                  do np = l+1, nbnd(l)+l !min(nnbtop,nnbm)
+                     proj = proj + dot_product(
+     >                  psibd(n,l)%radial(1:imax)*rmesh(1:imax,3),
+     >                  psib(np,l)%radial(1:imax))**2
+                  enddo
+                  if (nodeid.eq.1)
+     >               print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
+     >               n,l,psibd(n,l)%max,psibd(n,l)%en,psib(n,l)%en,proj
+                  n = n + 1
+                  psibd(n,l)%en = psen2(n-l)
+               enddo
+            else
+               dwpot(:,nch) = ui(:)
+            endif
             if (ui(1).eq.0.0) stop 'DWPOT = 0.0'
 c$$$            if (npot.ge.0) then
 c$$$C  Define a single distorting potential (defined in POTENT) for all channels

@@ -1907,9 +1907,10 @@ C     Start the partial wave LG (=J total orbital angular momentum) loop
             if (lg.eq.mylstart.and.ipar.lt.ipstart) cycle !allow restart for ip=1
             call date_and_time(date,time,zone,valuesinLG)
             if (myid.le.0) then
-
-               print '("Partial wave LG:",i4," started at:",a10)',
-     >            LG,time
+               print '("Partial wave LG: ",i4," IPAR:",i2,
+     >            " started at: ",a10)', lg,ipar,time
+c$$$               print '("Partial wave LG:",i4," started at:",a10)',
+c$$$     >            LG,time
             endif
             if (mod(myid,nomp).eq.0) then
                nodeid = myid/nomp + 1
@@ -2617,6 +2618,7 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
                print*,'Nodeid, reading: ',nodeid,nodetfile
  34            read(42,*,end=35,err=36) 
      >            lgold(ipar),iparold,nodeidold,ntimeold,n1, n2
+               if (ntimeold.lt.9) go to 36 !time too short to bother
                if (nodeidold.le.nodes) then !allocations above are for NODES
                   nchistartold(nodeidold,ipar) = n1
                   nchistopold(nodeidold,ipar) = n2
@@ -2651,7 +2653,7 @@ c$$$     >               print*,'nch,time:',nch,nchtimeold(nch)
          endif
          goto 37
  36      continue
-         exists = .false. !manage occasional read errors
+         exists = .false. !manage occasional read errors or time too short
  37      continue
          if (exists.and.nchtop.gt.nodes) then
             if (nodeid.eq.1) print*,'Using:',nodetfile,nchtopold,nchtop
@@ -3041,8 +3043,13 @@ C     with the Green's Function.
      >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
      >            nchtop,wk)
             else
-               call vmatfromgf(gf,kmaxgf,npk,vmat,
-     >            1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
+               inquire (file='sprint',exist=exists)
+               if (exists) then
+                  print*,'CAUTION: splot will be correct, but not T'
+               else
+                  call vmatfromgf(gf,kmaxgf,npk,vmat,
+     >             1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
+               endif
             endif
          endif
 c$$$            if (scalapack) then
