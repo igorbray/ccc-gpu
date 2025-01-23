@@ -369,6 +369,8 @@ c$$$               onshellk(n) = onshold(n)
 c$$$               enchan(n) = etot - onshellk(n)**2
 c$$$               enpsinb(n,laold(n)) = enchan(n)
 c$$$               ovlpn(n) = ovlpnold(n)
+            else
+c$$$               print*,n,onshold(n),onshellk(n)
             endif 
          enddo             
          read(88,*,err=25,end=25) (nopenold(np),np=0,npar), nparityold,
@@ -665,6 +667,8 @@ c$$$                        end if
                      endif 
                      enddo
                      if (nfich(nchi+1).ne.nchpi.and.tcs(ns).gt.0.0) then
+c$$$                        print*,'J,NCHPI,NS,sigtop,tcs:',
+c$$$     >                     j,nchpi,ns,tcs(ns),sigtop(nchpi,ns)
                        if(abs(sigtop(nchpi,ns)/tcs(ns)-1.0).gt.1e-4)then
                            print*,'ratio of tcs not 1 (Ps extrap?):',
      >                       sigtop(nchpi,ns)/tcs(ns),
@@ -1606,7 +1610,7 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       common /chanen/ enchan(knm)
       common/meshrr/ meshr,rmesh(maxr,3)
       character ch*1, xunit(3)*8
-      integer satom
+      integer satom, omp_get_num_threads, omp_get_max_threads
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       ch(i)=char(i+ichar('0'))
@@ -1645,8 +1649,21 @@ c$$$      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
       if (nistart.le.0) then
 c$$$         call MPI_FINALIZE(ierr)
          stop 'amplitude generation completed'
-      endif 
+      endif
+      print*,'OMP_NUM_THREADS:',omp_get_max_threads()
+C$OMP PARALLEL DO
+C$OMP& SCHEDULE(dynamic)
+C$OMP& DEFAULT(PRIVATE)
+C$OMP& SHARED(onshellk,bornsubin,chan,pi,unit,lpar)
+C$OMP& shared(ovlpn,jextrapor,ton,nonnew,nchfi,jstop,npar,non,vdon,nze)
+C$OMP& shared(nistart, nistop,nfstart, nfstop,xunit,ci)
+C$OMP& shared(nchimax,nchanmax,jstart,nsmax,enchan)
+C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep)
+C$OMP& shared(nunit,projectile,target,hlike,vdcore,minvdc,maxvdc)
+C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac)
       do ni = nistart, nistop
+c$$$         nthr = omp_get_thread_num()
+c$$$         print*,'OMP NT,ni:',nthr,ni
          if (onshellk(ni).le.0.0) cycle
          ndcs = 0
          ticsm(:) = 0.0
@@ -1722,7 +1739,7 @@ c$$$            jextrap = jstop
             rki = onshellk(ni)
 
 
-            if (ni.eq.nf) then
+            if (ni.eq.nf.and.ni.eq.1) then
                jextrap = jextrapor
                nchi = nonnew(nchfi(ni,0),0,0,jstop)
                nchf = nonnew(nchfi(nf,0),0,0,jstop)
@@ -1995,21 +2012,20 @@ C  subtraction for total spin = 3/2 if the transition involves singlet states.
             endif 
             y = sqrt(c1/(2.0 * rlia + 1.0)) 
             
-            open(42,file='amp.'//chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
-
-            write(42,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
-c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
+            open(9+ni,file='amp.'
+     >         //chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
+            write(9+ni,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
      >         ' ->',a3,(2(e10.3,'eV'))/)") projectile,target,
      >         13.6058*(etot-enchan(ni)),chan(ni),chan(nf),
      >         13.6058 * enchan(nf), 13.6058 * (etot-enchan(nf))
 
-            write(42,'(''When the amplitudes are squared the result '',
-     >         ''contains the factor Kf/Ki/(2Li+1) ''/
+            write(9+ni,'(''When the amplitudes are squared the result'',
+     >         '' contains the factor Kf/Ki/(2Li+1) ''/
      >         ''and is in units of: '',a8,
      >         ''The last amplitude is Born (analytic if calculated).''
      >         )') xunit(nunit)
 
-            write(42,'(
+            write(9+ni,'(
      >         ''The CCC amplitudes may be read in the following way:''/
      >         ''      read(n,*) lf, li, nth, rkf, rki, tsp1, nsm,'',
      >         '' (spinw(ns), ns=0, nsm)''/
@@ -2018,19 +2034,19 @@ c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ''            read(n,*) mfprev, miprev''/
      >         ''            if (mfprev.ne.mf.or.miprev.ne.mi) stop'',
      >         '' "incorrect format" '')')
-            write(42,'(
+            write(9+ni,'(
      >         ''            do ith = 1, nth''/
      >         ''               read(n,*) theta(ith), (freal(ns),'',
      >         '' fimag(ns), ns = 0, nsm)''/
      >         ''               f(ith,mf,mi,0) = cmplx(freal(0),'',
      >         '' fimag(0))'')')
-            write(42,'(
+            write(9+ni,'(
      >         ''               f(ith,mf,mi,1) = cmplx(freal(1),'',
      >         '' fimag(1))''/
      >         ''            end do''/
      >         ''         end do''/
      >         ''      end do'')')
-            write(42,'(2i2,i4,2f10.7,2i2,2f6.3,
+            write(9+ni,'(2i2,i4,2f10.6,2i2,2f6.3,
      >         " Lf,Li,Nth,Kf,Ki,2Sf+1,Nsm,SpinW(ns)")')
      >         lfa, lia, 181/1,  onshellk(nf), onshellk(ni),
      >         nint(2.0*sf+1.0),nsmax,(spinw(ns),ns=0,1)
@@ -2062,7 +2078,7 @@ c$$$                     call integrate(ampt(0,ns),sweight,nstep,res,res2)
      >               onshellk(ni),sweight,res,res2,err1,err2)
 c$$$                  call integrate(fB(0,mlf,mli),sweight,nstep,res,res2)
                   bornint = bornint + y ** 2 * res * bornsub
-                  write(42,'(2i5,1p,e15.6,"  MF, MI, ICS")') 
+                  write(9+ni,'(2i5,1p,e15.6,"  MF, MI, ICS")') 
      >               mlf,mli,sigm(mlf,mli)
                   print'(a3,'' <-'',a3,1p,e10.3,2i3,
      >               " magnetic sublevel integrated DCS, Mf, Mi")',
@@ -2071,7 +2087,7 @@ c$$$                  call integrate(fB(0,mlf,mli),sweight,nstep,res,res2)
      >                ticsm(mli) + sigm(mlf,mli)
                   if (enchan(nf).lt.0.0) then
                      do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                        write(9+ni,'(f5.1,1p,4(1x,2e11.3))') float(nth),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     sign(0) * y * fB(nth,mlf,mli) * ovlpq,
      >                     sign(0) * y * fBsum(nth,mlf,mli) * ovlpq
@@ -2079,21 +2095,21 @@ c$$$                  call integrate(fB(0,mlf,mli),sweight,nstep,res,res2)
                   else if (abs((etot-2.0*enchan(nf))/etot).lt.0.01) then
                      print*,'AMP suitable for equal-energy (e,2e)'
                      do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                        write(9+ni,'(f5.1,1p,4(1x,2e11.3))') float(nth),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax)
                      enddo
                   else
                      print*,'AMP suitable for asymmetric-energy (e,2e)'
                      do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                        write(9+ni,'(f5.1,1p,4(1x,2e11.3))') float(nth),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     (ampt(nth,ns) * 0.0, ns = 0,nsmax)
                      enddo
-                  endif 
+                  endif
                enddo
             enddo 
-            close(42)
+            close(9+ni)
             if (target .eq. 'H  I') then
                if (lia.eq.0.and.lfa.eq.1) then
                   pol = (sigm(0,0) - sigm(1,0)) /
@@ -2134,29 +2150,31 @@ c$$$            endif
          do while (tfile(i:i).ne.' ')
             i = i + 1
          enddo
-         open(42,file=tfile(1:i-1)//'_dcs'//ch(ni))
-         write(42,"('# ',f8.3,' eV ',a8,' - ',a6,a3,
+         open(9+ni,file=tfile(1:i-1)//'_dcs'//ch(ni))
+         write(9+ni,"('# ',f8.3,' eV ',a8,' - ',a6,a3,
      >      '   scattering DCS in units of ',a8)")
      >      13.6058*(etot-enchan(ni)),projectile,target,chan(ni),
      >      xunit(nunit)
          do n = 1, ndcs
             if (csmt(1,n+nfstart-1).gt.0.0)
-     >         write(42,"('#',a4,' ICS:',1p,e10.3,'  MTCS(l):',5e11.3)") 
-     >         chan(n+nfstart-1),sum(n+nfstart-1),
+     >         write(9+ni,"('#',a4,' ICS:',1p,e10.3,'  MTCS(l):',
+     >         5e11.3)") chan(n+nfstart-1),sum(n+nfstart-1),
      >         (csmt(l,n+nfstart-1),l=1,5)
          enddo 
-         write(42,"('#ICS',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
-         write(42,"('#angle',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
+         write(9+ni,"('#ICS',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
+         write(9+ni,
+     >      "('#angle',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
          
          do nth = 0, 180, nstep
-            write(42,'(i4,1p,1000e10.3)') nth,(dcs(nth,n),n=1,ndcs)
+            write(9+ni,'(i4,1p,1000e10.3)') nth,(dcs(nth,n),n=1,ndcs)
          enddo
-         close(42)
+         close(9+ni)
          do mli = -lia, lia
             print*,'chan, m, TICS(m):', chan(ni), mli, ticsm(mli)
-         enddo 
+         enddo
       end do                    ! end ni loop
-      go to 37
+C$OMP END PARALLEL DO
+      go to 37 !another opportunity for NI, NF input
  100  stop 'incorrect input to amplitude generation'
       return
       end
