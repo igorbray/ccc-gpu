@@ -141,15 +141,16 @@ c$$$         open(197,file='osc.strength')
          end if
          if(atom.eq.'helium') then
             write(197,'(14X,"   & FCM(l)& FCM(v)&",
-     >        "Perimetric /&Hylleraas // /hline")')
+     >        "Perimetric & Hylleraas & wavelen(nm) // /hline")')
          else if(atom.eq.'beryllium') then
             write(197,'(14X,"& CCC-l & CCC-v &",
-     >       " RM-l  & RM-v   // /hline")')
+     >       " RM-l  & RM-v  & wavelen(nm)  // /hline")')
          else if(atom.eq.'magnesium') then
             write(197,'(14X,"& CCC-l & CCC-v &",
-     >      "MCHF-l &MCHF-v  // /hline")')
+     >      "MCHF-l & MCHF-v & wavelen(nm) // /hline")')
          else
-            write(197,'(14X,"& length&velocity& // /hline")')
+         write(197,'(14X,"& length     & velocity &",
+     >         "    wavelen(nm) // /hline")')
          end if
 c      
          if(i_dipmom.eq.3) then
@@ -309,24 +310,24 @@ c     Get emmision osc.str. to calculate branching ratious
                      call exp_osc(atom,ncount(NN),ncount(NNp),l,lp,is,
      >                  lpar,exp_osc_l,exp_osc_v)
                      if (nodeid.eq.1)
-     >write(197,'(" $ ",A3," - ",A3," $ & ",F5.3," & ",
-     >                  F5.3," & " ,F5.3,"  // ")')
-     >                  chan(NNp),chan(NN),flen,fvel,exp_osc_l
+     >               write(197,'(" $ ",A3," - ",A3," $ & ",F5.3," & ",
+     >                 F5.3," & " ,F5.3," & ", F12.3," & // ")')
+     >                 chan(NNp),chan(NN),flen,fvel,exp_osc_l,45.58/ae
                   else if(atom.eq.'beryllium'.or.
      >                  atom.eq.'magnesium') then
                      call exp_osc(atom,ncount(NN),ncount(NNp),l,lp,is,
      >                  lpar,exp_osc_l,exp_osc_v)
                      if (nodeid.eq.1)
-     >write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
-     >                  " (",F5.3,")"," & ",F5.3,
-     >                  " & " ,F5.3," & " ,F5.3,"  // ")')
+     >               write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
+     >                  " (",F5.3,")"," & ",F5.3," & " ,F5.3,
+     >                  " & " ,F5.3," & ", F12.3," &  // ")')
      >                  chan(NNp),chan(NN),flen,flen_pol,
-     >                  fvel,exp_osc_l,exp_osc_v
+     >                  fvel,exp_osc_l,exp_osc_v,45.58/ae
                   else
                      if (nodeid.eq.1)
-     >write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
-     >                  " (",F5.3,")"," & " ,F5.3," &   // ")')
-     >                  chan(NNp),chan(NN),flen,flen_pol,fvel
+     >               write(197,'("$ ",A3," - ",A3," $ & ",F5.3,
+     >             " (",F5.3,")"," & " ,F5.3," & ", F12.3," &   // ")')
+     >                  chan(NNp),chan(NN),flen,flen_pol,fvel,45.58/ae
                   end if
 c     dipci=sqrt( cefs(num,nump,l,is) /
 c     >               (2.0*abs(enci(nump,lp,is)-enci(num,l,is))) )
@@ -1651,7 +1652,7 @@ c	sS
 c     sP
       enGaII(1,1,0,-1)= 70701.427
       enGaII(2,1,0,-1)= 120550.431
-      enGaII(3,1,0,-1)= 68607.26
+!      enGaII(3,1,0,-1)= 68607.26
 
 c     sD
       enGaII(1,2,0,1)= 107720.716
