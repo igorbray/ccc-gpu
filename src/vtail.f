@@ -1,6 +1,6 @@
       block data
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       COMMON/GMFN/FS(34)
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       DATA X2( 1,1),W2( 1,1)/ 0.7745966692415D+00, 0.5555555555555D+00/
@@ -135,7 +135,7 @@
       
       subroutine initialize
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       pi = acos(-1d0)
       factl(0)=0d0
@@ -154,7 +154,7 @@ C  Neumann spherical function.
       function ffgg(l1,r1,l2,r2,a,lambda,x,y,xp,yp)
       implicit real*8 (a-h,o-z)
       logical*4 cosl
-      include 'par.for'
+      include 'par.f'
       dimension c(0:2*lcoul),jstart(2),jstop(2),jstep(2)
       sum=0d0
 c$$$      aer=1d-5
@@ -222,7 +222,7 @@ C  Neumann spherical function.
       function fggf(l1,r1,l2,r2,a,lambda,x,y,xp,yp)
       implicit real*8 (a-h,o-z)
       logical*4 cosl
-      include 'par.for'
+      include 'par.f'
       dimension c(0:2*lcoul),jstart(2),jstop(2),jstep(2)
       if (abs(y*yp).lt.1d-30) then
          fggf=0d0
@@ -287,7 +287,7 @@ c               print*,lambda,'=lambda. Tail set to zero.'
 
       function cnst(l1,i1,r1,l2,i2,r2)
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       cnst=exp(factl(l1+i1)+factl(l2+i2)-factl(i1)-factl(i2)
      >   -factl(l1-i1)-factl(l2-i2)-i1*log(2*r1)-i2*log(2*r2))
@@ -296,9 +296,9 @@ c               print*,lambda,'=lambda. Tail set to zero.'
       DOUBLE PRECISION FUNCTION GAMX(ITEN,I)
       IMPLICIT REAL*8(A-H,O-Z)
       IMPLICIT INTEGER*4(I-N)
-      include 'par.for'
+      include 'par.f'
       parameter(lll=lcoul*2+20)
-      COMMON/GAMMA/GS(lll)
+      COMMON/GAMMA/GS(lll),scale
 C
 C ****  THIS SUBROUTINE RETURNS THE VALUE OF THE GAMMA
 C ****  FUNCTION FOR X = I*0.5D0
@@ -320,7 +320,8 @@ C
       IF(ITEN.EQ.0) THEN
          WGX = 1.0D0
       ELSE
-         WGX = SQRT(10.0D0)
+!         WGX = SQRT(10.0D0)
+         WGX = SQRT(scale)
       END IF
 C
       GAMX = GS(II)*(WGX**II)
@@ -330,7 +331,8 @@ C ****  FOR THE NEGATIVE 1/2 INTEGERS
 C
       IF(I.NE.II) THEN
          IF(ITEN.EQ.0) THEN
-            WGX = 10.0D0
+!            WGX = 10.0D0
+            WGX = scale
          ELSE
             WGX = 1.0D0
          END IF
@@ -339,6 +341,7 @@ C
             GAMX = GAMX*WGX/(0.5D0*DBLE(J))
 10       CONTINUE
       END IF
+c$$$      print*,'GAMX:',gamx,gs(ii),iten
       RETURN
 20    FORMAT(1X,' GAMMA FUNCTION UNDEFINED FOR X =',I3,'/2'
      >   ,'  GAMX = 0.0 RETURNED')
@@ -346,34 +349,39 @@ C
 
       SUBROUTINE GAMSET
       IMPLICIT REAL*8(A-H,O-Z)
-      include 'par.for'
+      include 'par.f'
       parameter(lll=lcoul*2+20)
-      COMMON/GAMMA/GS(lll)
+      COMMON/GAMMA/GS(lll),scale !here we set scale
 C
 C ****  COMPUTES VALUES OF THE GAMMA FUNCTION TIMES A SCALE FACTOR.
 C ****  GS(I)  CONTAINS GAMMA(I/2)/(10**(I/2))
 C
-      GS(2) = 1.0D0/10.0D0
+      scale = 1d2
+!      GS(2) = 1.0D0/10.0D0
+      GS(2) = 1.0D0/scale
       DO 10 I = 4,lll,2
-         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/10.0D0
+!         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/10.0D0
+         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/scale
 10    CONTINUE
-      GS(1) = 1.7724538509055D0/SQRT(10.0D0)
+!      GS(1) = 1.7724538509055D0/SQRT(10.0D0)
+      GS(1) = 1.7724538509055D0/SQRT(scale)
       DO 20 I = 3,lll,2
-         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/10.0D0
+!         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/10.0D0
+         GS(I) = 0.5D0*DBLE(I-2)*GS(I-2)/scale
 20    CONTINUE
       RETURN
       END
 
       SUBROUTINE PSISET
       IMPLICIT REAL*8(A-H,O-Z)
-      COMMON/PSVAL/PSI(600)
+      COMMON/PSVAL/PSI(1000)
 C
 C ****  COMPUTES THE VALUE OF THE PSI(DIGAMMA) FUNCTION.
 C ****  DIGAMMA(I/2) IS STORED IN PSI(I)
 C
       PSI(1) = -1.96351002602143D0
       PSI(2) = -0.577215664901533D0
-      DO 10 I = 3,600
+      DO 10 I = 3,1000
          PSI(I) = PSI(I-2) + 2.0D0/DBLE(I-2)
 10    CONTINUE
       RETURN
@@ -425,7 +433,7 @@ c         end while
       IMPLICIT REAL*8(A-H,O-Z)
       IMPLICIT INTEGER*4(I-N)
       COMMON/GMFN/FGS(34)
-      COMMON/PSVAL/PSI(600)
+      COMMON/PSVAL/PSI(1000)
 C
 C ****  THIS FUNCTION SUMS THE INFINITE PART OF THE ALTERNATE
 C ****  FORM OF THE HYPERGEOMETRIC FUNCTION. THE ACCURACY TOLERANCE
@@ -456,7 +464,7 @@ c      end while
        go to 9997
        endif
       FDHY2 = S1
-      IF(i+4.GT.(600/2)) THEN
+      IF(i+4.GT.(1000/2)) THEN
          WRITE(6,20)A,B,C,X,i
       END IF
       RETURN

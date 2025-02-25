@@ -163,7 +163,9 @@ C  Patch for polarization potential put in by Igor 22/4/92
       GAMA=((B1*RO1)-(A1*V)-OMEGA)/A2
       IF(RO1*GAMA.LT.0.0) KSI=KSI+1
    26 KSI1=KSI
-      if (gamam.gt.1e10) print*,'KSI and MAX GAMA in MM12.f',ksi,gamam
+      if (abs(gama).gt.1e1) print*,'KSI,gama:',
+     >   ksi,gama
+      if (abs(gama).gt.1e2) stop 'no convergence; reduce nnbtop?'
   300 CONTINUE
       IA=IN1-IL1-1
       IF(KSI.EQ.IA) GOTO 27

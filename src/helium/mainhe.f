@@ -1,6 +1,7 @@
       subroutine mainhe(Nmax,namax,pnewC,eproj,etot,
      >     lastop,nnbtop,ovlp,phasen,regcut,expcut,ry,enion,enlevel,
      >     enionry,nchanmax,ovlpnl,slowe,ne2e,vdcore)
+      use vmat_module, only: nodeid
       include 'par.f'
       integer la, sa, lpar
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
@@ -38,7 +39,7 @@ C     Igor's stuff
       logical:: helium, exists, torf
       real:: temp(nr)
 c      
-      print*, 'nznuc, zasym:', nznuc, zasym
+      if (nodeid.eq.1) print*, 'MAINHE: nznuc, zasym:', nznuc, zasym
       torf = .false.
 
       temp(:) = 0.0
@@ -75,10 +76,12 @@ C  the ENPSINB to contain the target state energies.
          enddo
       enddo       
 c
-      print*,'These s.p.orbitals comes from diagonalization of ',
-     >   'the ion Hamiltonian and go to the CI program as ',
-     >   'the s.p.basis'
-      print*, 'labot, latop:', labot, latop
+      if (nodeid.eq.1) then
+         print*,'These s.p.orbitals comes from diagonalization of ',
+     >      'the ion Hamiltonian and go to the CI program as ',
+     >      'the s.p.basis'
+         print*, 'labot, latop:', labot, latop
+      endif
       n = 0
       do l = labot, latop
          do k = nabot(l), natop(l)
@@ -90,7 +93,8 @@ c
             e1r(n,n) = enpsinb(k,l) / 2.0  !a.u.
             minf(n) = 1
             maxf(n) = istoppsinb(k,l)
-            write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
+            if (nodeid.eq.1)
+     >         write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
             do i = minf(n), maxf(n)
                fl(i,n) = psinb(i,k,l)
             enddo 
@@ -137,7 +141,7 @@ c      endif
       nspmW = max(nspm,10)
       call structure(Nmax,nspmW,namax,pnewC,E,enionry,eproj,vdcore,
      >   slowe(1)) 
-      print*, 'Finish structure'
+c$$$      print*, 'Finish structure'
       lg = 0
       nchanmax = 0
 c     This block is for calculation of the osc.str. for continuum states.
@@ -190,7 +194,7 @@ c$$$               if (ne2e.ne.0) then
      >            E,en,latom,sa(nst),psi,minc,maxc,tmp)
                ovlp(na,latom) = tmp
                phasen(na,latom) = phase * sigc
-               print*,'Overlap,phase,sigc',tmp,phase,sigc
+c$$$               print*,'Overlap,phase,sigc',tmp,phase,sigc
 c
 c$$$               do nnn = 1, Nmax
 c$$$                  if (ne2e.ne.0) then
@@ -210,7 +214,7 @@ c$$$                  endif
 c$$$                  if (nnn.eq.Nmax) close(42)
 c$$$                  endif 
 c$$$               enddo 
-               print*
+
 c
 c     This block is for calculation of the osc.str. for continuum states.
 c               osc_cont_len = oscstr(nst,1,1) * ovlp(na,latom)**2/q
@@ -282,19 +286,22 @@ c$$$               endif ! ne2e.ne.0
          endif 
          elevel = (enpsinb(na,latom) * ry + enion) * 
      >      enlevel / enion
-         print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",a8,f9.4,
-     >      f8.2)', 
-     >     nst, chan(nst),enpsinb(na,latom),enpsinb(na,latom)*ry,
+         if (nodeid.eq.1)
+     >      print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",
+     >      a8,f9.4,f8.2)', 
+     >      nst, chan(nst),enpsinb(na,latom),enpsinb(na,latom)*ry,
      >      elevel, opcl, onshellk, ovlp(na,latom)
          nchanmax = nchanmax + latom + 1
       enddo 
-      write(*,'("finish structure calculation")')
-      write(*,'("**********************************************")')
-c
 C  EDELTA is used to shift the energy levels
       edelta = - enion - enpsinb(ninc,linc) * ry
-      print*,'Error in ground state energy and ',
-     >   'effective incident energy (eV):', edelta, etot * ry + enion
+      if (nodeid.eq.1) then
+         write(*,'("finished structure calculation")')
+         write(*,'("**********************************************")')
+c
+         print*,'Error in ground state energy and ',
+     >      'effective incident energy (eV):', edelta, etot * ry + enion
+      endif
 c      close(4)
 c      close(136)
       end

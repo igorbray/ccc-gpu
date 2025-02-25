@@ -21744,7 +21744,7 @@
           f0(49)=28147497671065600.*a(50)
           f1(49)=1435522381224345600.*a(50)
        case default ! Nl
-          stop 'stmt. commented out  for Nl>20 at l=1'
+          stop 'Not coded for Nl>50 at l=1'
        end select ! Nl
 
       return
