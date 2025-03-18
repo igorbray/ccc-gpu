@@ -3052,8 +3052,8 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
             call getchnl(chan(nchp),n,l,nc)
             summedcs = partcs(nchp,nchip,0)*unit + oldp(nchp,nchip,0) +
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1)
-            Borne = BornICS(nchp,nchip) - 
-     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit
+            Borne = max(0.0,BornICS(nchp,nchip) - 
+     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit)
 C  The following is not right if Born extrapolation is used due to
 C  the fact that the spin weights are not available here
 c$$$            extrapcs0 = extrap(partcs(nchp,nchip,0) * unit,
@@ -3079,6 +3079,9 @@ c$$$            else
 C Keep it simple. The above screws up high-n elastic channels when IPAR=1
             if (BornICS(nchp,nchip).ne.0.0) then
                extrapcs = Borne
+c$$$               if (nchp.eq.49.and.nchip.eq.42)
+c$$$     >            print*,chan(nchp),chan(nchip),BornICS(nchp,nchip),
+c$$$     >         oldBornPCS(nchp,nchip),BornPCS(nchp,nchip) * unit
             else 
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
@@ -4511,11 +4514,11 @@ c$$$               enddo
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)
 C     cray compiler bug workaround
-      ch2=ch(nch)      
+      ch2=ch(mod(nch,10))      
       if (exists) then
 C        cray compiler bug workaround
 !         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
-         write(stringtemp,'(i3,"_chil_",a)') lg,ch2              
+         write(stringtemp,'(i3,"_chil_",a)') l,ch2              
          open(42,FILE=adjustl(stringtemp)) !'chil'//ch(lg)//'_'//ch(nch))
          write(42,'("#",13x,1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
