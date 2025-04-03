@@ -37,12 +37,12 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel num_threads(nnt) !default(private)
-!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
-!$omp& tnum)
-!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
-!$omp&shared(nqmi,maxi2,nsmax,nnt,meshr,maxpsii,nchtop2,nqmfmax,minchil)
-!$omp do schedule(dynamic)
+c$$$!$omp parallel num_threads(nnt) !default(private)
+c$$$!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
+c$$$!$omp& tnum)
+c$$$!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
+c$$$!$omp&shared(nqmi,maxi2,nsmax,nnt,meshr,maxpsii,nchtop2,nqmfmax,minchil)
+c$$$!$omp do schedule(dynamic)
 #endif
 #endif
 
@@ -76,11 +76,21 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 #ifdef GPU_OMP
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
 #endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(ki,i) collapse(2)                                                                                                                                                                   
+#endif
+#endif
          do ki = 1, nqmi
             do i = 1, maxi      !minchil(ki+npk(nchi)-1), maxi !minki, maxi
                chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1,1)
             enddo
          enddo
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp end parallel do
+#endif
+#endif
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
@@ -91,20 +101,24 @@ c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 #ifdef GPU_OMP
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
 #endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(kf,ki,mini,kff) collapse(2)
+#endif
+#endif
             do ki = 1, nqmi
-               do kf=1,nqmf
+               do kf = 1, nqmf
                   kff = npk(nchf) + kf - 1
                   mini = minchil(kff,1)
-! this is not faster than below
-c$$$                  tmp(ki,kf) = 0.0 
-c$$$                  do i = mini, maxi2
-c$$$                     tmp(ki,kf) = tmp(ki,kf) + chil(i,kff,1) *
-c$$$     >                  temp2(i,ki,nchf)
-c$$$                  enddo
                   tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1),
      >               temp2(mini:maxi2,ki,nchf))
                enddo
             enddo
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!omp end parallel do
+#endif
+#endif
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
@@ -116,7 +130,12 @@ c$$$                  enddo
 #endif
 #ifdef GPU_OMP
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)
-#endif         
+#endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(kff,ki,kf,mini)collapse(2)
+#endif
+#endif
          do ki = 1, nqmi
             do kf = 1, nqmf
                kff = npk(nchf) + kf - 1
@@ -128,6 +147,11 @@ c$$$                  enddo
      >            vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2.0*tmp(ki,kf)
             end do
          end do
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp end parallel do
+#endif
+#endif
 #ifdef GPU_ACC
 !!!$acc end parallel
 !$acc end kernels         
@@ -142,8 +166,8 @@ c$$$                  enddo
 
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp end do
-!$omp end parallel
+c$$$!$omp end do
+c$$$!$omp end parallel
 #endif
 #endif
 
