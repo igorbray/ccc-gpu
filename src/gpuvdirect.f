@@ -78,7 +78,8 @@ c$$$!$omp do schedule(dynamic)
 #endif
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel do default(shared) private(ki,i) collapse(2)                                                                                                                                                                   
+!$omp parallel do default(shared) private(ki,i) 
+!$omp& collapse(2) schedule(static) !not dynamic!
 #endif
 #endif
          do ki = 1, nqmi
@@ -103,7 +104,8 @@ c$$$!$omp do schedule(dynamic)
 #endif
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel do default(shared) private(kf,ki,mini,kff) collapse(2)
+!$omp parallel do default(shared) private(kf,ki,mini,kff)
+!$omp& collapse(2) schedule(static) !dynamic is ok too
 #endif
 #endif
             do ki = 1, nqmi
@@ -133,7 +135,8 @@ c$$$!$omp do schedule(dynamic)
 #endif
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel do default(shared) private(kff,ki,kf,mini)collapse(2)
+!$omp parallel do default(shared) private(kff,ki,kf,mini)
+!$omp& collapse(2) schedule(static) !dynamic is ok too
 #endif
 #endif
          do ki = 1, nqmi
