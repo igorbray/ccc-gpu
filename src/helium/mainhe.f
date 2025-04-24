@@ -30,7 +30,7 @@ C     Igor's stuff
      >   npbot(0:lamax),nptop(0:lamax)
       character chan(knm)*3, opcl*6, enq*14
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       dimension psi(maxr),ovlp(ncmax,0:lamax),
      >   ovlpnl(ncmax,0:lamax,nnmax),slowe(ncmax)
       complex phasen(ncmax,0:lamax),sigc,phase,ovlpnl
@@ -176,15 +176,19 @@ c     find fc. orbital in fc. app. for state nst
 c
          call getchinfo (nst, ntmp, lg, psi, maxpsi, ea, latom, na, li)
          enpsinb(na,latom) = E(nst) * 2.0 - enionry
-         if (nst.ne.ntmp)
-     >      stop 'Expect NST = NTMP in mainhe'
-         etot = eproj + enpsinb(ninc,linc)
-         if (etot.ge.enpsinb(na,latom)) then
-            onshellk = sqrt(etot-enpsinb(na,latom))
+         enchan(ntmp) = E(nst) * 2.0 - enionry
+c$$$         print*,'nst,l,n,e:',nst,latom,na,enchan(ntmp),ea
+         if (nst.ne.ntmp) then
+            print*,'NST <> NTMP:',nst,ntmp
+            stop 'Expect NST = NTMP in mainhe'
+         endif
+         etot = eproj + enchan(1)!enpsinb(ninc,linc)
+         if (etot.ge.enchan(ntmp)) then
+            onshellk = sqrt(etot-enchan(ntmp))
             opcl = 'open'
-            if (enpsinb(na,latom).gt.0.0) then
+            if (enchan(ntmp).gt.0.0) then
 c$$$               if (ne2e.ne.0) then
-               q = sqrt(enpsinb(na,latom))
+               q = sqrt(enchan(ntmp))
                en = q*q/2.0
                call contfunc(helium,temp,vdcore,
      >              latom,sa(nst),en,iternum,accuracy,
@@ -281,20 +285,26 @@ c$$$               endif ! ne2e.ne.0
             enddo 
          else
             opcl = 'closed'
-            onshellk = -sqrt(enpsinb(na,latom)-etot)
+            onshellk = -sqrt(enchan(ntmp)-etot)
             ovlp(na,latom) = 0.0
-         endif 
-         elevel = (enpsinb(na,latom) * ry + enion) * 
+         endif
+         if (enchan(ntmp).gt.0.0) then
+            ovlp2 = sqrt(sqrt(enchan(ntmp))*4.0/
+     >         enchandiff(ntmp)) !units of 1/sqrt(k)
+         else
+            ovlp2 = 1.0
+         endif
+         elevel = (enchan(ntmp) * ry + enion) * 
      >      enlevel / enion
          if (nodeid.eq.1)
      >      print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",
-     >      a8,f9.4,f8.2)', 
-     >      nst, chan(nst),enpsinb(na,latom),enpsinb(na,latom)*ry,
-     >      elevel, opcl, onshellk, ovlp(na,latom)
+     >      a8,f9.4,2f8.2)', 
+     >      nst, chan(nst),enchan(ntmp),enchan(ntmp)*ry,
+     >      elevel, opcl, onshellk, ovlp(na,latom), ovlp2
          nchanmax = nchanmax + latom + 1
       enddo 
 C  EDELTA is used to shift the energy levels
-      edelta = - enion - enpsinb(ninc,linc) * ry
+      edelta = - enion - enchan(1)*ry !enpsinb(ninc,linc) * ry
       if (nodeid.eq.1) then
          write(*,'("finished structure calculation")')
          write(*,'("**********************************************")')

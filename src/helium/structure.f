@@ -430,7 +430,7 @@ C     Igor's stuff
       character  atom_label*3
       common /meshrr/ nr, gridr(nmaxr,3)
       common /theta_scat/ theta
-       
+      common /chanen/ enchan(knm),enchandiff(knm)
       done(:,:) = .false.
       fewer = .false.
       equal = .true.
@@ -478,6 +478,7 @@ c$$$      n1 = 1
       nch = 0
       lg = 0
  100  nch = nch + 1
+c$$$      print*,'Calling getchinfo with NCH:',nch
       call getchinfo (nch, ntmp, lg, psi, maxpsi, ea, la, na, li)
 c
 c$$$      print*,'la, nch : ', la, nch
@@ -769,6 +770,12 @@ c     To include more states j_summed is increased by 1.
             if(inum.gt.ncm) go to 25
 
             E(N) = w(inum)
+            if (inum.eq.1.or.inum.eq.ncm) then
+               enchandiff(N) = 1.0
+            else
+               enchandiff(N) = (w(inum+1) - w(inum-1))*2.0 ! Ry
+            endif
+c$$$            print*,'E:',N,inum,w(max(1,inum-1)),w(inum),w(inum+1)
 c            sign = 1.0d0
 c            if(CI(1,inum).lt.0.0d0) sign=-1.0d0
             call resolve_sign(Nmax,N,ncm,inum,CI(1,inum),sign_wf)
@@ -895,9 +902,6 @@ c     this subroutine must be called before all others subroutine if inc=0.
      >     call  CItmp(Nmax,nspm,nspmW,C)
 
 c     
-      if (nodeid.eq.1) print*, 'Calling printcoreparts'
-      call printcoreparts(partN,Nmax,nspmW,C,E,Nofgfcst_total,partstN)
-      if (nodeid.eq.1) print*, 'Finish printcoreparts'
 c-------------------------------------------------------------------
       if(i_ort.eq.1.and.inc.eq.0)
      >     call orthe(Nmax,nspmW,C)
@@ -1004,6 +1008,11 @@ c     F5 that are used)
                jsubset = 0
          end if
       endif
+      call reorderHestates(Nmax,nspmW,C) !by energy
+      if (nodeid.eq.1) print*, 'Calling printcoreparts'
+      call printcoreparts(partN,Nmax,nspmW,C,E,Nofgfcst_total,partstN)
+      if (nodeid.eq.1) print*, 'Finish printcoreparts'
+
 c-------------------------------------------------------------------      
 c     resolve sign of target states - might change the sign of a target state
 c     only in the case when nonorthogonal basis was used for diagonalization.
@@ -2438,3 +2447,77 @@ C$$   two-electron state number  nst  description
 
       return
       end
+
+      subroutine reorderHestates(Nmax,nspmW,C)
+      use vmat_module, only: nodeid
+      include 'par.f'
+      integer la, sa, lpar, np, la_new(Nmax), sa_new(Nmax),
+     >   lpar_new(Nmax), np_new(Nmax)
+      common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM),
+     >   natom(knm)
+      common /Nsarray/ Ns(0:lomax,0:1,komax,2)
+c$$$      integer Ns_new(0:lomax,0:1,komax,2)
+      double precision E, E_new(Nmax)
+      common /CcoefsE/  E(KNM)
+      character chan(knm)*3,chan_new(Nmax)*3
+      common /charchan/ chan
+      common /chanen/ enchan(knm),enchandiff(knm)      
+      real enchandiff_new(Nmax)
+      double precision C(Nmax+1,nspmW,nspmW), C_new(Nmax+1,nspmW,nspmW)
+c$$$      character chan(knm)*3, cnode*3, ench*11
+c$$$      common /MPI_info/myid, ntasks, cnode, ench
+c$$$
+c$$$      common /charchan/ chan
+      common /CIdata/ na(nspmCI,KNM), nam(KNM)
+      integer na_new(nspmCI,Nmax), nam_new(Nmax), natom_new(Nmax)
+
+      E_new(1:Nmax) = E(1:Nmax)
+      call quicksort(E_new,1,Nmax)
+      
+      do N=1,Nmax
+         ic = 1
+         do while (E_new(ic).ne.E(N))
+            ic = ic + 1
+         enddo
+c$$$         print*,'E,E_New:',N,chan(N),E(N),!la(N),sa(N),lpar(N),
+c$$$     >      E_new(N),ic
+         la_new(ic) = la(N)
+         sa_new(ic) = sa(N)
+         lpar_new(ic) = lpar(N)
+         np_new(ic) = np(N)
+         nam_new(ic) = nam(N)
+         na_new(1:nspmCI,ic) = na(1:nspmCI,N)
+         C_new(ic,1:nam_new(ic),1:nam_new(ic)) = C(N,1:nam(N),1:nam(N))
+         chan_new(ic) = chan(N)
+         natom_new(ic) = natom(N)
+         enchandiff_new(ic) = enchandiff(N)
+         jp = 1
+         if((-1)**la(N).ne.lpar(N)) jp = 2
+         ncount = 0
+         do nn = 1, 8
+            if (Ns(la(N),sa(N),nn,jp).eq.N) then !used for energy comparison
+               Ns(la(N),sa(N),nn,jp) = ic
+               ncount = ncount + 1
+            endif
+         enddo
+         if (ncount.gt.1) print*,'Ns variable not set correctly for:',
+     >      chan(N),ncount
+      enddo
+
+      do N=1,Nmax
+         E(N) = E_new(N)
+         la(N) = la_new(N)
+         sa(N) = sa_new(N)
+         lpar(N) = lpar_new(N)
+         np(N) = np_new(N)
+         nam(N) = nam_new(N)
+         na(1:nspmCI,N) = na_new(1:nspmCI,N)
+         C(N,1:nam(N),1:nam(N)) = C_new(N,1:nam_new(N),1:nam_new(N))
+         chan(N) = chan_new(N)
+         natom(N) = natom_new(N)
+         enchandiff(N) = enchandiff_new(N)
+c$$$         print*,N,chan(N),E(N),np(N),la(N),sa(N),lpar(N)
+      enddo
+      return
+      end
+      

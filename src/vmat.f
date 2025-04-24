@@ -131,7 +131,8 @@ c$$$      ch(n) = char(n + ichar('0'))
       common /chanen/ enchan(knm),enchandiff(knm)
       common /channels/ nfich(nchan)
       integer satom
-      common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
+      common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM),
+     >   natom(knm)
 C  Do not change the lower case t below as it is used for checking
 C  the spin of the incident state in the SOLVET routine
       data chspin/'s',' ','t'/
@@ -240,7 +241,8 @@ c$$$            return
 c$$$         end if 
 c$$$ 10   continue
 
-      if (first_time.or.np(1).ne.0) then
+c$$$      print*,'first_time:',first_time
+      if (first_time) then !.or.np(1).ne.0) then
 cCCC      do la = labot, latop
 cCCC         do na = nabot(la), natop(la)
 C  The above looping is preferable, but the CROSS program expects it in
@@ -257,7 +259,8 @@ C  the order below.
       enddo
       
       do natmp = nastart, nastop
-         do la = labot, min(natmp - 1, latop)
+         do latmp = labot, min(natmp - 1, latop)
+            la = latmp
 C  The following three lines are there for potassium to stop 3d being 
 C  the first channel
             na = natmp
@@ -282,8 +285,13 @@ c$$$     >         .and.(la.ne.linc.or.na.ne.ninc)
                      chan(nchp) = chspin(2*satom(nchp)+1)//
      >                  getchchar(np(nchp),la)
                      if (lpar(nchp).eq.-(-1)**latom(nchp)) chan(nchp) =
-     >                 chspinp(2*satom(nchp)+1)//getchchar(np(nchp),la)
+     >                  chspinp(2*satom(nchp)+1)//getchchar(np(nchp),la)
+                     natom(nchp) = na
+c$$$                     print*,'nchp,chan,na,la,lpar:',
+c$$$     >                  nchp,chan(nchp),na,la,lpar(nchp),
+c$$$     >                  enchan(nchp)
                   endif
+c$$$                  print*,'nchp,na,la:',nchp,na,la,enchan(nchp)
                   enchan(nchp) = enpsinb(na,la)
                   if (na.gt.la+1) then
                      enchandiff(nchp)=enpsinb(na+1,la)-enpsinb(na-1,la)
@@ -319,28 +327,40 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end do
       nchpmax = nchp
       if (np(1).eq.0) then
-c$$$         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
+         print*,' reordering in getchinfo with NCHPMAX:',nchpmax
          call reorderstates(states,nchpmax,lptop.ge.0)
       endif 
       else ! not first_time
          if (nch.eq.0) stop 'nch = 0 in getchinfo'
+!         print*,'nchpmax:',nchpmax
          do nchp = 1, nchpmax
-            la = states(nchp)%la
-            lapar = states(nchp)%lapar
-            latom(nchp) = la
+            if (np(1).eq.0) then
+               la = states(nchp)%la
+               lapar = states(nchp)%lapar
+               latom(nchp) = la
+            else
+               la = latom(nchp)
+               lapar = lpar(nchp)
+            endif
             do 30 lp = abs(lg-la), lg+la
-               if ((-1)**lp*lapar.ne.iparity) go to 30
+               if ((-1)**lp*lapar.ne.iparity.and.lg.ne.0) go to 30
                ncht = ncht + 1
                nfich(ncht) = nchp
                if (nch.eq.ncht) then
-                  enpsi = states(nchp)%energy
-                  enchan(nchp) = enpsi
-                  enchandiff(nchp) = states(nchp)%energydiff
-                  na = states(nchp)%na
-                  chan(nchp) = states(nchp)%chn
-                  maxpsi = states(nchp)%maxpsi
-                  psi(1:maxpsi) = states(nchp)%radial(1:maxpsi)
-                  psi(maxpsi+1:maxr) = 0.0
+                  if (np(1).eq.0) then
+                     enpsi = states(nchp)%energy
+                     enchan(nchp) = enpsi
+                     enchandiff(nchp) = states(nchp)%energydiff
+                     na = states(nchp)%na
+                     chan(nchp) = states(nchp)%chn
+                     maxpsi = states(nchp)%maxpsi
+                     psi(1:maxpsi) = states(nchp)%radial(1:maxpsi)
+                     psi(maxpsi+1:maxr) = 0.0
+                  else
+                     enpsi = enchan(nchp) !for He-like targets is all that is needed
+                     na = natom(nchp)
+c$$$                     print*,'nchp,enpsinb(na,la):',nchp,enpsinb(na,la)
+                  endif
                   return
                end if 
  30         continue 
@@ -2554,7 +2574,7 @@ C
 C     FG03A & FG03B - WIGNER 9-J SYMBOL
 C
 C
-      parameter (mmax=1010)
+      parameter (mmax=2100)
       COMMON / CNJSAVE / H(mmax), J(mmax)
 c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)
@@ -2666,7 +2686,7 @@ C
       if (max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10).gt.mmax) then
          print*,'Recompile wigner.f with new mmax at least:',
      >      max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10)
-         stop 'Increse MMAX in CNJ (file wigner.f)'
+         stop 'Increse MMAX in CNJ (file vmat.f; used to be wigner.f)'
       endif 
 C
       Y  = SQRT(Y*H(M1)*H(M2)*H(M3)*H(M4)*H(M5)*

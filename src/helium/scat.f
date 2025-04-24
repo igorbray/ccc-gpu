@@ -495,11 +495,11 @@ c$$$     >    print '(i4,"-",i3,"%",$)',nodeid,NINT(nch*100./nchansmax)
 c$$$          call update(6)
 
          nqmi = npk(nchi+1) - npk(nchi)
-       call getchinfo (nchi, Ni, KJ, psii, maxpsii, ei, lia, nia, Li)
-        posi = positron(nia,lia,nposi)
-
-           vmatt(:,:,:) = 0.0
-           nqmf = npk(nchf+1) - npk(nchf)
+         call getchinfo (nchi, Ni, KJ, psii, maxpsii, ei, lia, nia, Li)
+         posi = positron(nia,lia,nposi)
+         nqmf = npk(nchf+1) - npk(nchf)
+c$$$           vmatt(:,:,:) = 0.0
+         vmatt(1:nqmf,1:nqmi,0:nsmax) = 0.0
        call getchinfo (nchf,Nf,KJ,psif,maxpsif,ef,lfa,nfa,Lf)
             posf = positron(nfa,lfa,nposf)
 
@@ -533,7 +533,18 @@ c!!        to test: no continuum-continuum rearrangment
  
 
             if (ifirst.ne.0) then
-               nmr = nr !maxr
+c     find maxumum value for maxf to be used in getformout2() and getformout3() routines.
+               m_maxfi = 0
+               do jni1=1,nam(Ni)   
+                  ni1= na(jni1,Ni)
+                  m_maxfi = max(m_maxfi,maxf(ni1))
+               end do
+               do jnf1=1,nam(Nf)   
+                  nf1= na(jnf1,Nf)
+                  m_maxfi = max(m_maxfi,maxf(nf1))
+               end do
+
+               nmr = m_maxfi !nr !maxr
                km = nqmi !kmax
                allocate(chiform(nmr,km))
 

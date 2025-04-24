@@ -15,7 +15,7 @@ c!$acc routine
 
       ifunstart=max(ifuns1,ifstart)
       ifunstop=min(ifuns2,igstop)
-      formf(:) = 0.0
+      formf(1:meshr) = 0.0
       if (ifunstop.le.ifunstart+2) then
          i1=2
          i2=1

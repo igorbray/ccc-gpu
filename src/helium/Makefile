@@ -38,7 +38,7 @@ $(OBJDIR)/posHeVmat.o:  posHeVmat.f par.f par.pos
 	$(FC) $a -c  posHeVmat.f -o $@
 
 $(OBJDIR)/scat.o:  scat.f par.f par.pos
-	$(FC) $(aGPU) -O0 -c  scat.f -o $@
+	$(FC) $(aGPU) -c  scat.f -o $@
 
 $(OBJDIR)/%.o : %.f par.f
 	$(FC) $a -c $< -o $@

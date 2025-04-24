@@ -96,7 +96,6 @@ c     Assume that core orbitals are orthogonal.
 c     The common block  /corearray/ nicm, ncore(nspmCI) must be set and
 c     available at this stage.
 
-
 c     set up array which is =1 if orbital is a core orbital, otherwise it is 0
       itmp_core(1:nspm) = 0
       itmp_core(ncore(1:nicm)) = 1
@@ -136,7 +135,7 @@ c     >                       (ltmp(i), i=1,nlct)
          end do
       end do
       if(nsp_tot.gt.nspmax) then
-         print*,'stop in rearrange: nsp_tot > nspmax'       
+         print*,'stop in rearrange: nsp_tot > nspmax',nodeid       
          print*,'nsp_tot =', nsp_tot, ',  nspmax =',  nspmax
          stop
       end if

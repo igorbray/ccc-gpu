@@ -321,6 +321,7 @@ C  from the 'tcs' file.
             partcs(:,:,:) = 0.0
             sigtop(:,:) = 0.0
             BornPCS(:,:) = 0.0
+            nchpmax = 0
             call wrtcs(partcs,sigtop,nchpmax,nent,instate,
      >         jstop,etot,nsmax,0,
      >         ovlpn,nunit,nznuc,zasym,projectile,target,canstop,
@@ -1777,8 +1778,8 @@ c$$$     >                  ,chan(nf),j,sh,cfac(0)
                      enddo
                   enddo
                enddo
-            elseif (chan(ni)(3:3).eq.chan(nf)(3:3).and.
-     >            chan(ni)(3:3).eq.'S') then
+            else !if (chan(ni)(3:3).eq.chan(nf)(3:3).and.
+!     >            chan(ni)(3:3).eq.'S') then
                jextrap = jextrapor
                js = jstop
                nchi = nonnew(nchfi(ni,0),0,0,js)
@@ -1815,8 +1816,8 @@ c$$$                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0)
 c$$$                     enddo
 c$$$                  enddo
 c$$$               enddo
-            else
-               jextrap = jstop
+c$$$            else
+c$$$               jextrap = jstop
             endif 
             print*,'J extrapolation used:',jextrap
 c$$$            open (77,file='klaus.25ev.bsr')
@@ -2194,9 +2195,10 @@ c$$$            endif
      >         5e11.3)") chan(n+nfstart-1),sum(n+nfstart-1),
      >         (csmt(l,n+nfstart-1),l=1,5)
          enddo 
-         write(9+ni,"('#ICS',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
          write(9+ni,
-     >      "('#angle',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
+     >      "('# ICS     ',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
+         write(9+ni,
+     >      "('# angle     ',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
          nth = 0
          dtheta = dfloat(nth)
          write(9+ni,'(f10.6,1p,1000e10.3)') dtheta,
@@ -2326,17 +2328,16 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
          if (nth.gt.180) dtheta = 4.0*(nth - 180) /
      >      (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21d0
          thrad = dtheta * pi / 180d0 
-C  Q = Ki - Kf  (as vectors)               
-         qsq = dkf**2 + dki**2 - 2d0 * dkf * dki * cos(thrad)
-         qsq = dkf * dki * (dble(dkf/dki) + dble(dki/dkf) -
-     >      dble(2d0 * cos(thrad)))
+C     Q = Ki - Kf  (as vectors)
+         onemcos = 1.0-cos(thrad)
+         if (nth.ge.181) !for angles < 4 degrees
+     >      onemcos = thrad*thrad/2.0-thrad**4/24.0+thrad**6/720.0 
+c$$$         qsq = dkf * dki * (dble(dkf/dki) + dble(dki/dkf) -
+c$$$     >      dble(2d0 * cos(thrad)))
+         qsq = (dki-dkf)**2+2.0*dki*dkf*onemcos
+c$$$         qsq = dkf**2 + dki**2 - 2d0 * dkf * dki * cos(thrad)
 c$$$         qsq = (rkf - rki) ** 2 - 2.0 * rkf * rki * (cos(thrad) - 1d0)
          q(nth) = sqrt(abs(qsq))
-c$$$         print*, dtheta, q(nth)
-c$$$               tmp = -(rkf**2-q(nth)**2-rki**2)/
-c$$$     >            2.0/q(nth)/rki
-
-c$$$         if (dkf.eq.dki.and.nth.eq.0) print*,'Q at zero degrees:',q(nth)
          if (q(nth).eq.0.0) then
 c$$$            q(nth) = 1e-10
             tmp = 0d0
@@ -2344,7 +2345,8 @@ C  The following ensures that for elastic P-P transitions we get 0 amplitude
 C  for MI <> MF at theta = 0,  which leads to a step, unlike if tmp = 0 above.
 c$$$            tmp = 1.0
          else 
-            tmp = (dki-dkf*cos(thrad)) / q(nth)
+c$$$            tmp = (dki-dkf*cos(thrad)) / q(nth)
+            tmp = (dki-dkf+dkf*onemcos) / q(nth)
          endif 
 
 C The following is used to calculate the Born amp on q grid
@@ -2405,6 +2407,7 @@ c$$$     >                  'dtheta,lam,mai,maf,ff(nth,lam),SRYLM:',
 c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
                      Bornamp(nth,maf,mai) = Bornamp(nth,maf,mai) +
      >                  srylm * cgcoeff * ff(nth,lam) * (0.0,1.0) ** lam
+c$$$                     if (nth.ge.181) print*,nth,ff(nth,lam)
                   enddo
                endif 
             enddo               ! end maf loop
@@ -2511,10 +2514,11 @@ c     can be made outside of them.
      >              chin(1,nth),istartchi(nth),istopchi(nth),
      >              phase,sigc)
                do i = 1, maxtemp
-c$$$                  if (i.lt.10) print*,qsq,i,sin(q(nth)*rmesh(i,1)),
-c$$$     >               chin(i,nth)
+c$$$                  if (i.gt.maxtemp-10) print*,qsq,i,
+c$$$     >               sin(q(nth)*rmesh(i,1)),chin(i,nth)
                   chin(i,nth) = chin(i,nth) * rmesh(i,3) / rmesh(i,1)
                enddo
+               
 c     modify array  chin(i,nth)  due to two-electron pol.potential
                if(lam.eq.1.and.gamma.ne.0.0) then
                   sump = 1.0
@@ -2590,12 +2594,13 @@ c
                            sump = sump + fl(i,ni1)*fl(i,nf1)*chin(i,nth) 
                         enddo
                         ff(nth) = ff(nth) + const * sump / q(nth)
+c$$$                        if (nth.ge.181) print*,nth,ff(nth),const
                      endif
                   enddo    ! end nth loop
                end if
  68         continue 
  67      continue 
-         elseif(i_ng .eq. 1) then
+      elseif(i_ng .eq. 1) then
             nfcel = 4*l_ng + 1  ! number of 'frozen'-core electrons (5 : for Ne 2p^5)
 
          li = nint(rli)
@@ -2720,20 +2725,28 @@ c     start <l2|f_k|l2'> ME
          endif
       endif
 
+      nthmax = 0 !will be used for interpolation when there is precision loss
       if (nf.eq.ni.and.lam.eq.0) then
          do nth = 0, ntdcs, nstep
-            ff(nth) = ff(nth) - hat(rli) * (1.0 - vc(nth))
+            if (abs(ff(nth)-hat(rli)*(1.0-vc(nth)))/hat(rli).lt.1e-2 !1e-3 or 1e-4  
+     >         .and.nth.gt.nthmax) nthmax = nth
+c$$$     >         print*,'Precision loss:',nth,q(nth),ff(nth)- hat(rli),
+c$$$     >         (ff(nth)- hat(rli))/q(nth)**2
+            ff(nth) = ff(nth) - hat(rli) * (1.0 - vc(nth)) !loses accuracy for small angles
 c     account of additional atom polarazability:
             if(ipol .eq.1 ) then
                ff(nth) = ff(nth) + hat(rli) *  tmp_atom_pol(nth)
             endif
          enddo
+         if (nthmax.gt.0) print*,'will interpolate between 0 and:',
+     >      q(nthmax), nthmax
       endif 
       rmusq = rmudeb * rmudeb
       do nth = 0, ntdcs, nstep
          ff(nth) = ff(nth) * 2.0 / (q(nth) * q(nth) + rmusq + 1e-20)
-      enddo 
-      if (q(0).le.0.0) then  !1e-5
+      enddo
+
+      if (q(0).le.0.0) then  !elastic scattering only
 c$$$         if (ni.ne.nf) then
 c$$$C  Here we have degeneracy as in the case of e-H 2s -> 2p. Set both
 c$$$C  the zero and the next formfactor to large numbers. The latter is so
@@ -2752,7 +2765,13 @@ c$$$         else
          if (dbyexists) then
             ff(0) =0.0
          end if
-      endif 
+         do nth = 181, nthmax, nstep !very small angles < 4 degs.
+            ff(nth) = 
+     >         cubint(q(0),ff(0),q(nthmax-3),ff(nthmax-3),
+     >         q(nthmax-2),ff(nthmax-2),
+     >         q(nthmax-1),ff(nthmax-1),q(nth))
+         enddo
+      endif
       do nth = 0, ntdcs, nstep
          ff(nth) = ze * ff(nth) / sq2pi
       enddo 

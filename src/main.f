@@ -1535,36 +1535,40 @@ c$$$     >         istoppsinb(1+abs(nnbtop),l),corep,r0)
 c$$$         enddo 
 c$$$      endif 
 
-      nch = 0
-      call getchinfo(nch,nchp,0,temp,maxpsi,enpsi,la,na,lp)
       do n = 1, nent
          instate(n) = n
       enddo
-      mprev = 0
-      if (nent.gt.1) then
-         inquire(file='instates',exist=exists)
-         if (exists) then
-            open(42,file='instates')
-            do n = 1, nent
-               read(42,'(a3)') chinstate(n)
-               m = 1
-               do while(m.ne.0)
-                  if (chan(m).eq.chinstate(n)) then
-                     instate(n) = m
-                     print*,'setting initial state to:',m,chan(m)
-                     if (mprev.gt.m) then
-                        stop 'need to have instates in order'
-                     else 
-                        mprev = m
-                     endif 
-                  endif 
-                  m = m + 1
-                  call getchinfo(m,nchp,0,temp,maxpsi,enpsi,la,na,lp)
-               enddo 
-            enddo
-            close(42)
-         endif
-      endif 
+      nch = 0
+      if (hlike) !For H-like targets reordering by energy is done in getchinfo
+     >   call getchinfo(nch,nchp,0,temp,maxpsi,enpsi,la,na,lp)
+c$$$      do n = 1, nent
+c$$$         instate(n) = n
+c$$$      enddo
+c$$$      mprev = 0
+c$$$      if (nent.gt.1) then
+c$$$         inquire(file='instates',exist=exists)
+c$$$         if (exists) then
+c$$$            open(42,file='instates')
+c$$$            do n = 1, nent
+c$$$               read(42,'(a3)') chinstate(n)
+c$$$               m = 1
+c$$$               do while(m.ne.0)
+c$$$                  if (chan(m).eq.chinstate(n)) then
+c$$$                     instate(n) = m
+c$$$                     print*,'setting initial state to:',m,chan(m)
+c$$$                     if (mprev.gt.m) then
+c$$$                        stop 'need to have instates in order'
+c$$$                     else 
+c$$$                        mprev = m
+c$$$                     endif 
+c$$$                  endif 
+c$$$                  m = m + 1
+c$$$                  call getchinfo(m,nchp,0,temp,maxpsi,enpsi,la,na,lp)
+c$$$               enddo 
+c$$$            enddo
+c$$$            close(42)
+c$$$         endif
+c$$$      endif 
       incount = 1
       n = instate(incount)
       nsmax = 0
@@ -3239,8 +3243,8 @@ C Concatenate the individual node timings into one file lg_ipar
 
             call factor_two(ntasks,nrows,ncols)
             call blacs_get(0,0,nblacs_context)
-c$$$            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
-            call blacs_gridinit(nblacs_context,'C',nrows,ncols) ! for SLATE or ScaLAPACK
+            call blacs_gridinit(nblacs_context,'R',nrows,ncols)
+c$$$            call blacs_gridinit(nblacs_context,'C',nrows,ncols) ! for SLATE or ScaLAPACK
             call mpi_bcast(nchistart,nodes,MPI_INTEGER,0,
      >         MPI_COMM_WORLD,ierr)
             call mpi_bcast(nchistop,nodes,MPI_INTEGER,0,

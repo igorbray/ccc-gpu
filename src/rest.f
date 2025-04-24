@@ -1832,18 +1832,20 @@ C  by trial and error, I chose P to be two.
 C  this subroutine sets up the arrays RPOW1=R**LNA and RPOW2=1/R**(LNA+1)
 C  which are used in FORM, as well as CNTFUG=L(L+1)/XMESH(J)**2 which 
 C  is used in Numerov integration.
+      use vmat_module, only: nodeid !to minimize writes
       include 'par.f'
       common /debye/ dbyexists, dblp, rmudeb, zdby
       common/meshrr/ meshr,rmesh(maxr,3)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   istartrp(0:ltmax),istoprp(0:ltmax),cntfug(maxr,0:lmax)
       common/smallr/ formcut,regcut,expcut,fast
-      logical fast, dbyexists
+      logical fast, dbyexists, exists
       complex*16 :: XX, FC(0:ltmax), GC(0:ltmax), FCP(0:ltmax),
      >     GCP(0:ltmax), SIG(0:ltmax), CMPLXI=(0d0,1d0), ZLMIN, ETA1
       integer ::  NL, KFN, IFAIL, MODE1
       real*8 :: dblp_dp, FCR(0:ltmax),GCR(0:ltmax)  
       real*8 :: gfact
+      character stringtemp*7
  
 
       do j=1,meshr
@@ -1939,6 +1941,7 @@ C     Calculation of electron-electron Coulomb Potential
          rpow1(i,0)=1.0
          rpow2(i,0)=1.0/rmesh(i,1)
       end do
+      inquire(file='waves',exist=exists)
       do lna=1,lttop
          istartrp(lna)=istartrp(lna-1)
          istoprp(lna)=istoprp(lna-1)
@@ -1963,6 +1966,14 @@ C The following stops overflows in single precision
          do while (rpow2(istartrp(lna),lna).gt.1.0/expcut)
             istartrp(lna)=istartrp(lna)+1
          end do
+         if (exists) then
+            write(stringtemp,'(i2,"_rpow")') lna              
+            open(42,FILE=adjustl(stringtemp))
+            do i = istartrp(lna), istoprp(lna)
+               write(42,*) rmesh(i,1), rpow1(i,lna), rpow2(i,lna)
+            enddo
+            close(42)
+         endif
       end do 
       end if
       end
