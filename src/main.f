@@ -1019,8 +1019,8 @@ c$$$         nnbin = max(abs(nnbtop),nold)
          l = lmatch(la)
          if (i_sw_ng.eq.0) then
             if (myid.eq.0)
-     >         print*,'Defining eigenstates with COREP and R0 to N:',
-     >         corep(l),r0(l),nnbin
+     >         print"('Defining eigenstates with COREP and R0 to N:',
+     >         2f10.3,i3)", corep(l),r0(l),nnbin
 C  MYID=0 goes first so that fchf discrete functions are written to disk 
             if (myid.ne.0) call MPI_RECV(nmpi, 1, MPI_INTEGER, 0, 
      >         0, MPI_COMM_WORLD, my_status, ierr )
@@ -2334,7 +2334,11 @@ c$$$                  tail = ffgg(l,dble(b),l,dble(b),dble(r),1,
 c$$$     >               1d0,0d0,1d0,0d0)
                endif
                rk1 = b
-               sum2 = ((RK1*0.5D0)**LM)*T1*T2*pi/2.0
+               if (zasym.eq.0.0) then
+                  sum2 = ((RK1*0.5D0)**LM)*T1*T2*pi/2.0
+               else
+                  sum2 = 0.0
+               endif
                tsum = tmp + tailc
                tmp = tmp + tail
 c$$$               print*,(sin(b*rmesh(i,1)+x)/chi(i),i=meshr-3,meshr)
@@ -4143,7 +4147,7 @@ c$$$      stop
       alorig = al
       al = abs(al)
       slowery = abs(slowe(1)) / ry
-      if (myid.le.0) print*,'slowery(Ry):',slowery
+c$$$      if (myid.le.0) print*,'slowery(Ry):',slowery
       do n = 1, nps
          als(n) = al * 2.0
       enddo
@@ -4311,9 +4315,9 @@ c$$$     >         .and.it.lt.60)
      >                  print*,'Setting POSITION=ETOT/2(eV)',etot/2*ry
                      position = etot / 2.0
                   else 
+                     position = 0.0 !etot
                      if (myid.le.0)
-     >                  print*,'Setting POSITION=ETOT(eV)',etot*ry
-                     position = etot
+     >                  print*,'Setting POSITION=ETOT(eV)',position*ry
                      if (natop(l).eq.-99) position = etot / 2.0
                   endif 
                   n = 1
@@ -4398,9 +4402,9 @@ c$$$     >         slowery * ry
             if (slowe(1).ge.0.0)
      >         print'(" Alpha redefined to be:",f10.6," after",i3,
      >         " iterations, Test:",f10.6)', al ,it,
-     >         abs(psen2(nf)+psen2(nf+1)-2.0*position)/position
+     >         abs(psen2(nf)+psen2(nf+1)-2.0*position)
             if (nf.lt.nps.and.slowe(1).ge.0.0.and.
-     >         abs(psen2(nf)+psen2(nf+1)-2.0*position)/position.gt.1e-4)
+     >         abs(psen2(nf)+psen2(nf+1)-2.0*position).gt.1e-2)
      >         print*, 'CAUTION: check test'
          endif 
       endif 

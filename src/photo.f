@@ -13,7 +13,6 @@ c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
                                                              
       character*3 chan(knm), chs(0:lamax)
       common /charchan/ chan
-      common /chanen/ enchan(knm)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       character lh(0:10), csfile*(*), file*50
@@ -34,6 +33,7 @@ c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
       real*8 deta
       data ltop,ry,cs,tnbcs,tics,tcs/0,13.6058,knm6*0.0,
      >   ncs*0.0, ncs*0.0, ncs*0.0/
+      common /chanen/ enchan(knm),enchandiff(knm)
 
 c DPI of Lithium       
       common /LITHIUM/ lithium
@@ -410,8 +410,8 @@ c$$$     >         ovlp * phase * TX
 !      do ngauge = 1, 6
          tcst = 0.0
          tnbcst = 0.0
-         write(41+ngauge,'("state XSEC(Mb)       D(Lp-La=-1)       ",
-     >      "    D(Lp-La=+1)     overlap beta   en(Ry)")')
+         write(41+ngauge,'("state XSEC(Mb)       D(Lp-La=-1)          ",
+     >      " D(Lp-La=+1)     overlap beta     en(Ry)     energydiff")')
          do nt = 1, ntmax
             call getchnl(chan(nt),n,la,nc)
             div = abs(D(nt,1,ngauge))**2+abs(D(nt,-1,ngauge))**2
@@ -429,8 +429,8 @@ c$$$     >         ovlp * phase * TX
      >         tnbcst = tnbcst + cs(nt,ngauge) * ovlpn(nt)
             if (ngauge.ge.4) cs(nt,ngauge) = div
             write(41+ngauge,'(a3,1p,5e11.3,0p,
-     >         2f7.3,f12.6)') chan(nt),cs(nt,ngauge),D(nt,-1,ngauge),
-     >         D(nt,1,ngauge), ovlpn(nt),beta,enchan(nt)
+     >         2f7.3,2f12.6)') chan(nt),cs(nt,ngauge),D(nt,-1,ngauge),
+     >         D(nt,1,ngauge), ovlpn(nt),beta,enchan(nt),enchandiff(nt)
          enddo 
          write(41+ngauge,'(79a)') ('-',i=1,79)
          ticst = max(tcst - tnbcst,0.0)

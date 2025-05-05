@@ -281,7 +281,7 @@ c$$$     >         real(log(eigv(nch))/2.0/(0.0,1.0)),
 c$$$     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
             if (abs(eigv(nch)).gt.0.0) then
 c$$$               esum1 = esum1 + eigv(nch)
-!               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0)) crashes on Gadi GPUs
+               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0)) !crashes on Gadi GPUs
                esum2 = esum2 +
      >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
 c$$$  esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
@@ -3602,6 +3602,7 @@ c$$$            print*,'Added VDCORE to DWPOT:',utemp(1)*rmesh(1,1)
             enddo
             if (l.gt.ldw.and.npsbndin.lt.0) then
                psibd(:,l) = psib(:,l) ! use exact eigenstates
+               nps = - npsbndin 
             else 
                nps = abs(npsbndin) !-l
                alpha = abnd(l)
@@ -3616,12 +3617,12 @@ c$$$                  alpha = max(abnd(l),alpha*1.1)
 c$$$               endif
                torf = .false.
 !               if (alpha.lt.10.0*(zasym+1)) then !.or.zasym.eq.-1.0) then
-               niter = -20
-               scale = 3.0
+               niter = 50
+               scale = 1.0
                if (alpha.gt.0.0) then
                   if (nodeid.eq.1)
-     >               print*,"Projectile diagonalisation: N, L, al",
-     >                 nps,l,alpha
+     >            print'("Projectile diagonalisation: L, N, al",2i4,
+     >            f10.5)', l,nps,alpha
                   call makeps(zasym, torf,alpha,l,expcut,nps,ps2,
      >               psen2,minps2, maxps2,rmesh,utemp,meshr,meshr,dummy)
                   if (nz.gt.0) then
@@ -3630,14 +3631,15 @@ c$$$               endif
                         do while (psen2(npose).lt.0.0)
                            npose = npose + 1
                         enddo
-! Below ensures that the first +ve-energy E1 point integrates from zero to 2*E1 by making E2=3E1. Interestingly, the factor 3 also works for the two -ve-energy points, see below print.
-                        test=(psen2(npose)*scale-psen2(npose+1))/
-     >                       psen2(npose+1)
-                        alpha = alpha * (1.0 - test /10.0)
+                        npose = npose - 1
+! Below ensures that the continuum integration starts from zero by having -e,e around zero energy.
+                        test=(psen2(npose)*scale+psen2(npose+1))/
+     >                       (psen2(npose+1)-psen2(npose))
+                        alpha = alpha * (1.0 - test / nps)
                         if (nodeid.eq.1)
-     >                     print'("nt,npose,al,test,4psen:",2i3,6f10.6)'
+     >                     print'("nt,npose+l,al,test,en:",2i3,40f12.6)'
      >                     ,ntimes,npose+l,alpha,test,
-     >                     (psen2(n),n=npose-2,npose+1) 
+     >                     (psen2(n),n=1,npose+1) 
                         if (abs(test).lt.1e-3) exit
                         call makeps(zasym,torf,alpha,l,expcut,nps,
      >                       ps2,psen2, minps2, maxps2, rmesh, utemp,
@@ -3651,6 +3653,7 @@ c$$$               endif
                   if (nodeid.eq.1)
      >               print*,'Projectile Box-based states; Z, N and R:',
      >               -nze*zasym-1.0,nbmax,ra !note that z+1 is used in pseudo
+!                  utemp(:)=0.0
                   call pseudo(jdouble,id,hmax,-nze*zasym-1.0,l,ra,nbmax,
      >               maxr,utemp,psen2,ps2,jmax)
                   minps2(:) = 1
@@ -3661,14 +3664,15 @@ c$$$               endif
                         do while (psen2(npose).lt.0.0)
                            npose = npose + 1
                         enddo
+                        npose = npose - 1
 c$$$                   test=(psen2(npose)*0.5+psen2(max(npose-1,1))*0.5)/
 c$$$     >                       (psen2(npose) - psen2(max(npose-1,1)))
-                        test=(psen2(npose)*scale-psen2(npose+1))/
-     >                       psen2(npose+1)
-                        ra = ra * (1.0 + test/10.0)
-                        print'("nt,npose,Ra,test,4psen:",2i3,6f12.6)',
+                        test=(psen2(npose)*scale+psen2(npose+1))/
+     >                       (psen2(npose+1)-psen2(npose))
+                        ra = min(ra + 2.0*test,rmesh(meshr,1))
+                        print'("nt,npose+l,Ra,test,en:",2i3,40f12.6)',
      >                       ntimes,npose+l,ra,test,
-     >                       (psen2(n),n=npose-2,npose+1)
+     >                       (psen2(n),n=1,npose+1)
                         if (abs(test).lt.1e-3) exit
                         call pseudo(jdouble,id,hmax,-nze*zasym-1.0,l,ra,
      >                       nbmax,maxr,utemp,psen2,ps2,jmax)
@@ -3749,8 +3753,8 @@ C  Distorted-waves
                nps = abs(npsbndin) !-l
                alpha = abnd(l)
                if (nodeid.eq.1)
-     >            print*,"Projectile diagonalisation: N, L, al",
-     >            nps,l,alpha
+     >            print'("Projectile diagonalisation: L, N, al",2i4,
+     >            f10.5)', l,nps,alpha
                call makeps(zasym,torf,alpha,l,expcut,nps,ps2,
      >            psen2,minps2,maxps2,rmesh,utemp,meshr,meshr,dummy)
                n = l + 1
@@ -3847,7 +3851,7 @@ c$$$                  n = n + 1
                enddo
 c$$$               psen2(n) = psibd(n+l,l)%en
                nneg = 1
-               do while (psen2(nneg).lt.0.0.and.nneg.lt.npsbnd)
+               do while (psen2(nneg).lt.0.0.and.nneg.le.npsbnd)
                   nneg = nneg + 1
                enddo
                nneg = nneg - 1
@@ -3915,19 +3919,19 @@ c$$$               wk(kp) = (1e,0.0)
 c$$$            endif 
             e1 = etot-ea-psen2(n)
             e2 = etot-ea-psen2(n+1)
-            if (n.lt.nbndm.and.e1*e2.lt.0.0.and.nodeid.eq.1) 
-     >         print'("CAUTION: WK changes sign across bound states",
-     >         i3,2f8.4,a5,i2)',n,e1,e2,chan(nt),l
+c$$$            if (n.lt.nbndm.and.e1*e2.lt.0.0.and.nodeid.eq.1) 
+c$$$     >         print'("CAUTION: WK changes sign across bound states",
+c$$$     >         i3,2f8.4,a5,i2)',n,e1,e2,chan(nt),l
 C     The choice of phase makes no difference
             phasel(k,nch) = (1.0,0.0)
 c$$$            phasel(k,nch) = (0.0,1.0)**(-l)
             if (psen2(n).lt.0.0) then
 c$$$            if (psen2(n).lt.0.0.and.etot-ea.gt.0.0) then
                gk(k,nch) = -sqrt(-psen2(n))
-               if (abs(etot - ea - psen2(n)).lt.0.1.and.nodeid.eq.1)
-     >            print*,
-     >            'Warning for bound state have etot - ea - psen2(n)',
-     >            etot - ea - psen2(n), n
+c$$$               if (abs(etot - ea - psen2(n)).lt.0.1.and.nodeid.eq.1)
+c$$$     >            print*,
+c$$$     >            'Warning for bound state have etot - ea - psen2(n)',
+c$$$     >            etot - ea - psen2(n), n
                minchil(kp,1) = 1
 C The normalization sqrt(pi/2.0) is used as later all CHIL states are
 C multiplied by sqrt(2.0/pi).
@@ -3958,7 +3962,8 @@ C  Having defined the bound states we now define the distorted waves
 C$OMP parallel do default(private)
 C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
 C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax,itail,trat,qcut)
+C$OMP& minchil,chil,rphase,nqm,sigma,summax,itail,trat,qcut,psi,
+C$OMP& maxpsi)reduction(+:testc)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
             if (gk(k,nch).eq.0.0) then
@@ -3981,13 +3986,15 @@ c$$$               endif
 c$$$  if (dbyexists) sigc = (1.0,0.0)
 c$$$               if (nbnd(lg).ne.0.and.k.gt.1) then
 c$$$               if (k.lt.1) then     !Igor
-c$$$               if (k.gt.1) then
-c$$$                  call getprod(psi,maxpsi,jstart,temp,l,rmesh,
-c$$$     >               meshr,nt,tmp)
-c$$$                 tmp = tmp * wk(kp) * 2.0 / pi *
-c$$$     >               (etot - ea - en) / 2.0
-c$$$                  testc = testc + tmp
-c$$$               endif 
+               if (k.gt.1) then
+                  call getprod(psi,maxpsi,jstart,temp,l,rmesh,
+     >               meshr,nt,tmp)
+                 tmp = tmp * wk(kp) * 2.0 / pi *
+     >               (etot - ea - en) / 2.0
+c$$$!$omp critical
+                 testc = testc + tmp
+c$$$!$omp end critical
+              endif 
 c$$$               if (lg.gt.ldw) phasel(k,nch) = (1.0,0.0)
 
 C  The following generates the contribution to the T matrix due

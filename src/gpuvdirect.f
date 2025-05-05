@@ -14,13 +14,14 @@ c$$$      real tmp3(1:meshr,nchi:nchtop)
       real temp3(1:meshr,nchi:nchtop)
       real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax)
       real dotp1,dotp2
-!      real,allocatable :: chitemp(:,:),tmp(:,:)
+!      real,allocatable :: chitemp(:,:)!,tmp(:,:)
       real chitemp(meshr,nqmi)
       real tmp(nqmi,nqmfmax) 
       logical second
       integer maxpsii
       real temp2(1:maxpsii,1:nqmi2,nchi:nchtop2)
 
+!      allocate(chitemp(meshr,nqmi))
       maxi2 = maxpsii
 c$$$      if(nsmax.ne.1) then
 c$$$        maxi2=0
@@ -35,16 +36,16 @@ c$$$      endif
         
 c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 
-#ifndef GPU_ACC
-#ifndef GPU_OMP
+!#ifndef GPU_ACC
+!#ifndef GPU_OMP
 c$$$!$omp parallel num_threads(nnt) !default(private)
 c$$$!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
 c$$$!$omp& tnum)
 c$$$!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
 c$$$!$omp&shared(nqmi,maxi2,nsmax,nnt,meshr,maxpsii,nchtop2,nqmfmax,minchil)
 c$$$!$omp do schedule(dynamic)
-#endif
-#endif
+!#endif
+!#endif
 
 #ifdef GPU_ACC
 !$acc data if(nqmi>100) 
@@ -78,13 +79,18 @@ c$$$!$omp do schedule(dynamic)
 #endif
 #ifndef GPU_ACC
 #ifndef GPU_OMP
-!$omp parallel do default(shared) private(ki,i) 
-!$omp& collapse(2) schedule(static) !not dynamic!
+!$omp parallel do default(shared) private(ki,i,kii,minki) 
+!$omp& collapse(1) schedule(static) !not dynamic!
 #endif
 #endif
          do ki = 1, nqmi
-            do i = 1, maxi      !minchil(ki+npk(nchi)-1), maxi !minki, maxi
-               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1,1)
+            kii = ki+npk(nchi)-1
+            minki = minchil(kii,1)
+            do i = 1, minki - 1 !not necessary since below: mini = max(minchil(kff,1),minchil(ki+npk(nchi)-1,1))
+               chitemp(i,ki) = 0.0
+            enddo
+            do i = minki, maxi
+               chitemp(i,ki) = temp3(i,nchf) * chil(i,kii,1)
             enddo
          enddo
 #ifndef GPU_ACC
@@ -142,7 +148,7 @@ c$$$!$omp do schedule(dynamic)
          do ki = 1, nqmi
             do kf = 1, nqmf
                kff = npk(nchf) + kf - 1
-               mini = minchil(kff,1)
+               mini = max(minchil(kff,1),minchil(ki+npk(nchi)-1,1))
                vmatt(kf,ki,nchf,0) = tmp(ki,kf) + vmatt(kf,ki,nchf,0) +
      >            dot_product(chil(mini:maxi,kff,1),
      >            chitemp(mini:maxi,ki)) !the slow part
