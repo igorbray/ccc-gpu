@@ -1,178 +1,210 @@
       subroutine gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
-     >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxi2,temp2,ifirst)
-#ifdef GPU
+     >   mintemp3,maxtemp3,temp3,!ltmin,minchilx,chilx,ctemp,itail,trat,
+     >   nchan,nqmfmax,vmatt,ichildim_dum,ngpus,nnt,nchii_dummy,second,
+     >   maxpsii,temp2,nqmi2,nchtop2,nsmax,ifirst)
+      use chil_module
+#ifdef GPU_ACC
       use openacc
 #endif
       integer npk(nchtop+1)
-      integer childim
-      integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan),
-     >     minchil(npk(nchtop+1)-1)
-      real chil(1:meshr,1:(npk(nchtop+1)-1))
+      integer nqmf,kff,kii,maxi
+      integer mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
       real rmesh(maxr,3),ctemp(nchan),temp(maxr)
+c$$$      real tmp3(1:meshr,nchi:nchtop)
       real temp3(1:meshr,nchi:nchtop)
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
-      allocatable :: chitemp(:,:),tmp(:,:)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax)
+      real dotp1,dotp2
+!      real,allocatable :: chitemp(:,:)!,tmp(:,:)
+      real chitemp(meshr,nqmi)
+      real tmp(nqmi,nqmfmax) 
       logical second
-      integer gpunum,tnum,tmod
-      integer, external :: omp_get_thread_num
-      integer maxi2
-      real temp2(1:meshr,1:nqmi,1:nchtop)
+      integer maxpsii
+      real temp2(1:maxpsii,1:nqmi2,nchi:nchtop2)
 
-      allocate(chitemp(meshr,nqmi))
-      allocate(tmp(meshr,nqmi))
+!      allocate(chitemp(meshr,nqmi))
+      maxi2 = maxpsii
+c$$$      if(nsmax.ne.1) then
+c$$$        maxi2=0
+c$$$      endif
 
-      if(ifirst.ne.1) then
-        maxi2=0
-      endif
+      kii=0
+      kff=0
+      nqmf=0
+      maxi=0
+      dotp1=0.0
+      dotp2=0.0
+        
+c$$$      temp3(1:meshr,nchi:nchtop)=tmp3(1:meshr,nchi:nchtop)
 
-#ifdef GPU
-!$omp parallel num_threads(ngpus)
-!!$omp parallel num_threads(nnt)
-#else
-!$omp parallel num_threads(nnt)
-#endif
-!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
-!$omp& tnum)
-!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
-!$omp& shared(nqmi,maxi2,ifirst)
+!#ifndef GPU_ACC
+!#ifndef GPU_OMP
+c$$$!$omp parallel num_threads(nnt) !default(private)
+c$$$!$omp& private(gpunum,nchf,nqmf,maxi,mini,chitemp,ki,kf,i,kff,kii,tmp,
+c$$$!$omp& tnum)
+c$$$!$omp& shared(nchi,nchtop,npk,maxtemp3,temp3,chil,vmatt,ngpus,temp2)
+c$$$!$omp&shared(nqmi,maxi2,nsmax,nnt,meshr,maxpsii,nchtop2,nqmfmax,minchil)
+c$$$!$omp do schedule(dynamic)
+!#endif
+!#endif
 
-#ifdef GPU
-      tnum=omp_get_thread_num()
-      gpunum=mod(tnum,ngpus)
-      call acc_set_device_num(gpunum,acc_device_nvidia)
-#endif
-
-!$acc data 
-!$acc& copyin(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1))
+#ifdef GPU_ACC
+!$acc data if(nqmi>100) 
+!$acc& copy(vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:nsmax))
 !$acc& present(npk(1:nchtop+1))
-!$acc& present(chil(1:meshr,1:(npk(nchtop+1)-1)))
-!$acc& present(minchil(1:npk(nchtop+1)-1))
+!$acc& present(chil(1:meshr,npkstart:npkstop,1))
+!$acc& present(minchil(npkstart:npkstop,1))
 !$acc& present(nchtop)
 !$acc& copyin(nqmi,maxtemp3,temp3(1:meshr,nchi:nchtop))
 !$acc& create(chitemp)
-!$acc& create(temp2)
 !$acc& create(tmp)
-!!$acc& create(vmatt)
-!$omp do schedule(dynamic)
+!$acc& copyin(temp2) !copyin(temp2(1:maxpsii,1:nqmi,nchi:nchtop)) 
+
+#endif
+#ifdef GPU_OMP
+!$omp target data if(nqmi>100)
+!$omp& map(to:temp3,temp2,maxtemp3)
+!$omp& map(alloc:tmp,chitemp)
+!$omp& map(tofrom:vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:nsmax))
+#endif
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
-         maxi = maxtemp3(nchf)
-!$acc update device(temp2(1:maxi2,1:nqmi,nchf)) async(1)
-!!$acc update device(vmatt(1:nqmfmax,1:nqmi,nchf,0:1)) async(1)
-!$acc kernels 
+         maxi = min(maxtemp3(nchf),meshr)
+#ifdef GPU_ACC
+!!!$acc parallel if(nqmi>100)
+!$acc kernels if(nqmi>100)         
 !$acc loop independent collapse(2)
+#endif
+#ifdef GPU_OMP
+!$omp target teams distribute parallel do collapse(2) if(nqmi>100)
+#endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(ki,i,kii,minki) 
+!$omp& collapse(1) schedule(static) !not dynamic!
+#endif
+#endif
          do ki = 1, nqmi
-            do i = 1, maxi !minchil(ki+npk(nchi)-1), maxi !minki, maxi
-               chitemp(i,ki) = temp3(i,nchf) * chil(i,ki+npk(nchi)-1)
+            kii = ki+npk(nchi)-1
+            minki = minchil(kii,1)
+            do i = 1, minki - 1 !not necessary since below: mini = max(minchil(kff,1),minchil(ki+npk(nchi)-1,1))
+               chitemp(i,ki) = 0.0
+            enddo
+            do i = minki, maxi
+               chitemp(i,ki) = temp3(i,nchf) * chil(i,kii,1)
             enddo
          enddo
-!$acc wait(1)
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp end parallel do
+#endif
+#endif
+#ifdef GPU_OMP
+!$omp end target teams distribute parallel do
+#endif
+         if (ifirst.eq.1) then !for photons nsmax=0
+#ifdef GPU_ACC                 
 !$acc loop independent collapse(2)
-         do ki = 1, nqmi
-            do kf=1,nqmf
-               kff = npk(nchf) + kf - 1
-               mini = minchil(kff)
-               tmp(ki,kf) = dot_product(chil(mini:maxi2,kff)
-     >            ,temp2(mini:maxi2,ki,nchf))
+#endif
+#ifdef GPU_OMP
+!$omp target teams distribute parallel do collapse(2) if(nqmi>100)
+#endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(kf,ki,mini,kff)
+!$omp& collapse(2) schedule(static) !dynamic is ok too
+#endif
+#endif
+            do ki = 1, nqmi
+               do kf = 1, nqmf
+                  kff = npk(nchf) + kf - 1
+                  mini = minchil(kff,1)
+                  tmp(ki,kf) = dot_product(chil(mini:maxi2,kff,1),
+     >               temp2(mini:maxi2,ki,nchf))
+               enddo
             enddo
-         enddo
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!omp end parallel do
+#endif
+#endif
+#ifdef GPU_OMP
+!$omp end target teams distribute parallel do
+#endif
+         else
+            tmp(1:nqmi,1:nqmf) = 0.0
+         endif
+#ifdef GPU_ACC
 !$acc loop independent collapse(2)
+#endif
+#ifdef GPU_OMP
+!$omp target teams distribute parallel do collapse(2) if(nqmi>100)
+#endif
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp parallel do default(shared) private(kff,ki,kf,mini)
+!$omp& collapse(2) schedule(static) !dynamic is ok too
+#endif
+#endif
          do ki = 1, nqmi
-            do kf=1,nqmf
-               kii = npk(nchi) + ki - 1
+            do kf = 1, nqmf
                kff = npk(nchf) + kf - 1
-c$$$               if (kff.ge.kii) then
-                  mini = minchil(kff)
-
-!                  tmp = dot_product(chil(mini:maxi2,kff)
-!     >            ,temp2(mini:maxi2,ki,nchf))
-
-                  vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+dot_product(
-     >                 chil(mini:maxi,kff),
-     >                 chitemp(mini:maxi,ki))+tmp(ki,kf)
-                  vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2*tmp(ki,kf)
-c$$$     >                 chil(minchil(kff):maxi,kff),
-c$$$     >                 chitemp(minchil(kff):maxi,ki))
-c$$$               endif
+               mini = max(minchil(kff,1),minchil(ki+npk(nchi)-1,1))
+               vmatt(kf,ki,nchf,0) = tmp(ki,kf) + vmatt(kf,ki,nchf,0) +
+     >            dot_product(chil(mini:maxi,kff,1),
+     >            chitemp(mini:maxi,ki)) !the slow part
+               if (nsmax.eq.1)  !does not slow things down
+     >            vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,0)-2.0*tmp(ki,kf)
             end do
          end do
-!$acc end kernels
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+!$omp end parallel do
+#endif
+#endif
+#ifdef GPU_ACC
+!!!$acc end parallel
+!$acc end kernels         
+#endif
+#ifdef GPU_OMP
+!$omp end target teams distribute parallel do
+#endif
+       end do !nchf
+#ifdef GPU_OMP
+!$omp end target data
+#endif
 
-!$acc update self(vmatt(1:nqmf,1:nqmi,nchf,0:1)) async(2)
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+c$$$!$omp end do
+c$$$!$omp end parallel
+#endif
+#endif
 
-       end do
-!$omp end do
-
-! START
-! !$acc kernels
-! !$acc loop independent collapse(2)
-!         do ki = 1, nqmi
-!            do kf = 1, nqmf
-!               dotprod=0.0
-!               do it = mini,maxi
-!                chitemp=temp3(it,nchf) * chil(it,ki+npk(nchi)-1)
-!                dotprod=dotprod+
-!     >          (chil(it,kf+npk(nchf)-1)*chitemp)
-!               end do
-!               vmati(kf,ki,nchf)=dotprod
-!            end do
-!         end do
-! !$acc end kernels
-! END
-
-c         if (itail.ne.0.and.ctemp(nchf).ne.0.0) then
-c            lt = ltmin(nchf)
-c            const = ctemp(nchf) * (trat / rmesh(meshr,1))**lt
-c            do ki = 1, nqmi
-c               do i = minchil(ki+npk(nchi)-1,2), meshr
-c                  temp(i) = chil(i,ki+npk(nchi)-1,2)
-c     >                 /rmesh(i,3)/rmesh(i,1)**(lt+1)
-c               enddo 
-c               do kf = 1, nqmf
-c                  mini = max(
-c     >              minchil(ki+npk(nchi)-1,2),minchil(kf+npk(nchf)-1,2))
-c                  vmati(kf,ki,nchf)=vmati(kf,ki,nchf)+const*dot_product(
-c     >               chil(mini:meshr,kf+npk(nchf)-1,2),temp(mini:meshr))
-c               enddo
-c            enddo
-c         endif !itail
-! check the following works with Na
-c        vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + vmati(1,1,nchf)
-c         vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
-c$$$         vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vmati(1,1,nchf)
-c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
-!      enddo !nchf
-
+#ifdef GPU_ACC
 !$acc wait
 !$acc end data 
-
-!$omp end parallel
-
-      deallocate(chitemp)
-      deallocate(tmp)
+#endif
 
       return
       end
 
 
-      subroutine makev3e(chil,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
-     >   li,lf,minchil,nqmi,lg,rnorm,second,npk,
-     >   nqmfmax,vmatt,nchtop,nnt,ngpus,temp2,maxi)
+      subroutine makev3e(chilx,psii,maxpsii,lia,nchi,psif,maxpsif,lfa,
+     >   li,lf,minchilx,nqmi,lg,rnorm,second,npk,nchtop,nnt,temp2)
+      use chil_module
       include 'par.f'
-      integer nnt,gpunum
+      integer nnt
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension npk(nchtop+1),fun(maxr)
-      dimension chil(meshr,npk(nchtop+1)-1)
-      dimension minchil(npk(nchtop+1)-1),
-     >   const(-lamax:lamax,nchtop)
+c$$$      dimension chil(meshr,npk(nchtop+1)-1)
+c$$$      dimension minchil(npk(nchtop+1)-1)
       dimension psii(maxr),
-     >   psif(maxr,nchtop)
+     >   psif(maxr,nchtop),const(-lamax:lamax,nchtop)
       dimension maxpsif(nchtop), lfa(nchtop), lf(nchtop)
-      real temp2(meshr,nqmi,nchtop)
+      real temp2(maxpsii,nqmi,nchi:nchtop) !temp2(meshr,nqmi,nchi:nchtop)
       real, allocatable :: temp(:)
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1)
+!      real vmatt(1:kmax,1:kmax,0:1,1:nchtop)
+!      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:1)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -183,7 +215,7 @@ c$$$         vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
 c
       common /di_el_core_polarization/ gamma, r0, pol(maxr)
       common/smallr/ formcut
-      integer maxpsii,maxi
+      integer maxpsii
 c      
       hat(l)= sqrt(2.0 * l + 1.0)
 
@@ -232,23 +264,21 @@ c$$$               stop 'CJ6 and W do not agree'
       end do
 !$omp end parallel do
 
-      maxi=maxpsii
-
 !$omp parallel do default(private) num_threads(nnt) !collapse(2)
 !$omp& schedule(dynamic)
 !$omp& shared(chil,psif,psii,npk,lia,const,rpow1,meshr,nchi,lf,
-!$omp& rpow2,temp2,nqmi,minchil,maxi,gamma,pol,minrp,maxrp,maxpsif,
-!$omp& nchtop,gpunum)
+!$omp& rpow2,temp2,nqmi,minchil,maxpsii,gamma,pol,minrp,maxrp,maxpsif,
+!$omp& nchtop)
       do nchf=nchi,nchtop
       do ki = 1, nqmi
          kii = npk(nchi) + ki - 1
-         minfun = minchil(kii)
+         minfun = minchil(kii,1)
          maxfun = maxpsif(nchf)
 
          do i = minfun, maxfun
-            fun(i) = chil(i,kii) * psif(i,nchf)
+            fun(i) = chil(i,kii,1) * psif(i,nchf)
          end do
-         do i = 1, meshr
+         do i = 1, maxpsii !meshr
             temp2(i,ki,nchf) = 0.0
          enddo
          mini = meshr
@@ -257,7 +287,7 @@ c$$$               stop 'CJ6 and W do not agree'
             if (lt.lt.0.or.lt.gt.ltmax.or.abs(const(ilt,nchf)).lt.1e-10)
      >         go to 15
             call form(fun,minfun,maxfun,rpow1(1,lt),
-     >      rpow2(1,lt),minrp(lt),maxrp(lt),maxi,temp,i1,i2)
+     >      rpow2(1,lt),minrp(lt),maxrp(lt),maxpsii,temp,i1,i2)
 c
        if(lt.eq.1.and.gamma.ne.0.0) then
           sum1 = 0.0
@@ -269,14 +299,14 @@ c
              temp(i) = temp(i) - tmp*pol(i)
           end do
        end if
-
+       if (i2.gt.maxpsii) stop 'something is wrong'
             do i = i1, i2
                temp2(i,ki,nchf) = const(ilt,nchf) * temp(i) 
      >                          + temp2(i,ki,nchf)
             enddo
             mini = min(mini,i1)
  15      continue
-         do i = mini, maxi
+         do i = mini, maxpsii
             temp2(i,ki,nchf) = temp2(i,ki,nchf) * psii(i)
          enddo
       enddo

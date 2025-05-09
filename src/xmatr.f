@@ -14,7 +14,7 @@ c Full spherical integration
       COMMON /JZ/  Jt
       COMMON /RR/  rt,rp
       COMMON /QGR/ fqr,fqr2
-      DIMENSION    fqr(maxr),fqr2(maxr,maxr)
+      DIMENSION    fqr(maxr),fqr2(maxr,1)!maxr)
       COMMON /const/  pi, Ry, rad, SIP
       COMMON /KNMT/   E0,E1,theta1
       common /KK/     k0,k1,p,teta1
@@ -27,6 +27,7 @@ c Full spherical integration
 
       PARAMETER(NN=1000)
       real*8 AGS(NN),WGS(NN),pid
+      stop 'redefine fqr2(maxr,maxr) in QGRIDn of xmatr.f'
       pid = dacos(-1d0)
       rad = pid/180
       teta1 = theta1*rad

@@ -1,6 +1,7 @@
       subroutine mainhe(Nmax,namax,pnewC,eproj,etot,
      >     lastop,nnbtop,ovlp,phasen,regcut,expcut,ry,enion,enlevel,
      >     enionry,nchanmax,ovlpnl,slowe,ne2e,vdcore)
+      use vmat_module, only: nodeid
       include 'par.f'
       integer la, sa, lpar
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
@@ -29,7 +30,7 @@ C     Igor's stuff
      >   npbot(0:lamax),nptop(0:lamax)
       character chan(knm)*3, opcl*6, enq*14
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       dimension psi(maxr),ovlp(ncmax,0:lamax),
      >   ovlpnl(ncmax,0:lamax,nnmax),slowe(ncmax)
       complex phasen(ncmax,0:lamax),sigc,phase,ovlpnl
@@ -38,7 +39,7 @@ C     Igor's stuff
       logical:: helium, exists, torf
       real:: temp(nr)
 c      
-      print*, 'nznuc, zasym:', nznuc, zasym
+      if (nodeid.eq.1) print*, 'MAINHE: nznuc, zasym:', nznuc, zasym
       torf = .false.
 
       temp(:) = 0.0
@@ -75,10 +76,12 @@ C  the ENPSINB to contain the target state energies.
          enddo
       enddo       
 c
-      print*,'These s.p.orbitals comes from diagonalization of ',
-     >   'the ion Hamiltonian and go to the CI program as ',
-     >   'the s.p.basis'
-      print*, 'labot, latop:', labot, latop
+      if (nodeid.eq.1) then
+         print*,'These s.p.orbitals comes from diagonalization of ',
+     >      'the ion Hamiltonian and go to the CI program as ',
+     >      'the s.p.basis'
+         print*, 'labot, latop:', labot, latop
+      endif
       n = 0
       do l = labot, latop
          do k = nabot(l), natop(l)
@@ -90,7 +93,8 @@ c
             e1r(n,n) = enpsinb(k,l) / 2.0  !a.u.
             minf(n) = 1
             maxf(n) = istoppsinb(k,l)
-            write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
+            if (nodeid.eq.1)
+     >         write(*,'(3i5,1P,e12.4)') n,lo(n),ko(n),e1r(n,n)
             do i = minf(n), maxf(n)
                fl(i,n) = psinb(i,k,l)
             enddo 
@@ -137,7 +141,7 @@ c      endif
       nspmW = max(nspm,10)
       call structure(Nmax,nspmW,namax,pnewC,E,enionry,eproj,vdcore,
      >   slowe(1)) 
-      print*, 'Finish structure'
+c$$$      print*, 'Finish structure'
       lg = 0
       nchanmax = 0
 c     This block is for calculation of the osc.str. for continuum states.
@@ -172,15 +176,19 @@ c     find fc. orbital in fc. app. for state nst
 c
          call getchinfo (nst, ntmp, lg, psi, maxpsi, ea, latom, na, li)
          enpsinb(na,latom) = E(nst) * 2.0 - enionry
-         if (nst.ne.ntmp)
-     >      stop 'Expect NST = NTMP in mainhe'
-         etot = eproj + enpsinb(ninc,linc)
-         if (etot.ge.enpsinb(na,latom)) then
-            onshellk = sqrt(etot-enpsinb(na,latom))
+         enchan(ntmp) = E(nst) * 2.0 - enionry
+c$$$         print*,'nst,l,n,e:',nst,latom,na,enchan(ntmp),ea
+         if (nst.ne.ntmp) then
+            print*,'NST <> NTMP:',nst,ntmp
+            stop 'Expect NST = NTMP in mainhe'
+         endif
+         etot = eproj + enchan(1)!enpsinb(ninc,linc)
+         if (etot.ge.enchan(ntmp)) then
+            onshellk = sqrt(etot-enchan(ntmp))
             opcl = 'open'
-            if (enpsinb(na,latom).gt.0.0) then
+            if (enchan(ntmp).gt.0.0) then
 c$$$               if (ne2e.ne.0) then
-               q = sqrt(enpsinb(na,latom))
+               q = sqrt(enchan(ntmp))
                en = q*q/2.0
                call contfunc(helium,temp,vdcore,
      >              latom,sa(nst),en,iternum,accuracy,
@@ -190,7 +198,7 @@ c$$$               if (ne2e.ne.0) then
      >            E,en,latom,sa(nst),psi,minc,maxc,tmp)
                ovlp(na,latom) = tmp
                phasen(na,latom) = phase * sigc
-               print*,'Overlap,phase,sigc',tmp,phase,sigc
+c$$$               print*,'Overlap,phase,sigc',tmp,phase,sigc
 c
 c$$$               do nnn = 1, Nmax
 c$$$                  if (ne2e.ne.0) then
@@ -210,7 +218,7 @@ c$$$                  endif
 c$$$                  if (nnn.eq.Nmax) close(42)
 c$$$                  endif 
 c$$$               enddo 
-               print*
+
 c
 c     This block is for calculation of the osc.str. for continuum states.
 c               osc_cont_len = oscstr(nst,1,1) * ovlp(na,latom)**2/q
@@ -277,24 +285,33 @@ c$$$               endif ! ne2e.ne.0
             enddo 
          else
             opcl = 'closed'
-            onshellk = -sqrt(enpsinb(na,latom)-etot)
+            onshellk = -sqrt(enchan(ntmp)-etot)
             ovlp(na,latom) = 0.0
-         endif 
-         elevel = (enpsinb(na,latom) * ry + enion) * 
+         endif
+         if (enchan(ntmp).gt.0.0) then
+            ovlp2 = sqrt(sqrt(enchan(ntmp))*4.0/
+     >         enchandiff(ntmp)) !units of 1/sqrt(k)
+         else
+            ovlp2 = 1.0
+         endif
+         elevel = (enchan(ntmp) * ry + enion) * 
      >      enlevel / enion
-         print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",a8,f9.4,
-     >      f8.2)', 
-     >     nst, chan(nst),enpsinb(na,latom),enpsinb(na,latom)*ry,
-     >      elevel, opcl, onshellk, ovlp(na,latom)
+         if (nodeid.eq.1)
+     >      print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",
+     >      a8,f9.4,2f8.2)', 
+     >      nst, chan(nst),enchan(ntmp),enchan(ntmp)*ry,
+     >      elevel, opcl, onshellk, ovlp(na,latom), ovlp2
          nchanmax = nchanmax + latom + 1
       enddo 
-      write(*,'("finish structure calculation")')
-      write(*,'("**********************************************")')
-c
 C  EDELTA is used to shift the energy levels
-      edelta = - enion - enpsinb(ninc,linc) * ry
-      print*,'Error in ground state energy and ',
-     >   'effective incident energy (eV):', edelta, etot * ry + enion
+      edelta = - enion - enchan(1)*ry !enpsinb(ninc,linc) * ry
+      if (nodeid.eq.1) then
+         write(*,'("finished structure calculation")')
+         write(*,'("**********************************************")')
+c
+         print*,'Error in ground state energy and ',
+     >      'effective incident energy (eV):', edelta, etot * ry + enion
+      endif
 c      close(4)
 c      close(136)
       end

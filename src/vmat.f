@@ -128,10 +128,11 @@ c$$$      ch(n) = char(n + ichar('0'))
       character chan(knm)*3, getchchar*2, chspin(3)*1, chspinp(3)*1
       logical positron, first_time
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       common /channels/ nfich(nchan)
       integer satom
-      common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
+      common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM),
+     >   natom(knm)
 C  Do not change the lower case t below as it is used for checking
 C  the spin of the incident state in the SOLVET routine
       data chspin/'s',' ','t'/
@@ -143,7 +144,7 @@ c-----------------------------------------------------------
       common /statenumber_str_to_scat/ Nstate_str_to_scat, na_ng(KNM)
       common /noblgegas_switch/ i_sw_ng    ! set in  cc/main.f
       type state
-         real radial(maxr), energy
+         real radial(maxr), energy, energydiff
          integer na, la, maxpsi, lapar
          character chn*3
       end type state
@@ -176,6 +177,11 @@ c
                   nfich(ncht) = nchp
                   enpsi = enpsinb(na,la)
                   enchan(nchp) = enpsi
+                  if (na.gt.la+1) then
+                     enchandiff(nchp)=enpsinb(na+1,la)-enpsinb(na-1,la)
+                  else
+                     enchandiff(nchp) = 1e0
+                  endif
 !            chan(nchp) = chspin(2*satom(nchp)+1)//getchchar(na,la)
 !            if (lpar(nchp).eq.-(-1)**latom(nchp)) chan(nchp) 
 !     >         = chspinp(2*satom(nchp)+1)//getchchar(na,la)
@@ -235,7 +241,8 @@ c$$$            return
 c$$$         end if 
 c$$$ 10   continue
 
-      if (first_time.or.np(1).ne.0) then
+c$$$      print*,'first_time:',first_time
+      if (first_time) then !.or.np(1).ne.0) then
 cCCC      do la = labot, latop
 cCCC         do na = nabot(la), natop(la)
 C  The above looping is preferable, but the CROSS program expects it in
@@ -252,7 +259,8 @@ C  the order below.
       enddo
       
       do natmp = nastart, nastop
-         do la = labot, min(natmp - 1, latop)
+         do latmp = labot, min(natmp - 1, latop)
+            la = latmp
 C  The following three lines are there for potassium to stop 3d being 
 C  the first channel
             na = natmp
@@ -277,14 +285,25 @@ c$$$     >         .and.(la.ne.linc.or.na.ne.ninc)
                      chan(nchp) = chspin(2*satom(nchp)+1)//
      >                  getchchar(np(nchp),la)
                      if (lpar(nchp).eq.-(-1)**latom(nchp)) chan(nchp) =
-     >                 chspinp(2*satom(nchp)+1)//getchchar(np(nchp),la)
+     >                  chspinp(2*satom(nchp)+1)//getchchar(np(nchp),la)
+                     natom(nchp) = na
+c$$$                     print*,'nchp,chan,na,la,lpar:',
+c$$$     >                  nchp,chan(nchp),na,la,lpar(nchp),
+c$$$     >                  enchan(nchp)
                   endif
+c$$$                  print*,'nchp,na,la:',nchp,na,la,enchan(nchp)
                   enchan(nchp) = enpsinb(na,la)
+                  if (na.gt.la+1) then
+                     enchandiff(nchp)=enpsinb(na+1,la)-enpsinb(na-1,la)
+                  else
+                     enchandiff(nchp) = 1e0
+                  endif
                   states(nchp)%la = la
                   states(nchp)%na = na
                   states(nchp)%lapar = lapar
                   states(nchp)%chn = chan(nchp)
                   states(nchp)%energy = enchan(nchp)
+                  states(nchp)%energydiff = enchandiff(nchp)
                   states(nchp)%radial(1:maxpsinb(na,la))=
      >                 psinb(1:maxpsinb(na,la),na,la)
                   states(nchp)%maxpsi=maxpsinb(na,la)
@@ -308,27 +327,40 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       end do
       nchpmax = nchp
       if (np(1).eq.0) then
-         call reorderstates(states,nchpmax)
          print*,' reordering in getchinfo with NCHPMAX:',nchpmax
+         call reorderstates(states,nchpmax,lptop.ge.0)
       endif 
       else ! not first_time
          if (nch.eq.0) stop 'nch = 0 in getchinfo'
+!         print*,'nchpmax:',nchpmax
          do nchp = 1, nchpmax
-            la = states(nchp)%la
-            lapar = states(nchp)%lapar
-            latom(nchp) = la
+            if (np(1).eq.0) then
+               la = states(nchp)%la
+               lapar = states(nchp)%lapar
+               latom(nchp) = la
+            else
+               la = latom(nchp)
+               lapar = lpar(nchp)
+            endif
             do 30 lp = abs(lg-la), lg+la
-               if ((-1)**lp*lapar.ne.iparity) go to 30
+               if ((-1)**lp*lapar.ne.iparity.and.lg.ne.0) go to 30
                ncht = ncht + 1
                nfich(ncht) = nchp
                if (nch.eq.ncht) then
-                  enpsi = states(nchp)%energy
-                  enchan(nchp) = enpsi
-                  na = states(nchp)%na
-                  chan(nchp) = states(nchp)%chn
-                  maxpsi = states(nchp)%maxpsi
-                  psi(1:maxpsi) = states(nchp)%radial(1:maxpsi)
-                  psi(maxpsi+1:maxr) = 0.0
+                  if (np(1).eq.0) then
+                     enpsi = states(nchp)%energy
+                     enchan(nchp) = enpsi
+                     enchandiff(nchp) = states(nchp)%energydiff
+                     na = states(nchp)%na
+                     chan(nchp) = states(nchp)%chn
+                     maxpsi = states(nchp)%maxpsi
+                     psi(1:maxpsi) = states(nchp)%radial(1:maxpsi)
+                     psi(maxpsi+1:maxr) = 0.0
+                  else
+                     enpsi = enchan(nchp) !for He-like targets is all that is needed
+                     na = natom(nchp)
+c$$$                     print*,'nchp,enpsinb(na,la):',nchp,enpsinb(na,la)
+                  endif
                   return
                end if 
  30         continue 
@@ -339,29 +371,50 @@ c$$$                  print*,'ENERGY:',enchan(nchp)
       return
       end
 
-      subroutine reorderstates(states,nchpmax)
+      subroutine reorderstates(states,nchpmax,ps)
       include 'par.f'
-      logical swapped
+      logical swapped,ps
       type state
-         real radial(maxr), energy
+         real radial(maxr), energy, energydiff
          integer na, la, maxpsi, lapar
          character chn*3
       end type state
       type(state) states(knm), staten
 
+      if (ps) then
+         nstart = 3
+      else
+         nstart = 2
+      endif
       swapped = .true.
       do while (swapped)
          swapped = .false.
-         do n = 3, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
 c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
             e1 = states(n-1)%energy
             e2 = states(n)%energy
-            if (e1.gt.e2*0.99999.or.
-     >         (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
-     >              states(n-1)%la.gt.states(n)%la)) then
+            if (e1.gt.e2) then
                swapped = .true.
-c$$$               print*,'swapping:',n-1,n,
-c$$$     >              states(n-1)%energy,states(n)%energy
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
+               staten = states(n-1)
+               states(n-1) = states(n)
+               states(n) = staten
+            endif
+         enddo
+      enddo 
+      swapped = .true.
+      do while (swapped)
+         swapped = .false.
+         do n = nstart, nchpmax !Leave the 1st alone to stop Ps(1s) becoming 1st
+c$$$            if (states(n-1)%energy.gt.states(n)%energy) then !*0.99999) then
+            e1 = states(n-1)%energy
+            e2 = states(n)%energy
+            if (abs((e1-e2)/(e1+e2)).lt.1e-5.and.
+     >         states(n-1)%la.gt.states(n)%la) then
+               swapped = .true.
+c$$$           print*,'swapping:',abs((e1-e2)/(e1+e2)),n-1,n,states(n-1)%la,
+c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
                staten = states(n-1)
                states(n-1) = states(n)
                states(n) = staten
@@ -370,13 +423,13 @@ c$$$     >              states(n-1)%energy,states(n)%energy
       enddo 
       return
       end
-      
+ 
       subroutine makev1e(nqmi,psii,maxpsii,ei,lia,li,
      >   chii,minchii,gki,ni,etot,thetain,ne2e,
      >   nqmf,psif,maxpsif,ef,lfa,lf,chif,minchif,gkf,nf,
 !     >   lg,const,nqmfmax,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,vmatt,
      >   lg,const,uf,ui,nchf,nchi,nold,nznuci,npk,ve2e,nqmfmax,vmatt,
-     >   nchtop)
+     >   nsmax,nchtop)
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
       dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax)
@@ -384,8 +437,8 @@ c$$$     >              states(n-1)%energy,states(n)%energy
       dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
      >          npk(nchan+1)
 !      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
-      real vmatt(nqmfmax,nqmi,nchi:nchtop,0:1),ve2e(nf,ni), temp(maxr),
-     >   ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax),ve2e(nf,ni), 
+     >   temp(maxr), ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
@@ -439,9 +492,10 @@ c$$$c$$$                  endif
 c$$$                  vmat(kff,kii) = vmat(kff,kii) +
 c$$$     >               tmp * ovlpf(kf) * ovlpi
                   vmatt(kf,ki,nchf,0) = vmatt(kf,ki,nchf,0) 
-     >                                  +tmp*ovlpf(kf)*ovlpi
-                  vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) 
-     >                                  +tmp*ovlpf(kf)*ovlpi
+     >               +tmp*ovlpf(kf)*ovlpi
+                  if (nsmax.eq.1)
+     >               vmatt(kf,ki,nchf,1) = vmatt(kf,ki,nchf,1) 
+     >               +tmp*ovlpf(kf)*ovlpi
  5             continue 
             enddo
          enddo 
@@ -536,7 +590,8 @@ c$$$     >                - tmp * const * sign
 c$$$                  vmat(kff,kii) = vmat(kff,kii) 
 c$$$     >                + tmp * const * sign
                vmatt(kf,ki,nchf,0)=vmatt(kf,ki,nchf,0)+tmp*const*sign
-               vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,1)-tmp*const*sign
+               if (nsmax.eq.1)
+     >            vmatt(kf,ki,nchf,1)=vmatt(kf,ki,nchf,1)-tmp*const*sign
 
 c$$$  endif 
  10         continue 
@@ -545,411 +600,417 @@ c$$$  endif
       end
                
 !not used any more
-      subroutine makev31d(dwpot,nqmi,psii,maxpsii,lia,li,nia,chii,
-     >   minchii,gki,phasei,ni,nqmf,psif,maxpsif,lfa,lf,nfa,chif,
-     >   minchif,gkf,phasef,nf,lg,rnorm,u,itail,nznuci,vdon,nchf,nchi,
-     >   pos,second,npk,ne2e,vmatt)
-      use ubb_module
-      use apar
-      use chil_module
-      include 'par.f'
-      common/meshrr/ meshr,rmesh(maxr,3)
-      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax),
-     >   phasei(kmax)
-      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax),
-     >   phasef(kmax),npk(nchan+1)
-      complex phasei, phasef
-      dimension fun(maxr), temp(maxr), psii(maxr), psif(maxr),
-     >   ovlpi(kmax), ovlpf(kmax), temp2(maxr), temp3(maxr),
-     >   tail(kmax,kmax),u(maxr), dwpot(maxr,nchan)
-      real vmatt(kmax,kmax,0:1),vdon(nchan,nchan,0:1)
-      common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
-     >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
-      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
-     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
-      common /psinbc/ enpsinb(nnmax,0:lnabmax),
-     >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
-      common/numericalpotential/ numericalv, lstoppos
-      logical numericalv
-      common/matchph/rphase(kmax,nchan)
-*      real chitemp(maxr,kmax) !, rpowpos1(maxr), rpowpos2(maxr)
-      allocatable :: chitemp(:,:)
-      logical pos, second
-      common/smallr/ formcut,regcut,expcut,fast,match,analyticd
-      logical fast, match, analyticd
-      real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
-      character chan(knm)*3
-      common /charchan/ chan
-
-      real prod(kmax,kmax)
-c
-      common /di_el_core_polarization/ gamma, r0, pol(maxr)   
-      real*8, dimension (meshr) :: ubbb ! ANDREY
-      character ch*1
-      ch(n) = char(mod(n,75) + ichar('0'))
-      
-      hat(l)= sqrt(2.0 * l + 1.0)
-
-      minfun = 1
-      maxfun = min(maxpsii,maxpsif)
-      do i = minfun, maxfun
-         fun(i) = psii(i) * psif(i) * rmesh(i,3)
-      end do 
-
-      do i = 1, maxr
-         temp3(i) = 0.0
-      enddo
-      mini = maxr
-      maxi = 1
-      ctemp = 0.0
-
-
-      ltmin = 1000000
-      ctemp = 0.0
-      do 10 ilt = -lia, lia, 2
-         lt = lfa + ilt
-         if (lt.lt.0.or.lt.gt.ltmax) go to 10
-         call cleb(2*lia,2*lt,2*lfa,0,0,0,c1)
-         c1tmp = cgc0(float(lia),float(lt),float(lfa))
-         if (abs((c1-c1tmp)/(c1tmp+1e-20)).gt.1e-3) then
-            print*,'CGCs 1 do not agree:',c1, c1tmp,lia,lt,lfa
-            stop 'CGCs 1 do not agree'
-         endif 
-         call cleb(2*li,2*lf,2*lt,0,0,0,c2)
-         c2tmp = cgc0(float(li),float(lf),float(lt))         
-         if (abs((c2-c2tmp)/(c2tmp+1e-20)).gt.1e-3) then
-            c2tmp2 = cgcigor(2*li,2*lf,2*lt,0,0,0)
-C$OMP critical(print)
-            print*,'CGCs 2 do not agree:',c2, c2tmp,c2tmp2,li,lf,lt
-C$OMP end critical(print)
-            c2 = c2tmp2
-         endif 
-         call rac7(2*li,2*lf,2*lia,2*lfa,2*lt,2*lg,c3)
-         c3tmp = cof6j(float(li),float(lf),float(lt),float(lfa),
-     >      float(lia),float(lg))*(-1)**(li+lf+lia+lfa)
-         if (abs((c3-c3tmp)/(c3tmp+1e-6)).gt.1e-2) then
-C  below does happen for NPAR = 1, but not significant
-C$OMP critical(print)
-            print*,'WARNING: CJ6 and W do not agree in D:',c3, c3tmp,
-     >         li,lf,lia,lfa,lt,lg
-C$OMP end critical(print)
-            c3 = c3tmp
-c$$$            stop 'CJ6 and W do not agree in D'
-         endif 
-         
-         c = c1 * c2 * c3
-         if (abs(c).lt.1e-10) go to 10
-         const = (-1)**(lg + lfa) * hat(li) *
-     >      hat(lf) * hat(lia) / hat(lt) * c
-         call form(fun,minfun,maxfun,rpow1(1,lt),rpow2(1,lt),
-     >      minrp(lt),maxrp(lt),meshr,temp,i1,i2)
-c$$$         if (lt.eq.0) print*,'lia,li,lg,lfa,lf,c:',lia,li,lg,lfa,lf,c
-c
-       if(lt.eq.1.and.gamma.ne.0.0) then
-          sum1 = 0.0
-          do i=minfun,maxfun
-             sum1 = sum1 + fun(i)*pol(i)
-          end do                       
-          tmp = gamma * sum1 
-          do i=i1,i2             
-             temp(i) = temp(i) - tmp*pol(i)
-          end do
-       end if
-       
-c         
-C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
-         if (lt.eq.0.and..not.pos.and.nchi.eq.nchf) then
-cCCC  if (lt.eq.0) then
-
-c$$$            if (alkali) then
-c$$$C ANDREY: subtract (ve(r)+1)/r for pos-alkali case             
-c$$$               do i=1,i2
-c$$$                  ! factor 2 is since u(i)/2 appears in nuclear(..)
-c$$$                  u(i)=2.0d0*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$      subroutine makev31d(dwpot,nqmi,psii,maxpsii,lia,li,nia,chii,
+c$$$     >   minchii,gki,phasei,ni,nqmf,psif,maxpsif,lfa,lf,nfa,chif,
+c$$$     >   minchif,gkf,phasef,nf,lg,rnorm,u,itail,nznuci,vdon,nchf,nchi,
+c$$$     >   pos,second,npk,ne2e,vmatt)
+c$$$      use ubb_module
+c$$$      use apar
+c$$$      use chil_module
+c$$$      include 'par.f'
+c$$$      common/meshrr/ meshr,rmesh(maxr,3)
+c$$$      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax),
+c$$$     >   phasei(kmax)
+c$$$      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax),
+c$$$     >   phasef(kmax),npk(nchan+1)
+c$$$      complex phasei, phasef
+c$$$      dimension fun(maxr), temp(maxr), psii(maxr), psif(maxr),
+c$$$     >   ovlpi(kmax), ovlpf(kmax), temp2(maxr), temp3(maxr),
+c$$$     >   tail(kmax,kmax),u(maxr), dwpot(maxr,nchan)
+c$$$      real vmatt(kmax,kmax,0:1),vdon(nchan,nchan,0:1)
+c$$$      common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
+c$$$     >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
+c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
+c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
+c$$$      common /psinbc/ enpsinb(nnmax,0:lnabmax),
+c$$$     >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
+c$$$      common/numericalpotential/ numericalv, lstoppos
+c$$$      logical numericalv
+c$$$      common/matchph/rphase(kmax,nchan)
+c$$$*      real chitemp(maxr,kmax) !, rpowpos1(maxr), rpowpos2(maxr)
+c$$$      allocatable :: chitemp(:,:)
+c$$$      logical pos, second
+c$$$      common/smallr/ formcut,regcut,expcut,fast,match,analyticd
+c$$$      logical fast, match, analyticd
+c$$$      real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
+c$$$      character chan(knm)*3
+c$$$      common /charchan/ chan
+c$$$
+c$$$      real prod(kmax,kmax)
+c$$$c
+c$$$      common /di_el_core_polarization/ gamma, r0, pol(maxr)   
+c$$$      real*8, dimension (meshr) :: ubbb ! ANDREY
+c$$$      character ch*1
+c$$$      ch(n) = char(mod(n,75) + ichar('0'))
+c$$$      
+c$$$      hat(l)= sqrt(2.0 * l + 1.0)
+c$$$
+c$$$      minfun = 1
+c$$$      maxfun = min(maxpsii,maxpsif)
+c$$$      do i = minfun, maxfun
+c$$$         fun(i) = psii(i) * psif(i) * rmesh(i,3)
+c$$$      end do 
+c$$$
+c$$$      do i = 1, maxr
+c$$$         temp3(i) = 0.0
+c$$$      enddo
+c$$$      mini = maxr
+c$$$      maxi = 1
+c$$$      ctemp = 0.0
+c$$$
+c$$$
+c$$$      ltmin = 1000000
+c$$$      ctemp = 0.0
+c$$$      do 10 ilt = -lia, lia, 2
+c$$$         lt = lfa + ilt
+c$$$         if (lt.lt.0.or.lt.gt.ltmax) go to 10
+c$$$         call cleb(2*lia,2*lt,2*lfa,0,0,0,c1)
+c$$$         c1tmp = cgc0(float(lia),float(lt),float(lfa))
+c$$$         if (abs((c1-c1tmp)/(c1tmp+1e-20)).gt.1e-3) then
+c$$$            print*,'CGCs 1 do not agree:',c1, c1tmp,lia,lt,lfa
+c$$$            stop 'CGCs 1 do not agree'
+c$$$         endif 
+c$$$         call cleb(2*li,2*lf,2*lt,0,0,0,c2)
+c$$$         c2tmp = cgc0(float(li),float(lf),float(lt))         
+c$$$         if (abs((c2-c2tmp)/(c2tmp+1e-20)).gt.1e-3) then
+c$$$            c2tmp2 = cgcigor(2*li,2*lf,2*lt,0,0,0)
+c$$$C$OMP critical(print)
+c$$$            print*,'CGCs 2 do not agree:',c2, c2tmp,c2tmp2,li,lf,lt
+c$$$C$OMP end critical(print)
+c$$$            c2 = c2tmp2
+c$$$         endif 
+c$$$         call rac7(2*li,2*lf,2*lia,2*lfa,2*lt,2*lg,c3)
+c$$$         c3tmp = cof6j(float(li),float(lf),float(lt),float(lfa),
+c$$$     >      float(lia),float(lg))*(-1)**(li+lf+lia+lfa)
+c$$$         if (abs((c3-c3tmp)/(c3tmp+1e-6)).gt.1e-2) then
+c$$$C  below does happen for NPAR = 1, but not significant
+c$$$C$OMP critical(print)
+c$$$            print*,'WARNING: CJ6 and W do not agree in D:',c3, c3tmp,
+c$$$     >         li,lf,lia,lfa,lt,lg
+c$$$C$OMP end critical(print)
+c$$$            c3 = c3tmp
+c$$$c$$$            stop 'CJ6 and W do not agree in D'
+c$$$         endif 
+c$$$         
+c$$$         c = c1 * c2 * c3
+c$$$         if (abs(c).lt.1e-10) go to 10
+c$$$         const = (-1)**(lg + lfa) * hat(li) *
+c$$$     >      hat(lf) * hat(lia) / hat(lt) * c
+c$$$         call form(fun,minfun,maxfun,rpow1(1,lt),rpow2(1,lt),
+c$$$     >      minrp(lt),maxrp(lt),meshr,temp,i1,i2)
+c$$$c$$$         if (lt.eq.0) print*,'lia,li,lg,lfa,lf,c:',lia,li,lg,lfa,lf,c
+c$$$c
+c$$$       if(lt.eq.1.and.gamma.ne.0.0) then
+c$$$          sum1 = 0.0
+c$$$          do i=minfun,maxfun
+c$$$             sum1 = sum1 + fun(i)*pol(i)
+c$$$          end do                       
+c$$$          tmp = gamma * sum1 
+c$$$          do i=i1,i2             
+c$$$             temp(i) = temp(i) - tmp*pol(i)
+c$$$          end do
+c$$$       end if
+c$$$       
+c$$$c         
+c$$$C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
+c$$$         if (lt.eq.0.and..not.pos.and.nchi.eq.nchf) then
+c$$$cCCC  if (lt.eq.0) then
+c$$$
+c$$$c$$$            if (alkali) then
+c$$$c$$$C ANDREY: subtract (ve(r)+1)/r for pos-alkali case             
+c$$$c$$$               do i=1,i2
+c$$$c$$$                  ! factor 2 is since u(i)/2 appears in nuclear(..)
+c$$$c$$$                  u(i)=2.0d0*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$c$$$               end do
+c$$$c$$$            end if                                 
+c$$$            call nuclear(fun,.not.pos,minfun,maxfun,i2,u,nznuc,temp)
+c$$$c$$$C     ANDREY: subtract (ve(r)+1)/r for pos-alkali atom scattering
+c$$$c$$$            if (alkali) then           
+c$$$c$$$               tmp=0.0
+c$$$c$$$               do i=minfun,maxfun
+c$$$c$$$                  tmp=tmp+fun(i)
+c$$$c$$$               end do
+c$$$c$$$               irstop = i2 
+c$$$c$$$               do i=1,irstop
+c$$$c$$$                  temp(i)=temp(i)-tmp*veint(rmesh(i,1))*rpow2(i ,0)
+c$$$c$$$               end do
+c$$$c$$$               do while (abs(temp(irstop)).lt.formcut.and.irstop.gt.1)
+c$$$c$$$                  temp(irstop) = 0.0
+c$$$c$$$                  irstop = irstop - 1
+c$$$c$$$               end do
+c$$$c$$$               i2=irstop
+c$$$c$$$            end if             
+c$$$         endif
+c$$$
+c$$$         if (pos) then !.and.lg.le.lstoppos) then  !.and.nqmi.gt.1
+c$$$C     ANDREY: Hydrogen: ssalling + interpolation:          
+c$$$            if (.not.alkali) then               
+c$$$C  The factor of two below is the reduced mass. We are working with matrix
+c$$$C  elements whose channels are multiplied by sqrt of the reduced mass. Here
+c$$$C  we have positronium-positronium matrix element, hence a factor of 2 overall.
+c$$$c$$$            const = const * (1-(-1)**lt)
+c$$$               const = 2.0 * const * (1-(-1)**lt)
+c$$$c$$$               const = - const !Rav's derivation, but not Alisher's
+c$$$               do i = i1, i2
+c$$$                  xin(i-i1+1) = rmesh(i,1)
+c$$$                  yin(i-i1+1) = temp(i) * xin(i-i1+1) ** (lt+1)
+c$$$                  xout(i-i1+1) = rmesh(i,1) * 2d0
+c$$$               enddo 
+c$$$               if (i2-i1+1.gt.maxr) then
+c$$$                  print*,'I2,I1,LT:',i2,i1,lt
+c$$$                  stop 'problem in call to intrpl'
+c$$$               endif 
+c$$$               call intrpl(i2-i1+1,xin,yin,i2-i1+1,xout,yout)
+c$$$c$$$            nnn = nnn + 1
+c$$$               do i = i1, i2
+c$$$                  if (xout(i-i1+1).gt.xin(i2-i1+1))
+c$$$     >                 yout(i-i1+1) = yin(i2-i1+1)
+c$$$                  temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
+c$$$c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
+c$$$c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1), 
+c$$$c$$$     >            xin(i-i1+1), yin(i-i1+1) / xin(i-i1+1)**(lt+1), i
+c$$$               enddo
+c$$$            else ! alkali              
+c$$$C     ANDREY: pos-alkali case: radial integrals with Ubb               
+c$$$               if (lt.gt.ubb_max3) stop
+c$$$     $              'stopped: vmat: Ubb with larger lt are needed'
+c$$$               const=2d0*const               
+c$$$C              some constants from get_ubb: 
+c$$$               rlgmin = log10(rmesh(1,1))
+c$$$               rlgmax = log10(rmesh(meshr,1))
+c$$$               drlg = (rlgmax-rlgmin)/real(ubb_max1-1)
+c$$$
+c$$$c---- find irmin and irmax needed for interpolation                  
+c$$$               irmin = 1;
+c$$$               rmin = rmesh(minfun, 1);  
+c$$$               ir = 2;               
+c$$$               do while (arho(ir).lt.rmin)                  
+c$$$                  ir = ir+1
 c$$$               end do
-c$$$            end if                                 
-            call nuclear(fun,.not.pos,minfun,maxfun,i2,u,nznuc,temp)
-c$$$C     ANDREY: subtract (ve(r)+1)/r for pos-alkali atom scattering
-c$$$            if (alkali) then           
-c$$$               tmp=0.0
-c$$$               do i=minfun,maxfun
-c$$$                  tmp=tmp+fun(i)
+c$$$               irmin = ir-1               
+c$$$C     ---------------------------------------------- 
+c$$$               rmax = rmesh(maxfun, 1)  
+c$$$               irmax = ubb_max1; ir = irmax;
+c$$$               do while (arho(ir).gt.rmax)                  
+c$$$                  ir = ir-1
 c$$$               end do
-c$$$               irstop = i2 
-c$$$               do i=1,irstop
-c$$$                  temp(i)=temp(i)-tmp*veint(rmesh(i,1))*rpow2(i ,0)
-c$$$               end do
-c$$$               do while (abs(temp(irstop)).lt.formcut.and.irstop.gt.1)
-c$$$                  temp(irstop) = 0.0
-c$$$                  irstop = irstop - 1
-c$$$               end do
-c$$$               i2=irstop
-c$$$            end if             
-         endif
-
-         if (pos) then !.and.lg.le.lstoppos) then  !.and.nqmi.gt.1
-C     ANDREY: Hydrogen: ssalling + interpolation:          
-            if (.not.alkali) then               
-C  The factor of two below is the reduced mass. We are working with matrix
-C  elements whose channels are multiplied by sqrt of the reduced mass. Here
-C  we have positronium-positronium matrix element, hence a factor of 2 overall.
-c$$$            const = const * (1-(-1)**lt)
-               const = 2.0 * const * (1-(-1)**lt)
-c$$$               const = - const !Rav's derivation, but not Alisher's
-               do i = i1, i2
-                  xin(i-i1+1) = rmesh(i,1)
-                  yin(i-i1+1) = temp(i) * xin(i-i1+1) ** (lt+1)
-                  xout(i-i1+1) = rmesh(i,1) * 2d0
-               enddo 
-               if (i2-i1+1.gt.maxr) then
-                  print*,'I2,I1,LT:',i2,i1,lt
-                  stop 'problem in call to intrpl'
-               endif 
-               call intrpl(i2-i1+1,xin,yin,i2-i1+1,xout,yout)
-c$$$            nnn = nnn + 1
-               do i = i1, i2
-                  if (xout(i-i1+1).gt.xin(i2-i1+1))
-     >                 yout(i-i1+1) = yin(i2-i1+1)
-                  temp(i) = 2.0 * (yout(i-i1+1) / xout(i-i1+1)**(lt+1))
-c$$$               write(50+nnn,'(1p,4e10.3,i5)') xout(i-i1+1),
-c$$$     >            yout(i-i1+1) / xout(i-i1+1)**(lt+1), 
-c$$$     >            xin(i-i1+1), yin(i-i1+1) / xin(i-i1+1)**(lt+1), i
-               enddo
-            else ! alkali              
-C     ANDREY: pos-alkali case: radial integrals with Ubb               
-               if (lt.gt.ubb_max3) stop
-     $              'stopped: vmat: Ubb with larger lt are needed'
-               const=2d0*const               
-C              some constants from get_ubb: 
-               rlgmin = log10(rmesh(1,1))
-               rlgmax = log10(rmesh(meshr,1))
-               drlg = (rlgmax-rlgmin)/real(ubb_max1-1)
-
-c---- find irmin and irmax needed for interpolation                  
-               irmin = 1;
-               rmin = rmesh(minfun, 1);  
-               ir = 2;               
-               do while (arho(ir).lt.rmin)                  
-                  ir = ir+1
-               end do
-               irmin = ir-1               
-C     ---------------------------------------------- 
-               rmax = rmesh(maxfun, 1)  
-               irmax = ubb_max1; ir = irmax;
-               do while (arho(ir).gt.rmax)                  
-                  ir = ir-1
-               end do
-               irmax = ir+1               
-               maxir = irmax-irmin+1
-C---------------------------------------------------
-               
-               do i = 1, i2
-                  rho = rmesh(i,1);                                    
-                  call get_ubb(minfun,maxfun,irmin,irmax,maxir,drlg,lt,
-     $                 rho,ubbb)      
-                  temp(i) = 0.0                 
-                  do j = minfun, maxfun
-                     r = rmesh(j,1)
-c     explicit integration of Ubb (Eq. 23): 
-C                    call Ubb0(lt, r, rho, res0, res)
-C     Ubb integrals computed outside:
-C                    res = ubb_res(j,i,lt)
-C     interpolation: minus: alisher uses (1-(-1)**lt):
-                     res = -ubbb(j)/max(rho,r/2.)
-                     temp(i) = temp(i)+res*fun(j)
-                  end do        ! j
-               end do           ! i               
-            end if              ! alkali or hydrogen                          
-         else                   ! pos
-C  Multiply by -1 for positron scattering as then NZE = 1, for non pos-pos
-C  channels 
-            const = - nze * const
-         endif ! pos
-         
-         do i = i1, i2
-            temp3(i) = const * temp(i) + temp3(i)
-         enddo
-         mini = min(mini,i1)
-         maxi = max(maxi,i2)
-C  The variable CTEMP is the asymptotic value of const * temp * r ** (lt+1)
-c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
-            if (i2.eq.meshr.and.lt.ne.0.and.lt.lt.ltmin) then
-               ctemp = rnorm * const * temp(i2)/rpow2(i2,lt)
-               ltmin = lt
-c$$$               print*,'ctemp,lt:',ctemp,lt
-c$$$            ctemp = - float(nze) * rnorm * const * temp(i2)/rpow2(i2,lt)
-         endif 
- 10   continue
-c$$$      if (pos.and.maxi.eq.meshr) then
-c$$$         print*,'Writing temp3 to disk'
-c$$$         open(42,file='temp'//ch(lfa)//ch(lia)//ch(lt))
-c$$$         write(42,*) '# lt,ltmin,ctemp:',lt,ltmin,ctemp
-c$$$         do i = 1, meshr
-c$$$            write(42,*) rmesh(i,1), temp3(i)
+c$$$               irmax = ir+1               
+c$$$               maxir = irmax-irmin+1
+c$$$C---------------------------------------------------
+c$$$               
+c$$$               do i = 1, i2
+c$$$                  rho = rmesh(i,1);                                    
+c$$$                  call get_ubb(minfun,maxfun,irmin,irmax,maxir,drlg,lt,
+c$$$     $                 rho,ubbb)      
+c$$$                  temp(i) = 0.0                 
+c$$$                  do j = minfun, maxfun
+c$$$                     r = rmesh(j,1)
+c$$$c     explicit integration of Ubb (Eq. 23): 
+c$$$C                    call Ubb0(lt, r, rho, res0, res)
+c$$$C     Ubb integrals computed outside:
+c$$$C                    res = ubb_res(j,i,lt)
+c$$$C     interpolation: minus: alisher uses (1-(-1)**lt):
+c$$$                     res = -ubbb(j)/max(rho,r/2.)
+c$$$                     temp(i) = temp(i)+res*fun(j)
+c$$$                  end do        ! j
+c$$$               end do           ! i               
+c$$$            end if              ! alkali or hydrogen                          
+c$$$         else                   ! pos
+c$$$C  Multiply by -1 for positron scattering as then NZE = 1, for non pos-pos
+c$$$C  channels 
+c$$$            const = - nze * const
+c$$$         endif ! pos
+c$$$         
+c$$$         do i = i1, i2
+c$$$            temp3(i) = const * temp(i) + temp3(i)
 c$$$         enddo
-c$$$         close(42)
+c$$$         mini = min(mini,i1)
+c$$$         maxi = max(maxi,i2)
+c$$$C  The variable CTEMP is the asymptotic value of const * temp * r ** (lt+1)
+c$$$c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
+c$$$            if (i2.eq.meshr.and.lt.ne.0.and.lt.lt.ltmin) then
+c$$$               ctemp = rnorm * const * temp(i2)/rpow2(i2,lt)
+c$$$               ltmin = lt
+c$$$c$$$               print*,'ctemp,lt:',ctemp,lt
+c$$$c$$$            ctemp = - float(nze) * rnorm * const * temp(i2)/rpow2(i2,lt)
+c$$$         endif 
+c$$$ 10   continue
+c$$$c$$$      if (pos.and.maxi.eq.meshr) then
+c$$$c$$$         print*,'Writing temp3 to disk'
+c$$$c$$$         open(42,file='temp'//ch(lfa)//ch(lia)//ch(lt))
+c$$$c$$$         write(42,*) '# lt,ltmin,ctemp:',lt,ltmin,ctemp
+c$$$c$$$         do i = 1, meshr
+c$$$c$$$            write(42,*) rmesh(i,1), temp3(i)
+c$$$c$$$         enddo
+c$$$c$$$         close(42)
+c$$$c$$$      endif 
+c$$$            
+c$$$c$$$      if (ltmin.lt.10.and.maxi.eq.meshr)
+c$$$c$$$     >   print*,'pos,lfa,lia,ltmin,maxi,ctemp,v(i):',pos,lfa,lia,ltmin,
+c$$$c$$$     >   maxi,ctemp,(rnorm*temp3(i)/rpow2(i,ltmin),i=maxi-20,maxi,10)
+c$$$      if (ltmin.lt.10.and.maxi.eq.meshr) then
+c$$$         ctemp = rnorm * temp3(maxi) / rpow2(maxi,ltmin)
+c$$$c$$$      else
+c$$$c$$$         ctemp = 0.0
 c$$$      endif 
-            
-c$$$      if (ltmin.lt.10.and.maxi.eq.meshr)
-c$$$     >   print*,'pos,lfa,lia,ltmin,maxi,ctemp,v(i):',pos,lfa,lia,ltmin,
-c$$$     >   maxi,ctemp,(rnorm*temp3(i)/rpow2(i,ltmin),i=maxi-20,maxi,10)
-      if (ltmin.lt.10.and.maxi.eq.meshr) then
-         ctemp = rnorm * temp3(maxi) / rpow2(maxi,ltmin)
+c$$$      if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
+c$$$C  Define the channel dependent distorting potential when running the
+c$$$C  Born case. The units are Rydbergs.
+c$$$         do i = 1, meshr
+c$$$            dwpot(i,nchi) = 0.0
+c$$$         enddo
+c$$$         do i = mini, maxi
+c$$$            dwpot(i,nchi) = temp3(i) * 2.0
+c$$$         enddo
+c$$$      endif
+c$$$      
+c$$$C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
+c$$$C  them.
+c$$$c$$$      open(42,file=chan(nchf)(2:3)//'.'//chan(nchi)(2:3))
+c$$$c$$$      write(42,'("# ", i2, a4, "<-", a4, i3)')
+c$$$c$$$     >   lf,chan(nchf),chan(nchi),li
+c$$$      do i = mini, maxi
+c$$$c$$$         write(42,*) i, rmesh(i,1), temp3(i)
+c$$$         temp3(i) = rnorm * temp3(i) / rmesh(i,3)
+c$$$      end do
+c$$$c$$$      close(42)
+c$$$      mini1 = mini
+c$$$C put IF statement as chil(,,2) may not be allocated, but see below
+c$$$      tail(:,:) = 0.0
+c$$$      if (itail.eq.-1) then
+c$$$      call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
+c$$$     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),2),minchil(npk(nchf),2)
+c$$$     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+c$$$      elseif (itail.eq.1) then
+c$$$      call maketail(itail,ctemp,chil(1,npk(nchi),1),minchil(npk(nchi),1)
+c$$$     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),1),minchil(npk(nchf),1)
+c$$$     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
+c$$$      endif
+c$$$c$$$      call maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
+c$$$c$$$     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+c$$$
+c$$$      allocate(chitemp(maxr,kmax))
+c$$$      do ki = 1, nqmi
+c$$$         minki = max(mini1, minchii(ki))
+c$$$         do i = minki, maxi
+c$$$            chitemp(i,ki) = temp3(i) * chii(i,ki)
+c$$$         enddo
+c$$$      enddo 
+c$$$
+c$$$C  The following gets correct prod(kmax,kmax) but the transfer takes all
+c$$$C  the time! Need to transfer all of CHIL at the one time, but....
+c$$$c$$$  if (nqmi.gt.1.and.nqmf.gt.1) 
+c$$$c$$$     >     call cmmult(temp3,chif,chitemp,meshr,nqmf,nqmi,mini,maxi,
+c$$$c$$$     >     prod)
+c$$$
+c$$$c$$$c$par doall      
+c$$$      if (nchi.eq.nchf) then
+c$$$      do ki = 1, nqmi
+c$$$         qi = gki(ki)
+c$$$         kii = npk(nchi) + ki - 1
+c$$$         minki = max(mini1, minchii(ki))
+c$$$         kfstop = nqmf
+c$$$         if (second) then
+c$$$            if (ki.eq.1) then
+c$$$               kfstop = nqmf
+c$$$            else
+c$$$               kfstop = 1
+c$$$            endif
+c$$$         endif 
+c$$$         do 20 kf = 1, kfstop
+c$$$            qf = gkf(kf)
+c$$$
+c$$$            if (ne2e.eq.0) then
+c$$$               kff = npk(nchf) + kf - 1
+c$$$               if (kff.lt.kii) go to 20
+c$$$            else
+c$$$               kff = nchf
+c$$$            endif 
+c$$$            mini = max(minki, minchif(kf))
+c$$$            n = maxi - mini + 1
+c$$$            tmp = tail(kf,ki)
+c$$$            tmp = tmp +
+c$$$c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
+c$$$     >         dot_product(chif(mini:maxi,kf),chitemp(mini:maxi,ki))
+c$$$            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp 
+c$$$            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp 
+c$$$ 20      continue 
+c$$$      end do 
 c$$$      else
-c$$$         ctemp = 0.0
-      endif 
-      if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
-C  Define the channel dependent distorting potential when running the
-C  Born case. The units are Rydbergs.
-         do i = 1, meshr
-            dwpot(i,nchi) = 0.0
-         enddo
-         do i = mini, maxi
-            dwpot(i,nchi) = temp3(i) * 2.0
-         enddo
-      endif
+c$$$
+c$$$      do ki = 1, nqmi
+c$$$c         qi = gki(ki)
+c$$$c         kii = npk(nchi) + ki - 1
+c$$$         minki = max(mini1, minchii(ki))
+c$$$c         kfstop = nqmf
+c$$$         do kf = 1, nqmf
+c$$$c            qf = gkf(kf)
+c$$$c            kff = npk(nchf) + kf - 1
+c$$$            mini = max(minki, minchif(kf))
+c$$$            tmp = 
+c$$$c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
+c$$$     >         dot_product(chif(1:maxi,kf),chitemp(1:maxi,ki))
+c$$$c            tmp = 0.0
+c$$$c            do i = 1, maxi
+c$$$c               tmp = tmp + chif(i,kf)*chii(i,ki)*temp3(i)
+c$$$c            enddo
+c$$$            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp
+c$$$            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp
+c$$$      end do
+c$$$      end do
+c$$$c      call cuDDOT(chif,chii,temp3,nqmf,nqmi,meshr,kmax,maxi,vmatt)
+c$$$      end if
+c$$$      deallocate(chitemp)
+c$$$
+c$$$      if (itail.gt.0.and..not.pos.and.abs(lf-li).eq.1) then
+c$$$         do ki = 1, nqmi
+c$$$            qi = gki(ki)
+c$$$            kf = nqmf-1
+c$$$            do while (kf.gt.1)
+c$$$               qf = gkf(kf)
+c$$$               if (qf*rmesh(meshr,1).lt.itail.and.qf.lt.qi) then
+c$$$                  estimate = vmatt(kf+1,ki,0)*qf**2/gkf(kf+1)**2
+c$$$c$$$                  print*,kf,qf,estimate,gkf(kf+1),vmatt(kf+1,ki,0)
+c$$$                  vmatt(kf,ki,0) = estimate
+c$$$                  vmatt(kf,ki,1) = estimate
+c$$$               endif
+c$$$               kf = kf - 1
+c$$$            enddo
+c$$$         enddo
+c$$$      endif 
+c$$$                  
+c$$$C  Define the direct on shell V matrix used for analytic Born subtraction
+c$$$C  in the cross program
+c$$$      ki = 1
+c$$$      kf = 1
+c$$$      tmp = tail(kf,ki)
+c$$$      mini = max(mini1, minchii(ki), minchif(kf))
+c$$$      minki = max(mini1, minchii(ki))
+c$$$      do i = minki, maxi
+c$$$         temp2(i) = temp3(i) * chii(i,ki)
+c$$$      enddo 
+c$$$c$$$      n = maxi - mini + 1
+c$$$c$$$      if(n.gt.0)tmp = tmp + sdot(n,chif(mini,kf),1,temp2(mini),1)
+c$$$C The following If statement avoids a bug on the IBMs
+c$$$      if (mini.lt.maxi) then
+c$$$         tmp = tmp +
+c$$$     >      dot_product(chif(mini:maxi,kf),temp2(mini:maxi))
+c$$$      endif 
+c$$$      
+c$$$      
+c$$$cCCC      do i = mini, maxi
+c$$$cCCC         tmp = tmp + chii(i,ki) * chif(i,kf) * temp3(i)
+c$$$cCCC      end do
+c$$$      do ns = 0, 1
+c$$$         vdon(nchf,nchi,ns) = vdon(nchf,nchi,ns) + tmp
+c$$$         vdon(nchi,nchf,ns) = vdon(nchf,nchi,ns)
+c$$$      enddo 
+c$$$      end
       
-C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
-C  them.
-c$$$      open(42,file=chan(nchf)(2:3)//'.'//chan(nchi)(2:3))
-c$$$      write(42,'("# ", i2, a4, "<-", a4, i3)')
-c$$$     >   lf,chan(nchf),chan(nchi),li
-      do i = mini, maxi
-c$$$         write(42,*) i, rmesh(i,1), temp3(i)
-         temp3(i) = rnorm * temp3(i) / rmesh(i,3)
-      end do
-c$$$      close(42)
-      mini1 = mini
-C put IF statement as chil(,,2) may not be allocated, but see below
-      tail(:,:) = 0.0
-      if (itail.ne.0)
-     >call maketail(itail,ctemp,chil(1,npk(nchi),2),minchil(npk(nchi),2)
-     >   ,gki,phasei,li,nqmi,chil(1,npk(nchf),2),minchil(npk(nchf),2)
-     >   ,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
-c$$$      call maketail(itail,ctemp,chii,minchii,gki,phasei,li,nqmi,
-c$$$     >   chif,minchif,gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
-
-      allocate(chitemp(maxr,kmax))
-      do ki = 1, nqmi
-         minki = max(mini1, minchii(ki))
-         do i = minki, maxi
-            chitemp(i,ki) = temp3(i) * chii(i,ki)
-         enddo
-      enddo 
-
-C  The following gets correct prod(kmax,kmax) but the transfer takes all
-C  the time! Need to transfer all of CHIL at the one time, but....
-c$$$  if (nqmi.gt.1.and.nqmf.gt.1) 
-c$$$     >     call cmmult(temp3,chif,chitemp,meshr,nqmf,nqmi,mini,maxi,
-c$$$     >     prod)
-
-c$$$c$par doall      
-      if (nchi.eq.nchf) then
-      do ki = 1, nqmi
-         qi = gki(ki)
-         kii = npk(nchi) + ki - 1
-         minki = max(mini1, minchii(ki))
-         kfstop = nqmf
-         if (second) then
-            if (ki.eq.1) then
-               kfstop = nqmf
-            else
-               kfstop = 1
-            endif
-         endif 
-         do 20 kf = 1, kfstop
-            qf = gkf(kf)
-
-            if (ne2e.eq.0) then
-               kff = npk(nchf) + kf - 1
-               if (kff.lt.kii) go to 20
-            else
-               kff = nchf
-            endif 
-            mini = max(minki, minchif(kf))
-            n = maxi - mini + 1
-            tmp = tail(kf,ki)
-            tmp = tmp +
-c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
-     >         dot_product(chif(mini:maxi,kf),chitemp(mini:maxi,ki))
-            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp 
-            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp 
- 20      continue 
-      end do 
-      else
-
-      do ki = 1, nqmi
-c         qi = gki(ki)
-c         kii = npk(nchi) + ki - 1
-         minki = max(mini1, minchii(ki))
-c         kfstop = nqmf
-         do kf = 1, nqmf
-c            qf = gkf(kf)
-c            kff = npk(nchf) + kf - 1
-            mini = max(minki, minchif(kf))
-            tmp = 
-c     >         cuDDot(chif,chitemp,meshr,nqmf,maxr,kmax,mini,maxi,kf,ki)
-     >         dot_product(chif(1:maxi,kf),chitemp(1:maxi,ki))
-c            tmp = 0.0
-c            do i = 1, maxi
-c               tmp = tmp + chif(i,kf)*chii(i,ki)*temp3(i)
-c            enddo
-            vmatt(kf,ki,0) = vmatt(kf,ki,0) + tmp
-            vmatt(kf,ki,1) = vmatt(kf,ki,1) + tmp
-      end do
-      end do
-c      call cuDDOT(chif,chii,temp3,nqmf,nqmi,meshr,kmax,maxi,vmatt)
-      end if
-      deallocate(chitemp)
-
-      if (itail.gt.0.and..not.pos.and.abs(lf-li).eq.1) then
-         do ki = 1, nqmi
-            qi = gki(ki)
-            kf = nqmf-1
-            do while (kf.gt.1)
-               qf = gkf(kf)
-               if (qf*rmesh(meshr,1).lt.itail.and.qf.lt.qi) then
-                  estimate = vmatt(kf+1,ki,0)*qf**2/gkf(kf+1)**2
-c$$$                  print*,kf,qf,estimate,gkf(kf+1),vmatt(kf+1,ki,0)
-                  vmatt(kf,ki,0) = estimate
-                  vmatt(kf,ki,1) = estimate
-               endif
-               kf = kf - 1
-            enddo
-         enddo
-      endif 
-                  
-C  Define the direct on shell V matrix used for analytic Born subtraction
-C  in the cross program
-      ki = 1
-      kf = 1
-      tmp = tail(kf,ki)
-      mini = max(mini1, minchii(ki), minchif(kf))
-      minki = max(mini1, minchii(ki))
-      do i = minki, maxi
-         temp2(i) = temp3(i) * chii(i,ki)
-      enddo 
-c$$$      n = maxi - mini + 1
-c$$$      if(n.gt.0)tmp = tmp + sdot(n,chif(mini,kf),1,temp2(mini),1)
-C The following If statement avoids a bug on the IBMs
-      if (mini.lt.maxi) then
-         tmp = tmp +
-     >      dot_product(chif(mini:maxi,kf),temp2(mini:maxi))
-      endif 
-      
-      
-cCCC      do i = mini, maxi
-cCCC         tmp = tmp + chii(i,ki) * chif(i,kf) * temp3(i)
-cCCC      end do
-      do ns = 0, 1
-         vdon(nchf,nchi,ns) = vdon(nchf,nchi,ns) + tmp
-         vdon(nchi,nchf,ns) = vdon(nchf,nchi,ns)
-      enddo 
-      end
-      
-      subroutine core(ifirst,nznuci,lg,etot,chil,minchil,nchtop,
-     >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon,vmat,vmatp)
+      subroutine core(ifirst,nznuci,lg,etot,chilx,minchilx,nchtop,
+     >   u,ldw,vdcore,minvdc,maxvdc,npk,vdon)!,vmat,vmatp)
       use vmat_module
+      use chil_module
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -961,10 +1022,11 @@ cCCC      end do
       integer npk(nchtop+1)
       common/smallr/ formcut,regcut,expcut,fast,match,analyticd,packed
       logical fast, match, analyticd, packed
-      real vmat(npk(nchtop+1)-1,npk(nchtop+1)), vdon(nchan,nchan,0:1)
+      real !vmat(npk(nchtop+1)-1,npk(nchtop+1)),
+     >   vdon(nchan,nchan,0:1)
       dimension psic(maxr),ovlp(kmax),vdcore(maxr,0:lamax),temp(maxr),
-     >   fun(maxr),u(maxr),vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:1)
-      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
+     >   fun(maxr),u(maxr)!,vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:1)
+c$$$      dimension chil(meshr,npk(nchtop+1)-1),minchil(npk(nchtop+1)-1)
       data pi/3.1415927/
       logical posi, positron
 
@@ -987,17 +1049,17 @@ cCCC      end do
          if (l .gt. ldw) then
             do ki = 1, nqm
                kii = npk(nch) + ki - 1
-               do i = max(minchil(kii),minvdc), maxvdc
-                  temp(i) = chil(i,kii) * vdcore(i,la) / rmesh(i,3)
+               do i = max(minchil(kii,1),minvdc), maxvdc
+                  temp(i) = chil(i,kii,1) * vdcore(i,la) / rmesh(i,3)
                enddo 
                do 5 kf = 1, nqm
                   kff = npk(nch) + kf - 1
                   if (kff.lt.kii) go to 5
                   tmp = 0.0
-                  mini = max(minvdc, minchil(kii),minchil(kff))
+                  mini = max(minvdc, minchil(kii,1),minchil(kff,1))
                   maxi = maxvdc
                   do i = mini, maxi
-                     tmp = tmp + chil(i,kff) * temp(i)
+                     tmp = tmp + chil(i,kff,1) * temp(i)
                   end do
 c$$$                  if (packed) then
 c$$$                     vmatp(kii+(kff-1)*kff/2,0) = - rnorm * tmp 
@@ -1010,10 +1072,10 @@ c$$$                  else
                      vmat(kff,kii) = vmat(kff,kii) + rnorm * tmp 
                      vmat(kii,kff+1) = vmat(kii,kff+1) + rnorm*tmp
                   else 
-                     if (ifirst.eq.1) then !only for the second call
+c$$$                     if (ifirst.eq.1) then !only for the second call
                      vmat01(kff,kii) = vmat01(kff,kii)+rnorm*tmp
                      vmat01(kii,kff+1)=vmat01(kii,kff+1)+rnorm*tmp
-                  endif 
+c$$$                  endif 
                      endif 
 c$$$                  endif 
  5             continue 
@@ -1024,13 +1086,18 @@ C  in the cross program
 c$$$         if (packed) then
 c$$$            vdon(nch,nch,0) = vmatp(npk(nch)+(npk(nch)-1)*npk(nch)/2,0)
 c$$$         else
-         if (npk(2)-npk(1).eq.1.and.nodeid.eq.1) then
+c$$$         if (npk(2)-npk(1).eq.1.and.nodeid.eq.1) then
+c$$$            vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
+c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
+c$$$        endif
+c$$$        endif
+         if (scalapack.and.ifirst.eq.1) then !had ifirst commented out, not sure why. Put back for Ga with DW.
+            vdon(nch,nch,0) = vmat01(npk(nch),npk(nch))
+            vdon(nch,nch,1) = vdon(nch,nch,0)
+         else
             vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
             vdon(nch,nch,1) = vdon(nch,nch,0)
-         endif 
-c$$$            vdon(nch,nch,0) = vmat(nch,nch)
-c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
-c$$$         endif 
+         endif
 C  Core exchange only for electron scattering and if not using local exchange
 C  core potentials
             
@@ -1057,10 +1124,10 @@ C  core potentials
      >                  float(2 * l + 1)
                      do ki = 1, nqm
                         kii = npk(nch) + ki - 1
-                        minfun = minchil(kii)
+                        minfun = minchil(kii,1)
                         maxfun = maxpsic
                         do i = minfun, maxfun
-                           fun(i) = psic(i) * chil(i,kii)
+                           fun(i) = psic(i) * chil(i,kii,1)
                         end do
                         call form(fun,minfun,maxfun,rpow1(1,lt),
      >                     rpow2(1,lt),minrp(lt),maxrp(lt),maxfun,
@@ -1074,9 +1141,9 @@ C  core potentials
                            kff = npk(nch) + kf - 1
                            if (kff.lt.kii) go to 15
                            sum = 0.0
-                           mini = max(mini1,minchil(kff))
+                           mini = max(mini1,minchil(kff,1))
                            do i = mini, maxi
-                              sum = sum + chil(i,kff) * temp(i)
+                              sum = sum + chil(i,kff,1) * temp(i)
                            end do
 c$$$                           if (packed) then
 c$$$                              vmatp(kii+(kff-1)*kff/2,0) = const * sum
@@ -1133,6 +1200,7 @@ C  End of channel loop
       
 C  The following routine makes the core potential
       subroutine makevdcore(vdcore,minvdc,maxvdc,nznuci,u)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
@@ -1147,10 +1215,12 @@ c$$$      ch(i)=char(i+ichar('0'))
       
       minvdc = meshr
       maxvdc = 0
-      print '('' n l of the core states'')'
+      if (nodeid.eq.1)
+     >   print '('' n l of the core states'')'
       do lac = 0, lactop
          do nac = lac + 1, nabot(lac) - 1
-            print '(2i2)', nac, lac
+            if (nodeid.eq.1)
+     >         print '(2i2)', nac, lac
             const = float(4 * lac + 2)
             if (lac.eq.linc.and.nac.eq.ninc) then
                print*,'number of core electrons for this l:',4 * lac
@@ -1339,10 +1409,12 @@ C as r**(-lt-1). The input projectiles are chi(Rkr), where R=rmesh(meshr,1).
 c$$$      use gf_module
       include 'par.f'
       implicit double precision (a-h,o-z)
+      parameter(lll=lcoul*2+20)
+      COMMON/GAMMA/GS(lll),scale
       common/meshrr/ meshr,rmesh(maxr,3)
       common/matchph/rphase(kmax,nchan),trat
-      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmi),chii(meshr,nqmi),r,
-     >   chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
+      real gki(kmax),gkf(kmax),vmatt(nqmfmax,nqmfmax),chii(meshr,nqmi),r
+     >   ,chif(meshr,nqmf),temp(maxr),ctemp,rphase,rmesh,aimag,calctail
       integer minchii(nqmi),minchif(nqmf)
       complex phasei(kmax),phasef(kmax)
       data pi,small/3.141592653589793238,0.001/
@@ -1352,24 +1424,25 @@ c$$$      ch(i)=char(i+ichar('0'))
 c$$$      vmatt(:,:) = 0.0
 !      if (itail.eq.0.or.ctemp.eq.0.0) return !.or.ltmin.ne.1) return
 
-      lt = ltmin
-      const = ctemp * (trat / rmesh(meshr,1))**lt
-      do ki = 1, nqmi
-         rk1 = gki(ki)
-         if (rk1.lt.0.0) cycle
-         do i = minchii(ki), meshr
-            temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
-         enddo 
-         do kf = 1, nqmf
-            mini = max(minchii(ki), minchif(kf))
-            n = meshr - mini + 1
-            rk2 = gkf(kf)
-            if (rk2.lt.0.0) cycle
-            vmatt(kf,ki) = const *
-     >         dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+      if (itail.lt.0) then
+         lt = ltmin
+         const = ctemp * (trat / rmesh(meshr,1))**lt
+         do ki = 1, nqmi
+            rk1 = gki(ki)
+            if (rk1.lt.0.0) cycle
+            do i = minchii(ki), meshr
+               temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
+            enddo 
+            do kf = 1, nqmf
+               mini = max(minchii(ki), minchif(kf))
+c$$$               n = meshr - mini + 1
+               rk2 = gkf(kf)
+               if (rk2.lt.0.0) cycle
+               vmatt(kf,ki) = const *
+     >              dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+            enddo
          enddo
-      enddo
-
+      elseif (itail.eq.1) then
 c$$$      if (itail.ge.0.or.ctemp.eq.0.0.or.phasei(1).ne.(1.0,0.0).
 c$$$     >   or.phasef(1).ne.(1.0,0.0)) return
 c$$$
@@ -1377,179 +1450,199 @@ c$$$c$$$      analytic = nanalytic.le.-2.and.gki(1).ge.0.0.and.gkf(1).ge.0.0
 c$$$c$$$      inquire(FILE="analytic",EXIST=analytic)
 c$$$c$$$      if (analytic) print*,'tail integrals only for onshell points'
 c$$$
-c$$$      r = rmesh(meshr,1)
+         r = rmesh(meshr,1)
 c$$$      if (itail.lt.0.and.ltmin.le.-itail) then 
-c$$$         if (mod(li+lf,2).eq.0) then
-c$$$            lt = 2
-c$$$         else
-c$$$            lt = 1
-c$$$         endif
-c$$$         lt = ltmin !need to modify He code for ltmin
-c$$$         l1 = li
-c$$$         l2 = lf
-c$$$         lm = lt
-c$$$         IZR = 0
-c$$$         IONE = 1
-c$$$         RT10 = SQRT(10.0D0)
-c$$$         T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
-c$$$     >      *GAMX(IONE,L2-L1+LM+1))
-c$$$         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
-c$$$         S3 = RT10**(L2-L1-LM-1)
-c$$$         T3 = (GAMX(IZR,L1+L2+2-LM)*S3)/GAMX(IZR,2*L1+3)
-c$$$         S4 = RT10**(L1-L2-LM-1)
-c$$$         T4 = (GAMX(IZR,L1+L2+2-LM)*S4)/GAMX(IZR,2*L2+3)
-c$$$         T5 = GAMX(IONE,L2-L1+LM+1)
-c$$$         T6 = GAMX(IONE,L1-L2+LM+1)
-c$$$         T7 = GAMX(IONE,2*LM)
-c$$$         S8 = RT10**(L1-L2-LM+1)
-c$$$         T8 = S8*GAMX(IZR,2*L1+3)/GAMX(IZR,L1+L2+LM+2)
-c$$$         T8 = T8/GAMX(IONE,L1-L2+LM+1)
-c$$$         S9 = RT10**(L2-L1-LM+1)
-c$$$         T9 = S9*GAMX(IZR,2*L2+3)/GAMX(IZR,L1+L2+LM+2)
-c$$$         T9 = T9/GAMX(IONE,L2-L1+LM+1)
-c$$$         T10 = GAMX(IONE,L1-L2-LM+1)
-c$$$         T11 = GAMX(IONE,L2-L1-LM+1)
-c$$$         TWOL = DBLE(2**LM)
-c$$$
-c$$$c$$$         open(42,file='chif'//ch(lf))
-c$$$c$$$         write(42,'("#           ",200i12)') (minchif(k),k=1,nqmf)
-c$$$c$$$         do i = 1, meshr
-c$$$c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3)
-c$$$c$$$C     >         ,k=1,nqmf)
-c$$$c$$$     >            /rmesh(i,1)**(lt+1),k=1,nqmf)
-c$$$c$$$         enddo
-c$$$c$$$         close(42)
-c$$$         
-c$$$c$$$         open(42,file='chif'//ch(lf))
-c$$$c$$$         write(42,'("#           ",200i12)') lf,(minchif(k),k=1,1)
-c$$$c$$$         do i = 1, meshr
-c$$$c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3),
-c$$$c$$$     >         sin(gkf(k)*rmesh(i,1)+lf*pi/2d0*(-1)**lf),k=1,1)
-c$$$c$$$         enddo
-c$$$c$$$         close(42)
-c$$$         do ki = 1, nqmi
-c$$$            rk1 = gki(ki)
-c$$$C  Have not got the following t work for rk1=0.0
-c$$$            if (rk1.gt.0.0.and.abs(aimag(phasei(ki))).le.small) then
-c$$$c$$$               n1 = rk1*rmesh(meshr,1)/2d0/pi
-c$$$c$$$               d =  rk1*rmesh(meshr,1) - 2d0*n1*pi 
-c$$$c$$$               phi1 = asin(chii(meshr,ki)/rmesh(meshr,3))
-c$$$c$$$     >            - d
-c$$$c$$$               print*,'li,rki,phii,sin(kr),chii:',li,rk1,phi1,
-c$$$c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
-c$$$               do i = minchii(ki), meshr
-c$$$                  temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
-c$$$               enddo 
-c$$$               do kf = 1, nqmf
-c$$$                  mini = max(minchii(ki), minchif(kf))
-c$$$                  n = meshr - mini + 1
-c$$$                  rk2 = gkf(kf)
-c$$$C  Have not got the following t work for rk2=0.0
-c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
-c$$$                     it = it + 1
-c$$$                     ztormax = 0.0
-c$$$                     if (n.gt.0) ztormax =
-c$$$     >               dot_product(chif(mini:meshr,kf),temp(mini:meshr))
-c$$$c$$$     >                  ddot(n,chif(mini,kf),1,temp(mini),1)
-c$$$C
-c$$$C ****  THIS SECTION EVALUATES THE DEFINITE INTEGRAL FROM
-c$$$C ****  ZERO TO INFINITY. TWO DIFFERENT REPRESENTATIONS OF
-c$$$C ****  THE HYPERGEOMETRIC FUNCTION ARE USED TO SPEED UP
-c$$$C ****  THE CALCULATIONS. THE HYPERGEOMETRIC SERIES IS
-c$$$C ****  NOTORIOUSLY SLOW TO CONVERGE WHEN THE ARGUMENT IS
-c$$$C ****  CLOSE TO ONE.
-c$$$                     XRT = MAX(0.85D0,1.0D0-1.0D0/DBLE(L1+L2+1))
-c$$$C
-c$$$C ****  FIRST SPECIAL CASE, RK1 = RK2
-c$$$C
-c$$$                     TK = (RK1/RK2) - 1.0D0
-c$$$                     IF((ABS(TK).LT.1.0D-8)) THEN
-c$$$                        YINF = ((RK1*0.5D0)**LM)*T1*T2
-c$$$C
-c$$$C ****  NEXT CASES, RK1 < RK2  OR RK1 > RK2
-c$$$C
-c$$$                     ELSE
-c$$$C
-c$$$C ****  RK1 < RK2
-c$$$C
-c$$$                        WA = 0.5D0*DBLE(L1+L2+2-LM)
-c$$$                        IF(RK1.LT.RK2) THEN
-c$$$                           TK = RK1/RK2
-c$$$                           ARGF = TK*TK
-c$$$                           TK11 = (TK**(L1+1))
-c$$$                           VK = RK2**LM
-c$$$                           IF(ARGF.LE.XRT) THEN
-c$$$                              WB = 0.5D0*DBLE(L1-L2-LM+1)
-c$$$                              WC = 0.5D0*DBLE(2*L1+3)
-c$$$                              NTERM = -1
-c$$$                              F21 = FDHY(WA,WB,WC,NTERM,ARGF)
-c$$$                              YINF = F21*VK*TK11*T3/(T5*TWOL)
-c$$$                              if (rk1.eq.0.0) YINF = F21*VK*T3/(T5*TWOL)
-c$$$
-c$$$                           ELSE
-c$$$                              ARGF = 1.0D0 - TK*TK
-c$$$                              WL = (-ARGF)**LM
-c$$$                              NTERM = LM - 1
-c$$$                              UB = 0.5D0*DBLE(L1-L2-LM+1)
-c$$$                              UC = DBLE(1-LM)
-c$$$                              F2X = T7*T8*FDHY(WA,UB,UC,NTERM,ARGF)
-c$$$                              VA = 0.5D0*DBLE(L1+L2+LM+2)
-c$$$                              VB = 0.5D0*DBLE(L1-L2+LM+1)
-c$$$                              VC = DBLE(LM)
-c$$$                              F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T3*T10)
-c$$$                              YINF = TK11*VK*T3*(F2X - F2Y)/(TWOL*T5)
-c$$$                           END IF
-c$$$C     
-c$$$C     ****  RK2 < RK1
-c$$$C
-c$$$                        ELSE
-c$$$                           TK = RK2/RK1
-c$$$                           ARGF = TK*TK
-c$$$                           TK11 = (TK**(L2+1))
-c$$$                           VK = RK1**LM
-c$$$                           IF(ARGF.LE.XRT) THEN
-c$$$                              WB = 0.5D0*DBLE(L2-L1-LM+1)
-c$$$                              WC = 0.5D0*DBLE(2*L2+3)
-c$$$                              NTERM = -1
-c$$$                              F21 = FDHY(WA,WB,WC,NTERM,ARGF)
-c$$$                              YINF = F21*VK*TK11*T4/(T6*TWOL)
-c$$$                              if (rk2.eq.0.0) YINF = F21*VK*T4/(T6*TWOL)
-c$$$                           ELSE
-c$$$                              ARGF = 1.0D0 - TK*TK
-c$$$                              WL = (-ARGF)**LM
-c$$$                              NTERM = LM - 1
-c$$$                              UB = 0.5D0*DBLE(L2-L1-LM+1)
-c$$$                              UC = DBLE(1-LM)
-c$$$                              F2X = T7*T9*FDHY(WA,UB,UC,NTERM,ARGF)
-c$$$                              VA = 0.5D0*DBLE(L1+L2+LM+2)
-c$$$                              VB = 0.5D0*DBLE(L2-L1+LM+1)
-c$$$                              VC = DBLE(LM)
-c$$$                              F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T4*T11)
-c$$$                              YINF = TK11*VK*T4*(F2X - F2Y)/(TWOL*T6)
-c$$$                           END IF
-c$$$                        END IF
-c$$$                     END IF
-c$$$                     
-c$$$c$$$                     write(50+ki,'(1p,4e12.3)') rk1,rk2,yinf*ctemp,
-c$$$c$$$     >                  ztormax*ctemp
-c$$$c$$$                     if (kf.eq.nqmf) write(50+ki,*)
-c$$$                     
-c$$$                     yinf = yinf * pi / 2.0
-c$$$c$$$                     if (lt.eq.3.and.(li.eq.0.or.lf.eq.0))
-c$$$c$$$     >                  print*,'ztormax,yinf,rk1,rk2,li,lf,lt:',
-c$$$c$$$     >                  ztormax,yinf,rk1,rk2,li,lf,lt
-c$$$                     tail(kf,ki) = (YINF - ztormax
-c$$$     >                  *real(phasei(ki))*real(phasef(kf))
-c$$$     >                  ) * ctemp
-c$$$c$$$                     if (abs((YINF-ztormax)/(YINF+ztormax+1e-20)).lt.
-c$$$c$$$     >                  1e-4) tail(kf,ki) = 0d0
-c$$$c$$$     >                  print*,'lt,rk1,rk2,yinf,ztormax:',
-c$$$c$$$     >                  lt,rk1,rk2,yinf,ztormax
-c$$$                  endif ! end of if rkf > 0 loop
-c$$$               enddo
-c$$$            endif ! end of if rki > 0 loop
+         if (mod(li+lf,2).eq.0) then
+            lt = 2
+         else
+            lt = 1
+         endif
+         lt = ltmin !need to modify He code for ltmin
+         l1 = li
+         l2 = lf
+         lm = lt
+         IZR = 0
+         IONE = 1
+!         RT10 = SQRT(10.0D0)
+         RT10 = SQRT(scale)
+         T1 = GAMX(IONE,2*LM)/(GAMX(IONE,L1-L2+LM+1)
+     >      *GAMX(IONE,L2-L1+LM+1))
+!         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(1.0D1**LM))
+         T2 = GAMX(IZR,L1+L2-LM+2)/(GAMX(IZR,L1+L2+LM+2)*(scale**LM))
+         S3 = RT10**(L2-L1-LM-1)
+         T3 = (GAMX(IZR,L1+L2+2-LM)*S3)/GAMX(IZR,2*L1+3)
+         S4 = RT10**(L1-L2-LM-1)
+         T4 = (GAMX(IZR,L1+L2+2-LM)*S4)/GAMX(IZR,2*L2+3)
+         T5 = GAMX(IONE,L2-L1+LM+1)
+         T6 = GAMX(IONE,L1-L2+LM+1)
+         T7 = GAMX(IONE,2*LM)
+         S8 = RT10**(L1-L2-LM+1)
+         T8 = S8*GAMX(IZR,2*L1+3)/GAMX(IZR,L1+L2+LM+2)
+         T8 = T8/GAMX(IONE,L1-L2+LM+1)
+         S9 = RT10**(L2-L1-LM+1)
+         T9 = S9*GAMX(IZR,2*L2+3)/GAMX(IZR,L1+L2+LM+2)
+         T9 = T9/GAMX(IONE,L2-L1+LM+1)
+         T10 = GAMX(IONE,L1-L2-LM+1)
+         T11 = GAMX(IONE,L2-L1-LM+1)
+         TWOL = DBLE(2**LM)
+c$$$         open(42,file='chif'//ch(lf))
+c$$$         write(42,'("#           ",200i12)') (minchif(k),k=1,nqmf)
+c$$$         do i = 1, meshr
+c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3)
+c$$$C     >         ,k=1,nqmf)
+c$$$     >            /rmesh(i,1)**(lt+1),k=1,nqmf)
 c$$$         enddo
-c$$$      endif
+c$$$         close(42)
+         
+c$$$         open(42,file='chif'//ch(lf))
+c$$$         write(42,'("#           ",200i12)') lf,(minchif(k),k=1,1)
+c$$$         do i = 1, meshr
+c$$$            write(42,'(200e12.4)') rmesh(i,1),(chif(i,k)/rmesh(i,3),
+c$$$     >         sin(gkf(k)*rmesh(i,1)+lf*pi/2d0*(-1)**lf),k=1,1)
+c$$$         enddo
+c$$$         close(42)
+         do ki = 1, nqmi
+            rk1 = gki(ki)
+C  Have not got the following t work for rk1=0.0
+            if (rk1.lt.0.0) cycle
+c$$$            if (rk1.gt.0.0.and.abs(aimag(phasei(ki))).le.small) then
+c$$$               n1 = rk1*rmesh(meshr,1)/2d0/pi
+c$$$               d =  rk1*rmesh(meshr,1) - 2d0*n1*pi 
+c$$$               phi1 = asin(chii(meshr,ki)/rmesh(meshr,3))
+c$$$     >            - d
+c$$$               print*,'li,rki,phii,sin(kr),chii:',li,rk1,phi1,
+c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
+            do i = minchii(ki), meshr
+               temp(i) = chii(i,ki)/rmesh(i,3)/rmesh(i,1)**(lt+1)
+            enddo 
+            do kf = 1, nqmf
+               mini = max(minchii(ki), minchif(kf))
+               n = meshr - mini + 1
+               rk2 = gkf(kf)
+C  Have not got the following t work for rk2=0.0
+               if (rk2.lt.0.0) cycle
+c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
+c$$$               it = it + 1
+               ztormax = 0.0
+               if (n.gt.0) ztormax =
+     >              dot_product(chif(mini:meshr,kf),temp(mini:meshr))
+c$$$     >                  ddot(n,chif(mini,kf),1,temp(mini),1)
+C
+C ****  THIS SECTION EVALUATES THE DEFINITE INTEGRAL FROM
+C ****  ZERO TO INFINITY. TWO DIFFERENT REPRESENTATIONS OF
+C ****  THE HYPERGEOMETRIC FUNCTION ARE USED TO SPEED UP
+C ****  THE CALCULATIONS. THE HYPERGEOMETRIC SERIES IS
+C ****  NOTORIOUSLY SLOW TO CONVERGE WHEN THE ARGUMENT IS
+C ****  CLOSE TO ONE.
+               XRT = MAX(0.85D0,1.0D0-1.0D0/DBLE(L1+L2+1))
+C
+C ****  FIRST SPECIAL CASE, RK1 = RK2
+C
+               TK = (RK1/RK2) - 1.0D0
+               IF((ABS(TK).LT.1.0D-8)) THEN
+                  YINF = ((RK1*0.5D0)**LM)*T1*T2
+c$$$                  print*,'yinf,rk1,lm,t1,t2',
+c$$$     >                 yinf,rk1,lm,t1,t2
+C
+C ****  NEXT CASES, RK1 < RK2  OR RK1 > RK2
+C
+               ELSE
+C
+C ****  RK1 < RK2
+C
+                  WA = 0.5D0*DBLE(L1+L2+2-LM)
+                  IF(RK1.LT.RK2) THEN
+                     TK = RK1/RK2
+                     ARGF = TK*TK
+                     TK11 = (TK**(L1+1))
+                     VK = RK2**LM
+                     IF(ARGF.LE.XRT) THEN
+                        WB = 0.5D0*DBLE(L1-L2-LM+1)
+                        WC = 0.5D0*DBLE(2*L1+3)
+                        NTERM = -1
+                        F21 = FDHY(WA,WB,WC,NTERM,ARGF)
+                        YINF = F21*VK*TK11*T3/(T5*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T3,T5,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T3,T5,TWOL
+                        if (rk1.eq.0.0) YINF = F21*VK*T3/(T5*TWOL)
+                     ELSE
+                        ARGF = 1.0D0 - TK*TK
+                        WL = (-ARGF)**LM
+                        NTERM = LM - 1
+                        UB = 0.5D0*DBLE(L1-L2-LM+1)
+                        UC = DBLE(1-LM)
+                        F2X = T7*T8*FDHY(WA,UB,UC,NTERM,ARGF)
+                        VA = 0.5D0*DBLE(L1+L2+LM+2)
+                        VB = 0.5D0*DBLE(L1-L2+LM+1)
+                        VC = DBLE(LM)
+                        F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T3*T10)
+                        YINF = TK11*VK*T3*(F2X - F2Y)/(TWOL*T5)
+c$$$                        print*,'YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5',
+c$$$     >                       YINF,TK11,VK,T3,F2X,F2Y,TWOL,T5
+                     END IF
+C     
+C     ****  RK2 < RK1
+C
+                  ELSE
+                     TK = RK2/RK1
+                     ARGF = TK*TK
+                     TK11 = (TK**(L2+1))
+                     VK = RK1**LM
+                     IF(ARGF.LE.XRT) THEN
+                        WB = 0.5D0*DBLE(L2-L1-LM+1)
+                        WC = 0.5D0*DBLE(2*L2+3)
+                        NTERM = -1
+                        F21 = FDHY(WA,WB,WC,NTERM,ARGF)
+                        YINF = F21*VK*TK11*T4/(T6*TWOL)
+c$$$                        print*,'YINF,F21,VK,TK11,T4,T6,TWOL',
+c$$$     >                       YINF,F21,VK,TK11,T4,T6,TWOL
+                        if (rk2.eq.0.0) YINF = F21*VK*T4/(T6*TWOL)
+c$$$                        if (nchf.eq.6.and.nchi.eq.2.and.ki.eq.1)
+c$$$     >                       print*,'kf,argf,xrt,yinf-ztormax:',
+c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
+                     ELSE
+                        ARGF = 1.0D0 - TK*TK
+                        WL = (-ARGF)**LM
+                        NTERM = LM - 1
+                        UB = 0.5D0*DBLE(L2-L1-LM+1)
+                        UC = DBLE(1-LM)
+                        F2X = T7*T9*FDHY(WA,UB,UC,NTERM,ARGF)
+                        VA = 0.5D0*DBLE(L1+L2+LM+2)
+                        VB = 0.5D0*DBLE(L2-L1+LM+1)
+                        VC = DBLE(LM)
+                        F2Y = WL*FDHY2(VA,VB,VC,ARGF)/(T4*T11)
+                        YINF = TK11*VK*T4*(F2X - F2Y)/(TWOL*T6)
+c$$$                        print*,'YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6',
+c$$$     >                       YINF,TK11,VK,T4,F2X,F2Y,TWOL,T6
+c$$$                        print*,'kf,argf,xrt,yinf-ztormax:',
+c$$$     >                       kf,argf,xrt,yinf*pi/2.0-ztormax
+                     END IF
+                  END IF
+               endif
+c$$$                     write(50+ki,'(1p,4e12.3)') rk1,rk2,yinf*ctemp,
+c$$$     >                  ztormax*ctemp
+c$$$                     if (kf.eq.nqmf) write(50+ki,*)
+                     
+               yinf = yinf * pi / 2.0
+c$$$                     if (lt.eq.3.and.(li.eq.0.or.lf.eq.0))
+c$$$     >                  print*,'ztormax,yinf,rk1,rk2,li,lf,lt:',
+c$$$     >                  ztormax,yinf,rk1,rk2,li,lf,lt
+c$$$                     tail(kf,ki) = (YINF - ztormax
+!                     if (ki.eq.1.and.kf.eq.1) print*,
+!     >                    'yinf,ztormax,phasei,phasef,ctemp:',
+!     >                    yinf,ztormax,phasei(ki),phasef(kf),ctemp
+c$$$               if (nchf.eq.52.and.nchi.eq.43) print*,'tail:',
+c$$$     >            yinf,ztormax,ctemp
+               vmatt(kf,ki) = (YINF - ztormax
+!     >                  *real(phasei(ki))*real(phasef(kf))
+     >              ) * ctemp
+c$$$                     if (abs((YINF-ztormax)/(YINF+ztormax+1e-20)).lt.
+c$$$     >                  1e-4) tail(kf,ki) = 0d0
+c$$$               print*,'lt,rk1,rk2,yinf,ztormax,ctemp:',
+c$$$     >              lt,rk1,rk2,yinf,ztormax,ctemp
+            enddo
+         enddo
+      endif
       
 c$$$      else if (itail.eq.-1) then
 c$$$         do ki = 1, nqmi
@@ -1595,7 +1688,7 @@ cCCC      print*,'Number of tail integral calculations:',it
       
       subroutine kgrid(ispeed,nkor,skor,etot,gk,wk,weightk,nbnd,nqm,lg,
      >   nchtop,nchopt,npk,nold,ndumm,luba,ifirst,npsbnd,nnbtop,hlike,
-     >   uba,theta,nodes)
+     >   uba,theta,nodes,nodeid)
       use gf_module !propagates analytic
       include 'par.f'
       complex wk(kmax*nchan), phase, sigc
@@ -1617,20 +1710,22 @@ cCCC      print*,'Number of tail integral calculations:',it
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       common/smallr/ formcut,regcut,expcut,fast
-      logical fast,hlike,usetrapz,uba(nchan),positron,pos
+      logical fast,hlike,usetrapz,uba(nchan),positron,pos,lprint
       common/cont/ ce(ncmax),cint(ncmax),ncstates,energy
       character chan(knm)*3
       common /charchan/ chan
       common /chanen/ enchan(knm)
 
-      data lprint,pi,ucentr/0,3.1415927,maxr*0.0/
+      data ucentr/maxr*0.0/
 
 C     Added by alex
 c$$$      logical analytic
 
 c$$$      analytic = lg.le.(-nqm-2) !Use NQM in ccc.in as a switch.
       nanalytic = nqm
-      nbox = 1
+      pi = atan(1.0)*4.0
+
+c$$$      nbox = 1
 
 c$$$      inquire(FILE="analytic",EXIST=analytic)  
 c$$$
@@ -1644,10 +1739,8 @@ C     End added by Alex
 C  NBAD stores the number of channels |phi(n)> such that
 C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
       nbad = 0
-      if (lprint.eq.0) lprint = max(latop,lg)
-      
-      if (lg.le.lprint) print '(''Kgrid quadrature set'',2i3)',
-     >   lg,lprint
+      lprint = nodeid.eq.1.and.lg.le.latop
+      if (lprint) print '(''Kgrid quadrature set'')'
       nch = 1
       npk(nch) = 1
       call getchinfo (nch, ntmp, lg, psi, maxpsi, ea, la, na, li)
@@ -1664,7 +1757,8 @@ C  The following is a loop of the form REPEAT ... UNTIL(condition)
          rk = - sqrt(-e)
       end if
       analytic = nanalytic.le.-2.and.e.ge.aenergyswitch !aenergyswitch is in modules.f
-      print'(a3, " channel energy (eV):",1p,2e15.6)', chan(ntmp), EeV,rk
+c$$$      print'(a3, " channel energy (eV) and k:",1p,2e15.6)', chan(ntmp),
+c$$$     >   EeV,rk
 c$$$      if (analytic.and.EeV.ge.0.0.and.EeV.lt.1e-3) then !+ve energies for extract_J
 C analytic tail integrals have not been implemented for zero energy
 c$$$      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0).and.itail.ge.0)then
@@ -1707,10 +1801,14 @@ C     npoints, endk, npoints2, endk2, nendk, endp, midnp, width
       width = skor(4,lset,ispeed)
 c$$$      midnp = abs(nkor(4,lset,ispeed))
       midnp = nkor(4,lset,ispeed)
-      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
+c$$$      if (midnp.gt.0.and.rk.gt.endk) midnp = -midnp !sets -ve midnp if singularity is not in 1st interval
       if (midnp.lt.0.and.rk.gt.endk2) midnp = -midnp !allows +ve midnp at high energies
-      if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
-      usetrapz = nkor(4,lset,ispeed).lt.0
+c$$$      if (rk.lt.0.0) then       !closed channel
+c$$$         npoints2 = 2
+c$$$         nendk = 2
+c$$$      endif
+c$$$  if (midnp.lt.0.and.rk.lt.width) midnp = -midnp !allows +ve midnp near thresholds
+c$$$      usetrapz = nkor(4,lset,ispeed).lt.0
 c$$$      if (width.lt.0.0) then
 c$$$         dstart = 0d0
 c$$$         nt = midnp
@@ -1727,7 +1825,7 @@ c$$$            wfixed(i) = real(ww(i))
 c$$$         enddo
 c$$$      end if
       
-      if (lg.le.1)
+      if (lprint)
      >   print '(''interval   points    start       stop          '//
      >   'test'')'
       enk = endk
@@ -1747,56 +1845,78 @@ C Define the intervals and the number of points in each interval
 c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       call makeints(mint,sk,nk,rk,npoints,width,
      >   midnp,enk,nendk,endp,npoints2,endk2)
-      if (.not.analytic) then
+c$$$      if (.not.analytic) then
       if (midnp.lt.0) then
          dstop = 0d0
          do j=1,mint-1
             nt=nk(j)
+c$$$            if (mod(nt,2).ne.0) stop 'expect nt to be even'
             nwf=2*nt
             niwf=2*nt
             dstart = dstop
             dstop  = dble(sk(j))
             if (dstart.lt.rk.and.rk.lt.dstop) then
                if (rk.gt.dstop*0.9) then
-                  print*,'Int: increasing dstop:',j,dstop,dstop*1.1
+                  if (lprint)
+     >               print*,'rk, new dstop:',rk,dstop*1.1
                   dstop = dstop * 1.1
                   sk(j) = dstop
                endif 
                if (rk.lt.dstart*1.1) then
-                  print*,'Int: decreasing dstart:',j,dstart,dstart*0.9
+                  if (lprint)
+     >               print*,'new dstart, rk:',dstart*0.9,rk
                   dstart = dstart*0.9
                   sk(j-1) = dstart
                endif 
-               call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
-     >            0,nwf,wf,niwf,iwf,ier)
+c$$$               call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
+c$$$     >            0,nwf,wf,niwf,iwf,ier)
+               npts = nt
+               if (nkor(j,lset,ispeed).lt.0) npts = 2
+               d = (dstop-dstart)/nt*npts
+               do n = 1, nt/npts
+                  call cgqf(npts,xx((n-1)*npts+1),ww((n-1)*npts+1),1,
+     >               0d0,0d0,(n-1)*d+dstart,d*n+dstart,
+     >               0,nwf,wf,niwf,iwf,ier)
+               enddo
+
                test = 1.0
+c$$$               if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
+c$$$c$$$               call trapez(dstart,dstop,nt,xx,ww)
+c$$$                  print*,'Using Simpson rule'
+c$$$                  call simpson(dstart,dstop,nt,xx,ww)
+c$$$               endif
                startk = dstart
                stopk = dstop
-               if (startk.eq.0.0.or.(stopk-rk)/(rk-startk).lt.4.0) then
+              
+               if (startk.eq.0.0.or.(stopk-rk)/(rk-startk).lt.40.0) then
                   dk = (stopk-startk)/nt/10
                   call getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstop = stopk
                   sk(j) = stopk
+c$$$                  print*,'stopk:',stopk,(stopk-rk)/(rk-startk)
                else 
                   dk = startk/nt/10
                   call getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
                   dstart = startk
                   sk(j-1) = startk
+c$$$                  print*,'startk:',startk,(stopk-rk)/(rk-startk)
                endif
             endif
          enddo 
       endif 
       if (width .le. 0.0.and.rk.lt.2.0*abs(width)) then
          print*,'WIDTH:', width
-         if (.not.analytic)
-     >      call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
+c$$$         if (.not.analytic)
+         print*, 'Entering improvek'
+         call improvek(e,sk(1),nk(1),gfixed,wfixed,endf,enk)
          sk(1) = endf
       endif 
       dstop = 0d0
 C  Obtain Gaussian knots and weights within each interval
       do j=1,mint-1
-         nqk=nqk+nk(j)
-         nt=nk(j)
+         nt = nk(j)
+c$$$         if (mod(nt,2).ne.0) stop 'expect nt to be even'
+         nqk=nqk+nt
          nwf=2*nt
          niwf=2*nt
          if (nt.ge.0) then
@@ -1807,8 +1927,30 @@ c$$$            dstart = dstop**2
 c$$$            dstop  = dble(sk(j))**2
             dstart = dstop
             dstop  = dble(sk(j))
-            call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
-     >         0,nwf,wf,niwf,iwf,ier)
+c$$$            print*,'j,dstart,dstop:',j,dstart,dstop
+c$$$            call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,
+c$$$     >         0,nwf,wf,niwf,iwf,ier)
+            if (nkor(j,lset,ispeed).gt.0) then
+               npts = nt
+c$$$               if (lprint) print*,'Using n-point quadratures',
+c$$$     >            nt,nkor(j,lset,ispeed)
+            else
+               if (mod(nkor(j,lset,ispeed),2).eq.0) then
+                  npts = nt !2
+c$$$                  if (lprint) print*,'Using 2-point quadratures'
+               else
+                  npts = nt
+               endif
+            endif
+            d = (dstop-dstart)/nt*npts
+            do n = 1, nt/npts
+               call cgqf(npts,xx((n-1)*npts+1),ww((n-1)*npts+1),1,
+     >            0d0,0d0,(n-1)*d+dstart,d*n+dstart,
+     >            0,nwf,wf,niwf,iwf,ier)
+            enddo
+c$$$            do i = 1, nt
+c$$$               print*, i, xx(i), ww(i)
+c$$$            enddo
 c$$$            dstart = sqrt(dstart)
 c$$$            dstop  = sqrt(dstop)
 
@@ -1818,15 +1960,16 @@ c$$$     >         then
 c$$$               call trapez(dstart,dstop,nt,xx,ww)
 c$$$            print*,'Will use trapezoidal rule around the on-shell point'
 c$$$            endif
-            if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
-c$$$               call trapez(dstart,dstop,nt,xx,ww)
-c$$$               print*,'Using trapezoidal rule'
-               call simpson(dstart,dstop,nt,xx,ww)
-               print*,'Using Simpson rule, dstart,dstop:',dstart,dstop
-               do i = 1, nt
-                  print*,i,xx(i),ww(i)
-               enddo 
-            endif
+c$$$            if (nkor(j,lset,ispeed).lt.0) then !.and.rk.gt.dstop) then
+c$$$c$$$               call trapez(dstart,dstop,nt,xx,ww)
+c$$$c$$$               print*,'Using trapezoidal rule'
+c$$$               call simpson(dstart,dstop,nt,xx,ww)
+c$$$               print*,'Using Simpson rule, dstart,dstop:',dstart,dstop
+c$$$               do i = 1, nt
+c$$$                  if (xx(i).lt.rk.and.rk.lt.xx(i+1)) 
+c$$$     >               print*,i,xx(i),rk,xx(i+1)
+c$$$               enddo 
+c$$$            endif
             
 c$$$            if (midnp.lt.0.and.dstart.lt.rk.and.rk.lt.dstop) then
 c$$$               test = 1.0
@@ -1866,7 +2009,30 @@ c$$$                  enddo
 c$$$                  dstart = startk
 c$$$                  sk(j-1) = startk
 c$$$               endif 
-c$$$            endif 
+c$$$  endif
+
+c$$$           if (abs(dstart+dstop-2.0*rk).lt.1e-10) then
+c$$$               h = (rk-dstart)/(nt/2-1)
+c$$$               do i = 1, nt/2
+c$$$                  xx(i) = dstart + (i-1)*h
+c$$$                  ww(i) = h*(2.0*mod(i+1,2)+2.0)/3.0
+c$$$                  print*,i,xx(i),ww(i)
+c$$$               enddo
+c$$$               ww(1) = ww(1)/2.0
+c$$$               ww(nt/2) = ww(nt/2)/2.0
+c$$$               do i = nt/2+1, nt
+c$$$                  xx(i) = rk + (i-nt/2-1)*h
+c$$$                  ww(i) = h*(2.0*mod(i,2)+2.0)/3.0
+c$$$                  print*,i,xx(i),ww(i)
+c$$$               enddo
+c$$$               ww(nt/2+1) = ww(nt/2+1)/2.0
+c$$$               ww(nt) = ww(nt)/2.0
+c$$$               tmp = 0.0
+c$$$               do i = 1, nt
+c$$$                  tmp = tmp + xx(i)**3*ww(i)
+c$$$               enddo
+c$$$               print*,'Simpson rule test:',tmp,(dstop**4-dstart**4)/4.0
+c$$$            endif
             do i=nqk-nk(j)+1,nqk
                gridk(i)=xx(i-nqk+nk(j))
                weightk(i)=ww(i-nqk+nk(j))
@@ -1883,7 +2049,7 @@ c$$$            endif
                endif 
             end do
             tmpold = tmp
-            if (lg.le.lprint) then
+            if (lprint) then
                if (dstart.lt.rk.and.rk.lt.dstop) then
                   print '(i5,i10,f12.6,'' *'',f10.6,f13.5)', j,nk(j),
      >               dstart, dstop, sumi - sumip
@@ -1904,9 +2070,15 @@ C  Here we have the last interval
          end if  
          nqk=nqk+nt
          p=dble(sk(mint))
-         dstart=0d0
-         dstopp = dstop
-         dstop=dstop**(1d0-p)
+         if (p.gt.0.0) then
+            dstart=0d0
+            dstopp = dstop
+            dstop=dstop**(1d0-p)
+         else
+            dstart = dstop
+            dstopp = dstop
+            dstop = -p
+         endif
          nwf=2*nt
          niwf=2*nt
          call cgqf(nt,xx,ww,1,0d0,0d0,dstart,dstop,0,nwf,wf,niwf,iwf,
@@ -1916,10 +2088,17 @@ C  Here we have the last interval
      >        nt, dstart, dstop
             error stop "KGRID IER not zero"
          endif
+         jj = nqk - nt
          do j=nt,1,-1
-            jj=nqk-j+1
-            gridk(jj)=xx(j)**(1d0/(1d0-p))
-            weightk(jj)=ww(j)/(p-1d0)*dble(gridk(jj))**p
+            if (p.gt.0.0) then
+               jj=nqk-j+1
+               gridk(jj)=xx(j)**(1d0/(1d0-p))
+               weightk(jj)=ww(j)/(p-1d0)*dble(gridk(jj))**p
+            else
+               jj = jj + 1
+               gridk(jj)=xx(nt+1-j)
+               weightk(jj)=ww(nt+1-j)
+            endif
             ecmn = gridk(jj) ** 2
             if (la.eq.li.and.nze.eq.-1.and.nodes.eq.1) then
                eta = 0.0
@@ -1940,13 +2119,20 @@ c$$$     >      nold.eq.-2) then
 c$$$            enk = min(endkt + 0.2, 6.0)
 c$$$            go to 30
 c$$$         endif
-         if (lg.le.lprint) then
-            print '(i5,i10,f12.6,''       oo'',f16.5)', mint,nk(mint),
-     >         dstopp, sumi - sumip
-            print'(''fall off power:'',f5.1,23x,''= '',f7.5)',sk(mint),
-     >         sumi
-         endif 
-         print*,'last n, k:',jj,gridk(jj)
+         if (lprint) then
+            if (p.gt.0.0) then
+               print '(i5,i10,f12.6,''       oo'',f16.5)',mint,nk(mint),
+     >            dstopp, sumi - sumip
+               print'(''fall off power:'',f5.1,23x,''= '',f7.5)',
+     >            sk(mint),sumi
+            else
+               print '(i5,i10,2f12.6,f13.5)', mint,nt,dstart,dstop,
+     >            sumi - sumip
+               print'(''fall off power:'',f5.1,23x,''= '',f7.5)',
+     >            sk(mint),sumi
+            endif
+            print*,'last n, k:',jj,gridk(jj)
+         endif   
 
 c$$$         if (abs(sumi - 1.0).gt.1e-2.and.la.eq.li) nbad = nbad + 1
          if (abs(sumi - 1.0).gt.1e-2) nbad = nbad + 1
@@ -1979,13 +2165,15 @@ C  Check that the integration rule will handle the principle value singularity
             sum=sum+tsum
             im=nt+1
             do while (gridk(im).le.(sk(j+1)).and.im.lt.kmax)
-               sum=sum + 2.0*weightk(im)/(e-gridk(im)*gridk(im))
+               gftmp = 1.0/(e-gridk(im)*gridk(im))
+               if (abs(e-gridk(im)*gridk(im))/e.lt.1e-4) gftmp=0.25/e
+               sum=sum + 2.0*weightk(im)*gftmp
                im=im+1
             end do
          else
             sum = 0.0
          endif 
-         if (lg.le.lprint)
+         if (lprint)
      >      print '(''State, NCH, NST, NA, LA, L, K, EA:'',a4,2i4,
      >      3i3,1p,2e13.4)',chan(ntmp),nch,ntmp,na,la,li,rk,ea
       else
@@ -1997,10 +2185,18 @@ C  Check that the integration rule will handle the principle value singularity
             print*,'Test of closed channel integral:',- 2.0 / sqrt(-e)*
      >         atan(sk(2)/sqrt(-e)) / sum, sum
          endif 
-         if (lg.le.lprint)
+         if (lprint)
      >      print'(''State, NCH, NST, NA, LA, L, E:    '',a4,2i4,3i3,
      >      1p,e13.4,''    closed'')',chan(ntmp),nch,ntmp,na,la,li,e
       end if 
+      if (nch.eq.1.and.analytic) then
+         if (nqk.eq.-nanalytic) then
+            nbox = 0
+         else
+            nbox = 1
+         endif
+         print*,"NBOX:", nbox!, nqk, nanalytic
+      endif
       if (nqm.le.0.and.lg.le.1.and.ifirst.ne.0.and.hlike
      >   .and.theta.ne.0.0.and.nze.eq.-1.and.nodes.eq.1) then
          nchp = 1
@@ -2059,10 +2255,14 @@ C$OMP END PARALLEL DO
       endif 
 
  40   continue
-      else !analytic
-         nqk = -nqm - nbnd(lset) !nbnd get's added below
-         sum = 0.0
-      endif 
+!      else !analytic
+c$$$      if (analytic) then
+c$$$        nqk = -nqm - nbnd(lset) !nbnd get's added below
+c$$$         sum = 0.0
+c$$$  endif
+
+c$$$      sum = 0.0 ! temporary fix for rk in the k-grid
+      
       do i = 1, nqk + 1
          kp = npk(nch) + i - 1
          if (i.eq.1) then
@@ -2078,15 +2278,22 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
                wk(kp) = (0.0,0.0)
             end if 
             if (analytic) wk(kp)=cmplx(0.0,imag(wk(kp))) !needed for PHOTO (0.0,0.0)
-            if (lg.le.lprint) print*,'On-shell weight:',wk(kp)
+            if (lprint) print*,'On-shell weight:',wk(kp)
             if (abs(real(wk(kp))).gt.1e-2) then
                error stop 'Real part of on shell weight must be < 1e-2'
             endif 
          else
             gk(i,nch) = gridk(i-1)
             ek = gridk(i-1) * gridk(i-1)
-C  The T(kf,ki) matrix has been divided by KF and KI
-            wk(kp) = posfac * 2.0 * weightk(i-1)/(e - ek)
+C     The T(kf,ki) matrix has been divided by KF and KI
+            if (abs(rk-gridk(i-1)).gt.1e-5) then
+               wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! * posfac
+            else
+               wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
+               print*,'Dropped GF for rk/k:',rk/gridk(i-1)
+               print*,'test:',(1.0/(e-gridk(i-2)**2)+
+     >            1.0/(e-gridk(i)**2))/(0.5/e)
+            endif
 C  Have multiplied the positronium-atom V-matrix elements by sqrt(2)
 
 C  Added by Alex
@@ -2097,7 +2304,7 @@ C  Added by Alex
                   wk(kp) = 1.0
                endif
             else
-               wk(kp) = 2.0 * weightk(i-1)/(e - ek)
+c$$$               wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! was overwriting the posfac above
 c$$$               print*,kp,wk(kp)
             endif
 C  End added by Alex
@@ -2114,7 +2321,12 @@ c$$$            wk(kp) = wk(kp) * cint(na-nnbtop)
 c$$$         endif 
       end do !nqk loop
 
-      if (lg.le.lprint) print*
+      if (analytic) then
+        nqk = -nqm - nbnd(lset) !nbnd get's added below
+         sum = 0.0
+      endif 
+
+      if (lprint) print*
       nchtop = nch
       if (nqm.gt.0) nqk = min(nqk,nqm-1)
       nqk = nqk + nbnd(lset) ! bound state wk are set in MAKECHIL
@@ -2122,9 +2334,9 @@ c$$$         endif
          print*,'Channel, NQK+1, KMAX:',nch,nqk+1,kmax
          stop 'Increase KMAX'
       endif
-      print*,'NKQ:',nqk
-      
-      npk(nchtop+1) = npk(nchtop) + nqk + 1 
+c$$$      if (lprint) print*,'NCH,NKQ,NPK(NCH):',nch,nqk,npk(nch)      
+      npk(nchtop+1) = npk(nchtop) + nqk + 1
+
       ldumm = -1
       if (la.le.ldumm.and.na.le.ndumm) nchopt = nchtop
       nch = nch + 1
@@ -2135,7 +2347,7 @@ c$$$         endif
       end if 
       if (nch.ne.0) go to 10
       
-      if (lg.le.lprint.and.nodes.eq.1) print*,'NBAD:', nbad
+      if (lprint) print*,'NBAD:', nbad
       return
       end
 c-----------------------------------------------------------------
@@ -2362,7 +2574,7 @@ C
 C     FG03A & FG03B - WIGNER 9-J SYMBOL
 C
 C
-      parameter (mmax=501)
+      parameter (mmax=2100)
       COMMON / CNJSAVE / H(mmax), J(mmax)
 c$omp threadprivate(/CNJSAVE/)
       DIMENSION AY(4),IAY(4)
@@ -2472,9 +2684,9 @@ C
       M9=M9/2+1
       M10=M10/2+1
       if (max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10).gt.mmax) then
-         print*,'Recompile wigner.f with mmax at least:',
+         print*,'Recompile wigner.f with new mmax at least:',
      >      max(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10)
-         stop 'Increse MMAX in CNJ (file wigner.f)'
+         stop 'Increse MMAX in CNJ (file vmat.f; used to be wigner.f)'
       endif 
 C
       Y  = SQRT(Y*H(M1)*H(M2)*H(M3)*H(M4)*H(M5)*

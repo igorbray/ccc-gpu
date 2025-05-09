@@ -10,6 +10,7 @@ C  Note that UCENTR(X) = V(X)/X and CNTFUG(X) = LN(LN+1)/X/X
       
       subroutine regular(ln,ecmn,eta,ucentr,cntfug,ldw,gridx,nx,
      >   jdouble,njdouble,regcut,expcut,reg,jstart,jstop,phase,sigc)
+      use vmat_module, only: nodeid
       include 'par.f'
       
       dimension jdouble(njdouble),ucentr(nx),reg(nx),gridx(nx),
@@ -21,10 +22,10 @@ C  Note that UCENTR(X) = V(X)/X and CNTFUG(X) = LN(LN+1)/X/X
       logical fast,match
       character file*10
       common /debye/dbyexists, dblp, rmudeb, zdby
-      logical::dbyexists
+      logical::dbyexists,localmatch
 
 c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
-      s1 = 0.0
+      s1 = 0.0 !reg(jstart-1)
       wnn=sqrt(abs(ecmn))
       phase = (1.0,0.0)
       sigc = coulphase(dble(eta),ln)
@@ -36,74 +37,114 @@ c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
 !      s3=appf1(ln,ecmn,gridx(1),acc)
 !      s4 = coulrho(ln,0.0,ecmn,gridx(1),acc)
 !      print*,'ecmn,s3,s4',ecmn,s3,s4
+
       if (ecmn.le.0.0.or.ln.gt.3.or.ucentr(1).ne.0.0) then
          jstart = jfirst1(ln,ecmn,gridx,nx,jdouble,njdouble,regcut)
+         if (jstart.ge.nx) return
 
- 20      if (jstart.gt.10) then
-            if (eta.ge.0.0) then
-               s1=appf1(ln,ecmn,gridx(jstart-1),acc)
-            else
-               s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
-            endif 
-            if (abs(s1).gt.regcut.or.acc.lt.1e-6) then
-c$$$               mode1 = 12
-c$$$               kfn = 0
-c$$$               zlmin = cmplx(ln)
-c$$$               nl = 1
-c$$$               eta1 = eta
-c$$$               xx=sqrt(cmplx(dble(ecmn)))*dble(gridx(jstart-1))
-c$$$               call coulcc(xx,eta1,zlmin,nl,cfc,cgc,cfcp,cgcp,
-c$$$     >            sig,mode1,kfn,ifai)
-c$$$               print*,'reducing jstart:',
-c$$$     >            jstart, ecmn, real(cfc(1)), s1, acc
-               jstart = jstart - 10
-               go to 20
-            endif 
-C  make sure that we are not near a point where DX doubles
+         acc = 0.0
+         do while (jstart.ge.2.and.(abs(s1).gt.regcut.or.acc.lt.1e-3))
+            jstart = jstart - 1
             do jd = 2, njdouble - 1
-               if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)+3
-            end do       
-         endif 
+               if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)-3
+            end do
+            if (jstart.eq.1) then
+               s1 = 0.0
+            else
+               if (eta.ge.0.0) then
+                  s1 = appf1(ln,ecmn,gridx(jstart-1),acc)
+c$$$                  print*,'ln,ecmn,jstart-1,gridx(jstart-1),acc,s1:',
+c$$$     >               ln,ecmn,jstart-1,gridx(jstart-1),acc,s1
+               else
+                  s1 = coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+c$$$                  if (nodeid.eq.1) print*,'jstart,s1,acc,ecmn,rho,ln:',
+c$$$     >               jstart,s1,acc,ecmn,sqrt(ecmn)*gridx(jstart),ln
+               endif
+            endif
+         enddo
+C Special case below avoids inaccuracy         
+         if (eta.ne.0.0.and.jstart.eq.1.and.ln.eq.1) then
+            s1 = coulrho(ln,eta,ecmn,gridx(1),acc)
+            reg(1) = s1
+            jstart = 2
+            jstartorig = 1
+         else
+            jstartorig = jstart
+         endif
+c$$$            if (abs(s1).gt.regcut.or.acc.lt.1d-6) then
+c$$$c$$$     >           .and.wnn*gridx(jstart-1).gt.1.0) then
+c$$$c$$$               mode1 = 12
+c$$$c$$$               kfn = 0
+c$$$c$$$               zlmin = cmplx(ln)
+c$$$c$$$               nl = 1
+c$$$c$$$               eta1 = eta
+c$$$c$$$               xx=sqrt(cmplx(dble(ecmn)))*dble(gridx(jstart-1))
+c$$$c$$$               call coulcc(xx,eta1,zlmin,nl,cfc,cgc,cfcp,cgcp,
+c$$$c$$$     >            sig,mode1,kfn,ifai)
+c$$$c$$$               print'("reducing jstart, ln, ecmn, s1, acc:",
+c$$$c$$$     >            2i5,1p,3d14.3)',jstart,ln,ecmn,s1,acc
+c$$$               jstart = jstart - 1
+c$$$               go to 20
+c$$$            endif 
+c$$$      endif 
          jstop  = jlast1(ecmn,gridx,nx,jdouble,njdouble,expcut)
+         if (jstart.gt.jstop) return
 c$$$         if (ecmn.gt.200.0) then
 c$$$            jstop = nx
 c$$$            jstart = nx + 1
 c$$$         endif 
 
-         jstartorig = jstart
-
-         if (ucentr(1) .eq. 0.0.and.jstart.gt.1) then
+c$$$         print*,'ln,ecmn:',ln,ecmn
+         if (ucentr(1) .eq. 0.0.and.jstart.ge.1) then
 c$$$         if (ucentr(1) .eq. 0.0 .and. wnn .gt. 2.0) then
             rho = wnn * gridx(jstart)
             acc = 1.0
-            reg(jstart) = s1
+            reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
 c$$$C  Need to take care that jstart stays less than jstop. For this reason
 c$$$C  the wnn > 2 condition was added above.
-c$$$            do while (rho.lt.ln.and.acc.gt.1e-6.and.jstart.lt.jstop)
-            do while (abs(reg(jstart)).lt.regcut.and.jstart.lt.jstop)
+            do while (rho.lt.ln.and.acc.gt.1e-5.and.jstart.lt.jstop)
+c$$$               do while (rho.lt.ln.and.acc.gt.1e-5.and.jstart.lt.jstop)
+c$$$            do while (abs(reg(jstart)).lt.regcut.and.jstart.lt.jstop)
 c$$$               if (ln.eq.2.and.jstart.gt.2) return
                jstart = jstart + 1
                rho = wnn * gridx(jstart)
                reg(jstart) = appf1(ln,ecmn,gridx(jstart),acc)
+c$$$               if (mod(jstart,100).eq.0) print*,jstart,reg(jstart),
+c$$$     >            acc
+c$$$               print*,'increased jstart:',
+c$$$     >            ln,rho,reg(jstart),acc,jstart 
             enddo
 C  make sure that we are not near a point where DX doubles
             do jd = 2, njdouble - 1
                if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)-3
             end do
             jstart = max(jstart,1)
+            s1 = reg(jstart-1)
          endif 
 
-         if (jstart.gt.jstop) return
-         if (eta.ne.0.0.and.jstart.eq.1.and.ln.eq.1) jstart = 2 !avoids inaccuracy
-         if (jstart.eq.1) then
-            s1 = 0.0
-         else
-            s1=appf1(ln,ecmn,gridx(jstart-1),acc)
-c$$$            if (eta.lt.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
-            if (eta.ne.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
-         end if 
+c$$$         if (jstart.eq.1) then
+c$$$            s1 = 0.0
+c$$$         else
+c$$$            s1=appf1(ln,ecmn,gridx(jstart-1),acc)
+c$$$c$$$            if (eta.lt.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+c$$$            if (eta.ne.0.0) s1=coulrho(ln,eta,ecmn,gridx(jstart-1),acc)
+c$$$c$$$            if (s1.eq.0.0) then
+c$$$c$$$               print*,
+c$$$c$$$     >       "STOP: S1=0.0 in numerov.f; ln,jstartorig,jstart,rho,acc:",
+c$$$c$$$     >       ln,jstartorig,jstart,rho,acc
+c$$$c$$$               stop "STOP: cannot have S1=0.0 in numerov.f"
+c$$$c$$$            endif
+c$$$         end if 
          s2=appf1(ln,ecmn,gridx(jstart),acc)
+c$$$         print*,'plane wave j,S1,S2,acc:',jstart,s1,s2,acc
          if (eta.ne.0.0) s2=coulrho(ln,eta,ecmn,gridx(jstart),acc)
+c$$$         print*,'Coulomb wave j,S1,S2,acc:',jstart,s1,s2,acc
+c$$$         if (s2.eq.0.0) then
+c$$$            print*,
+c$$$     >       "S2=0.0 in numerov.f; ln,jstartorig,jstart,eta,ecmn,acc:",
+c$$$     >       ln,jstartorig,jstart,eta,ecmn,acc
+c$$$            stop "STOP: cannot have S2=0.0 in numerov.f"
+c$$$         endif
 c$$$         print*,'jstart,S1,S2:',jstart,s1,s2 !was used to check the importance of jstart=2 above
 c$$$  if (eta.lt.0.0) then
 c$$$            s2 = coulrho(ln,eta,ecmn,gridx(jstart),acc)
@@ -126,13 +167,40 @@ c$$$            print*,'S2,S2OLD,rho,l,jstart',s2,s2old,wnn*gridx(jstart),
 c$$$     >         jstart
 c$$$         endif 
 
+         if (s1.eq.s2.and.s2.eq.0.0) then
+            print*,'S1=S2=0 for jstart,ln,ecmn,eta: Hence reg(:)=0.0',
+     >         jstart,ln,ecmn,eta
+            reg(:)= 0.0
+            jstart = jstop+1
+         endif 
+C     numerovf used to fail for ECMN=0 for l=1, but restoring the - sign (see comment inside) fixes it. Workaround below no-longer necessary.
+c$$$         if (ecmn.eq.0.0.and.ucentr(1).eq.0.0) then
+c$$$            jstart = 1
+c$$$            jstop = nx
+c$$$            l = 1
+c$$$            const = 1.0
+c$$$            do while (l.le.ln)
+c$$$               const = const * (2*l+1)
+c$$$               l = l + 1
+c$$$            enddo
+c$$$            do j = jstart, jstop
+c$$$               reg(j) = gridx(j)**(ln+1)/const
+c$$$            enddo
+c$$$c$$$            print*,'ln,reg(10),appf:',
+c$$$c$$$     >         ln,reg(10),appf1(ln,ecmn,gridx(10),acc)
+c$$$            return
+c$$$         endif
+
          call numerovf(ln,ecmn,ucentr,cntfug,gridx,nx,
      >      jdouble,njdouble,s1,s2,reg,jstart,jstop)
+
          if (eta.ne.0.0.and.jstart.eq.2.and.ln.eq.1) then
             jstart = 1
             reg(1) = s1
          endif 
 
+c$$$         if (abs(reg(jstop)).gt.1.5) print*,'WARNING reg(j)>>1:',
+c$$$     >      reg(jstop),ln,ecmn,jstartorig,jstart
          jstart = jstartorig
          jmatch = min(nx,jstop)
          rho = wnn * gridx(jmatch)
@@ -170,8 +238,47 @@ c$$$            if (jmatch.eq.min(nx,jstop))
 c$$$     >         print*,'WARNING: asymptotic potential must be Coulomb',
 c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
          endif
-
-         if (match.or.ln.le.ldw) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
+C Check that the CHIL is sinusoidal at large r for wnn not too small or too big
+         j = jstop
+         localmatch = .false.
+         if (ln.gt.ldw.and.cntfug(j)/ecmn.lt.1e-3.and.
+     >      abs(ucentr(j)).lt.1e-3) then
+            if (reg(j-1).lt.reg(j)) then
+               do while(reg(j-1).lt.reg(j))
+                  j = j - 1
+               enddo
+               if (j.gt.jstart) then
+                  localmatch=abs(1.0+reg(j)).gt.0.01.and.
+     >               abs(1.0+reg(j-1)).gt.0.01
+c$$$                  div = min(reg(j),reg(j-1))
+c$$$                  print*,'wnn,jstart,j,jstop,reg(j-1),reg(j),div:',
+c$$$     >               wnn,jstart,j,jstop,reg(j-1),reg(j),div
+c$$$                  do i = jstart, jstop
+c$$$                     reg(i) = reg(i)/abs(div)
+c$$$                  enddo
+               endif
+            else
+               do while(reg(j-1).gt.reg(j))
+                  j = j - 1
+               enddo
+               if (j.gt.jstart) then
+                  localmatch=abs(1.0-reg(j)).gt.0.01.and.
+     >               abs(1.0-reg(j-1)).gt.0.01
+c$$$                  div = max(reg(j),reg(j-1))
+c$$$                  print*,'wnn,jstart,j,jstop,reg(j-1),reg(j),div:',
+c$$$     >               wnn,jstart,j,jstop,reg(j-1),reg(j),div
+c$$$                  do i = jstart,jstop
+c$$$                     reg(i) = reg(i)/div
+c$$$                  enddo
+               endif
+            endif
+            if (localmatch.and.nodeid.eq.1) print'(
+     >         "CAUTION: ln,ldw,j,jstop,reg(j-1),reg(j),wnn,eta,test:",
+     >        4i8,4f8.3,1p,e15.5)',ln,ldw,j,jstop,reg(j-1),
+     >         reg(j),wnn,eta,cntfug(j)/ecmn
+         endif
+c$$$         print*,'match,ln,ldw:',match,ln,ldw
+         if (match.or.ln.le.ldw) then !.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
 c$$$            print*,'JMATCH, RMATCH,U',jmatch,gridx(jmatch),
 c$$$     >         ucentr(jmatch)
             if (abs(ecmn-34.527).lt.-1e-2) then
@@ -242,7 +349,8 @@ c$$$               endif
             if (jstart.gt.jstop) return
          end do
 
-         if (match.and.ln.gt.ldw) then
+C The following is disabled using "-ln"         
+         if (match.and.-ln.gt.ldw) then
 c$$$         if (match.and.ln.gt.ldw.and.eta.ne.0.0) then
             if (abs(aimag(phase)).gt.1e-5)
      >         print*,'Old phase (NOT reset to 1) for L, ecmn:',
@@ -560,9 +668,12 @@ c$$$      ricbessel = cfc(1)
      >   jdouble,njdouble,rs1,rs2,reg,jstart,jstop)
       implicit real*8 (a-h,o-z)
       real ucentr(nx),reg(nx),gridx(nx),cntfug(nx),en,rs1,rs2,
-     >   appf1, acc
+     >   appf1, acc, coulrho
       dimension jdouble(njdouble)
 
+c$$$      eta = (ucentr(1)*gridx(1)/2.0)/sqrt(en)
+c$$$      print*,'eta:',eta,ucentr(1)*gridx(1)
+c$$$      if (en.eq.0.0) print*,'en zero for l:',ln
       if (jstart.ge.jstop) return
       ecmn = en
       x = gridx(jstart)
@@ -573,17 +684,22 @@ c$$$      ricbessel = cfc(1)
       h2=h1/12d0
       s1 = rs1
       s2 = rs2
-
+      s3 = 0.0
+      f3 = 0.0
+      s0 = 0.0
+      f0 = 0.0
       if (jstart.eq.1) then
 C  We get here if the integration is going to start from the first X point.
 C  This means that S1 is the solution of the differential equation at X=0
 C  S2 is the solution at the first X point. 
-         s1=0d0
+         s1= 0d0
          t1=0d0
 C  LN = 1 is a special case
-         if (ln.eq.1) t1 = h1/18d0     !there was a - sign here until 11/04/2016.
+! Put the - sign back on 5/05/2023. It is necessary for zero energy.
+         if (ln.eq.1) t1 = -h1/18d0!*(1.0-eta*3.0) tried to fix the non-zero eta case here, but no luck.
 c$$$  if (ln.eq.1) t1=-h1/18d0 !seems to affect only -ve energies
          if (ecmn.ne.0d0) t1=t1*ecmn
+!         print*,'t1:',t1,ucentr(1)*gridx(1)
       else
          j=jstart-1
          f1=ucentr(j)+cntfug(j)-ecmn
@@ -591,6 +707,8 @@ c$$$  if (ln.eq.1) t1=-h1/18d0 !seems to affect only -ve energies
       end if
 
       reg(jstart) = s2
+c$$$      print*,'j,reg(j),appf:',jstart,reg(jstart),
+c$$$     >   coulrho(ln,eta,ecmn,gridx(jstart),acc) !appf1(ln,ecmn,gridx(jstart),acc)
       t2=s2*(1d0-h2*f2)
       
       istart=2
@@ -610,12 +728,16 @@ C    integration loop
             f3 = ucentr(j)+cntfug(j)-ecmn
             t3 = 2.*t2-t1+h1*f2*s2
             s3 = t3/(1d0-h2*f3)
-c$$$            if (j.lt.jstart+10) then
+c$$$            if (en.lt.0.01.and.j.lt.jstart+5) then
 c$$$               test=appf1(ln,en,gridx(j),acc)
-c$$$               print*,test/s3
-c$$$               s3 = test
+c$$$               print*,ln,en,j,test/s3!,f3,t3
+c$$$c$$$               s3 = test
 c$$$            endif 
-            reg(j)=s3      
+            reg(j)=s3
+c$$$            if (j.le.10) print*,'j,reg(j),appf:',j,reg(j),
+c$$$     >         coulrho(ln,eta,ecmn,gridx(j),acc)!appf1(ln,ecmn,gridx(j),acc)
+c$$$            if (ln.eq.4.and.abs(ecmn-1e-2).lt.4e-5) print*,
+c$$$     >         j,gridx(j),reg(j),appf1(ln,en,gridx(j),acc)
 
             t1=t2
             t2=t3
@@ -637,7 +759,7 @@ c$$$            endif
 
       function coulrho(l,seta,ecmn,x,acc)
       include 'par.f'
-      include 'par.for'
+!      include 'par.for'
       parameter (nmax=1000)
       implicit real*8 (a-h,o-z)
       real seta, ecmn, x, coulrho, acc
@@ -730,27 +852,25 @@ C  Riccati-Bessel function for small rho. Same as spherical Bessel * rho that wo
       real appf1, ecmn, x, acc
       w = sqrt(abs(ecmn))
       s = ecmn / abs(ecmn+1d-30)
-      acc = 1.0
+      acc = 0.0
       appf1 = 0d0
       if (w.ne.0.0) then
 C  We use the expansion for the Riccati-Bessel function j(l,rho)
 C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
-         kmax = 100
+         kmax = 1000
          rho=w*x
-         if (rho.gt.1e2) then
-            return
-         endif
+         k = 1
+         if (rho.gt.1e3) return
          ff = 1d0
          do i=1,ln
             ff = ff * rho / float(2*i+1)
          end do
-         if (abs(ff).lt.1d-100) return
          sum = ff
          summ = 0d0
          sump = ff
          zo2k = 1d0
-         k = 1
          sumold = 0d0
+         if (abs(ff).lt.1d-300) return
          do while (k.lt.kmax.and.abs(sumold/sum-1d0).gt.1d-6)
             zo2k = zo2k  * rho * rho / 2d0 / float(k) /
      >         float(2*(ln+k)+1)
@@ -761,21 +881,24 @@ C  j(l,rho) = rho^(l+1) sum(k=0,oo) (-1)^k 2^k (rho/2)^(2k)/k!/(2(k+l)+1)!!
                summ = summ + zo2k * ff
             endif 
             sum = sump - s*summ
-c$$$            print '(i4,3e20.14)', k, sum, sump, summ
+c$$$            print '(2f9.3,i4,4e24.14)', w,x,k,sump,-s*summ, sum
             k = k + 1
-            if (abs(summ/sump-1d0).lt.1d-12) then
-               k = kmax
+            if (abs(s*summ/sump-1d0).lt.1d-12.and.(k.ge.kmax
+     >           .or.abs(sum).lt.1d-300)) then
+c$$$               k = kmax
+c$$$               print'("Precision loss in APPF1 for ln, k, rho:",
+c$$$     >            2i5,1p,e11.3,3e18.10)',ln,k,rho,-s*summ,sump,sum
+               acc = 0.0
                appf1 = 0.0
-c$$$               print'("Precision loss in APPF1, returning 0.0",
-c$$$     >            1pe14.4)',sum
                return
             endif 
          enddo
-         acc = abs(summ/sump-1d0)
-         if (k.eq.kmax)
-     >      print'("Possible precision loss in APPF1;result and error",
-     >      1p,2e14.4)',sum,acc
+         acc = abs(s*summ/sump-1d0)
          appf1 = rho * sum
+c$$$         print*,rho,k,s*summ,sump
+c$$$         if (k.eq.kmax) acc = 0.0
+c$$$     >      print'("Possible precision loss in APPF1;result and error",
+c$$$     >      1p,2e14.4)',sum,acc
       else
 C  The following is the limiting case of the Riccati-Bessel/w**(ln+1) for w=0.0
          iprod = 2 * ln + 1
@@ -803,13 +926,15 @@ C  solution is < REGSTART.
          tmp=log(float(2*l+1))
          w=1.0
       end if
- 10   xstart=min(exp((tmp+log(regcut))/(l+1))/w,gridx(nx))
+ 10   xstart = 0
+      if (regcut.ne.0)
+     >     xstart=min(exp((tmp+log(regcut))/(l+1))/w,gridx(nx))
       j=max(int(xstart*nx/gridx(nx)),1)
       j = min(j,nx)
       do while (gridx(j).lt.xstart.and.j.lt.nx)
          j=j+1
       end do
-      s1 = appf1(l,ecmn,gridx(j),acc)
+c$$$      s1 = appf1(l,ecmn,gridx(j),acc)
 c$$$      if (acc.lt.1e-10) then
 c$$$         regcut = regcut / 10.0
 c$$$         print '("regcut redefined. S1, REGCUT, acc:",1p,3e13.4)',
@@ -821,7 +946,6 @@ C  make sure that we are not near a point where DX doubles
       do jd = 2, njdouble - 1
          if (abs(j-jdouble(jd)).lt.3) j = jdouble(jd) + 3
       end do       
-      
 c$$$      if (j.eq.nx) j = nx + 1
       jfirst1=j
       return
@@ -1171,7 +1295,8 @@ c$$$  print*,j3,cgc(1) * cfcp(1) - cgcp(1) * cfc(1)
          if (test.gt.1e-2) then
             print*,'Matching process has problems:',
      >         test, l, ecmn,j1,j2,j3,phase,
-     >         (f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1)
+     >         (f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1),
+     >        f1,h3,f3,h1,reg(j1),reg(j3)
          endif 
       endif
       return
@@ -1542,6 +1667,8 @@ c$$$     >         abs(cfc(1)),abs(cgc(1)),j
       dimension psen2(nps)
       n = 1
       small = 1e10
+      almax = 1e10
+      almin = 0.0
       do while (psen2(n).lt.position.and.n.lt.nps)
          n = n + 1
       enddo

@@ -276,12 +276,22 @@ c$$$     >      cwork,lwork,rwork,bwork,info)
 c$$$         if (info.ne.0) print*,'INFO from CGEES:',info
 C  Note that eigenphases ere defined only modulo pi due to the 2i factor
          do nch = 1, nchtop
-            esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0))
-            esum2 = esum2 +
-     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
-c$$$            esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+c$$$            print*,'eigenphase:',eigv(nch),
+c$$$     >         real(log(eigv(nch))/2.0/(0.0,1.0)),
+c$$$     >         atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+            if (abs(eigv(nch)).gt.0.0) then
+c$$$               esum1 = esum1 + eigv(nch)
+               esum1 = esum1 + real(log(eigv(nch))/2.0/(0.0,1.0)) !crashes on Gadi GPUs
+               esum2 = esum2 +
+     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+c$$$  esum1 = esum1 + atan(aimag(eigv(nch))/real(eigv(nch))) / 2.0
+c$$$               print*,'nch,eigenphase:',nch,
+c$$$     >            real(log(eigv(nch))/2.0/(0.0,1.0)),
+c$$$     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
+            endif
          enddo
          esum(ns) = esum2
+         print*,'phasesum:',ns,esum(ns)
          nchi = 0
          nchip = 0
          incount = 1
@@ -356,7 +366,7 @@ c$$$                     if (ef.gt.0.0) then
 c$$$                        wton(nymax,nchi) = wton(nymax,nchi) *
 c$$$     >                     ovlpn(nchp) / sqrt(ef)
 c$$$                     endif 
-                     wt2nd(nymax,nchi) = t2nd(nchf,nchi)
+                     wt2nd(nymax,nchi)=t2nd(nchf,nchi)/sqrt(abs(gkfac)) !yields same kon as in lplot files
                      wvon(nymax,nchi) = von(nchf,nchi)
                   end if
                   if (gk(1,nchf).ge.0.0) then
@@ -465,8 +475,30 @@ c$$$         call update(88)
             
          
 C  Print out the results
-         j = mod(lg,100)
-         do nchf = 1, nymax !min(nymax,50)
+         j = lg !mod(lg,100)
+         elrealt = real(wton(1,1))
+         elimagt = aimag(wton(1,1))
+         polfac = - elrealt * (2*j+3) * (2*j+1) * (2*j-1) /
+     >      gk(1,1)
+         if (target .eq. 'H  I') then
+            exact = 4.5
+         else if (target .eq. 'He I') then
+            exact = 1.3832
+         else if (target .eq. 'Li I') then
+            exact = 161.77
+         else if (target .eq. 'Na I') then
+            exact = 164.7
+         else if (target .eq. 'K I') then
+            exact = 279.7
+         else if (target .eq. 'Cs I') then
+            exact = 401.0
+         else
+            exact = 0.0
+         endif 
+         print'(i3,2f10.3,f10.5,
+     >     '' J, target polarization, exact, Imag(T)/Re(T)'')',
+     >      j, polfac, exact, elimagt/(elrealt+1e-30)
+         do nchf = 1, nymax     !min(nymax,50)
             call getchinfo(nychan(nchf),nchp,
      >         lg,temp,maxpsi,ef,lfa,nfa,lf)
             do nchi = 1, lent
@@ -490,8 +522,8 @@ c$$$               rdel = atan2(aimag(eigv(nchf)),real(eigv(nchf))) / 2.0
                if (ef.le.etot)
 c$$$     >            print '(i2,a,i3,i2,1p,e10.3,0p,f9.5,2x,
 c$$$     >            1p,2(2(e10.3),1x),0p,f9.4)',
-     >            print '(i2,a,2i2,1p,3(2(e10.3),1x),0p,f9.4)',
-     >            j,spin(ns),nychan(nchf),nchi,
+     >            print '(i3,a,2i4,1p,3(2(e10.3),1x),0p,f9.4)',
+     >            lg,spin(ns),nychan(nchf),nchi,
 c$$$     >         tabs,targ,wt2nd(nchf,nchi), wvon(nchf,nchi),ef
      >         wton(nchf,nchi),wt2nd(nchf,nchi), wvon(nchf,nchi),ef
 c$$$     >         rdel, nmpow(aimag(ctmp))
@@ -524,7 +556,7 @@ c$$$     >                  coulphase(dble(-(zasym+1.0)/sqrt(ef)),lfa)
                sigtop(1,ns) = sigt
             endif 
          endif
-         eigmod = esum1
+c$$$         eigmod = esum1
 c$$$         n = 0
 c$$$         do while (eigmod .lt. 0.0)
 c$$$            n = n + 1
@@ -535,11 +567,11 @@ c$$$            n = n + 1
 c$$$            eigmod = eigmod - pi / 2.0
 c$$$         enddo 
 
-         esum(ns) = eigmod
-         do nchi = 1, lent
+c$$$         esum(ns) = eigmod
+         do nchi = 1, 1 !lent
             print '(''N='',i6,'' Rcond:'',1p,e9.2, '', Eigphase sums:'',
      >         0p,2f9.4,i3,'' test:'',10i2)',
-     >         nds,rcond(ns),eigmod,esum1,n,(nmpow(err(nchf,nchi)),
+     >         nds,rcond(ns),eigmod,esum(ns),n,(nmpow(err(nchf,nchi)),
      >         nchf=1,min(10,nymax))
          enddo 
          call update(6)
@@ -578,9 +610,9 @@ c$$$      end if
 
       function nmpow(err)
       nmpow = 1
-      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
-         nmpow = nmpow + 1
-      enddo
+c$$$      do while (err * 10 ** nmpow .lt. 1.0.and.nmpow.lt.9)
+c$$$         nmpow = nmpow + 1
+c$$$      enddo
       return
       end
 
@@ -723,7 +755,7 @@ C  This routine reads the input file 'ccc.in'
      >   itail,corep,r0,ninc,linc,ipar,nent,zasym,nunit,ndbl,nps,iborn,
      >   ne2e,lslow,lfast,slowe,enion,enlevel,target,projectile,match,
      >   lpbot,lptop,npbot,nptop,npsp,alphap,luba,speed,
-     >   erange,inoenergy,pint,igz,igp,analyticd,packed)
+     >   erange,inoenergy,pint,igz,igp,analyticd,packed,myid,limit_time)
                                
       use ubb_module, only: ubb_max1
       use ql_module, only: maxql1, maxql2, dqlg, qlgmin, qlgmax
@@ -740,7 +772,7 @@ C  This routine reads the input file 'ccc.in'
      >   r0(0:lamax),npbot(0:lamax),nptop(0:lamax),npsp(0:lamax),
      >   alphap(0:lamax)
       character targets(30)*6,roman(0:30)*10,target*(*),projectile*(*),
-     >   infile*80
+     >   infile*80,runtime*8
       data roman/' -',' I','II','III','IV',' V','VI','VII','VIII','IX',
      >   ' X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX',
      > 'XX','20+','21+','22+','23+','24+','25+','26+','27+','28+','29+'/
@@ -784,25 +816,49 @@ c$$$     >   35009.78,49304.8/
          r0(la) = 1.0
       enddo
 
+      limit_time = 1000000
+      num_args = command_argument_count()
+      if (num_args .eq. 2) then
+         call get_command_argument(2,runtime)
+         if (runtime(3:3).ne.':'.or.runtime(6:6).ne.':') then
+            print*,'required time format: hh:mm:ss; will use:',
+     >         limit_time
+         else
+            limit_time = 0
+            i = 1
+            do n = 1, 3
+               limit_time = limit_time + 60**(3-n)*
+     >            (10*(ichar(runtime(i:i))-ichar('0'))
+     >            +ichar(runtime(i+1:i+1))-ichar('0'))
+               i = i + 3
+            enddo
+            if (myid.le.0) print*,'time limit:',limit_time,runtime
+         endif
+      endif
+
       inquire(file='ccc.in',exist=exists)
       if (exists) then
          nin = 3
          open(nin,file='ccc.in')
-         print*,'ccc.in found'
+         if (myid.le.0)
+     >        print*,'ccc.in found'
       else
          num_args = command_argument_count()
-         if (num_args .eq. 1) then
+         if (num_args .le. 2) then
             call get_command_argument(1,infile)
             nin=3
             open(nin,file=infile)
-            print*,'ccc.in not found;will use: '//infile
-         else
+            if (myid.le.0)
+     >           print*,'ccc.in not found;will use: '//infile
+         else 
             nin = 5
-            print*,'ccc.in not found;will use standard input'
+            if (myid.le.0)
+     >           print*,'ccc.in not found;will use standard input'
          endif 
       endif 
       read(nin,*,end=13,err=13) energy,de,nznuc,zasym,nze,ninc,linc
-      print '(''energy,de,nznuc,zasym,nze,ninc,linc:'',
+      if (myid.le.0)
+     >     print '(''energy,de,nznuc,zasym,nze,ninc,linc:'',
      >   f8.3,f7.4,i7,f7.1,i7,i4,i3)',
      >   energy,de,nznuc,zasym,nze,ninc,linc
       lpbot = 0
@@ -819,17 +875,21 @@ c$$$     >   35009.78,49304.8/
          projectile = 'positron'
 C  Read positronium information
          read(nin,*) lpbot,lptop,(npbot(lp),nptop(lp),lp=lpbot,lptop)
-         print '(''lpbot, lptop, npbot(l), nptop(l):    '',2i7,
+         if (myid.le.0)
+     >        print '(''lpbot, lptop, npbot(l), nptop(l):    '',2i7,
      >   99(i4,i3))',lpbot, lptop,(npbot(l), nptop(l), l = lpbot, lptop)
          read(nin,*) (npsp(l),alphap(l), l = lpbot, lptop)
-         print '(''npsp(l), alphap(l):                  '',
-     >   99(i3,f5.2))',(npsp(l), alphap(l), l = lpbot, lptop)
+         if (myid.le.0)
+     >        print '(''npsp(l), alphap(l):                  '',
+     >   99(i3,f7.2))',(npsp(l), alphap(l), l = lpbot, lptop)
          read(nin,*) igz, igp, analyticd, numericalv,lstoppos,
      1        interpol, maxp, ubb_max1, maxql1
-         print'(''igz, igp, analyticd, numericalv:  '',2i7,2l7,i4)',
+         if (myid.le.0)
+     >      print'(''igz, igp, analyticd, numericalv:  '',2i7,2l7,i4)',
      >      igz, igp, analyticd, numericalv, lstoppos
 !C     Andrey: interpolation parameters: 
-         print'(''interpol, maxp, UBB_MAX, maxql1:    '', 1l7,3i7)',
+         if (myid.le.0)
+     >      print'(''interpol, maxp, UBB_MAX, maxql1:    '', 1l7,3i7)',
      1        interpol, maxp, ubb_max1, maxql1
          dqlg =  (qlgmax-qlgmin)/dble(maxql1-1)
          maxql2 = maxql1
@@ -841,16 +901,21 @@ C  Read positronium information
          projectile = 'photon'
          nze = -1
       else 
-         print*,'NZE should be -1 for electron scattering'
-         print*,'NZE should be +1 for positron scattering'
-         print*,'NZE should be  0 for  photon  scattering'
-         print*,'Here NZE:',nze
+         if (myid.le.0)
+     >        print*,'NZE should be -1 for electron scattering'
+         if (myid.le.0)
+     >        print*,'NZE should be +1 for positron scattering'
+         if (myid.le.0)
+     >        print*,'NZE should be  0 for  photon  scattering'
+         if (myid.le.0)
+     >        print*,'Here NZE:',nze
          stop 'Wrong value for NZE'
       end if
 
       nzasym = nint(zasym)
       n = nznuc - nzasym
-      print*,"n, nznuc, nzasym:", n, nznuc, nzasym
+c$$$      if (myid.le.0)
+c$$$     >     print*,"n, nznuc, nzasym:", n, nznuc, nzasym
 c$$$      if (projectile.eq.'photon') n = n + 1
       target = ' ???? '
       if (nznuc.le.30) then
@@ -858,6 +923,8 @@ c$$$      if (projectile.eq.'photon') n = n + 1
          enlevel = enlevels(nznuc)
          enion = enions(nznuc)
          target = targets(nznuc)(1:2)//roman(nint(zasym+1))
+         if (projectile.eq.'photon')
+     >      target = targets(nznuc)(1:2)//roman(nint(zasym))
       endif 
       lactop = 0
       if (n.eq.1) then  ! H-like atoms and ions
@@ -872,6 +939,13 @@ c$$$      if (projectile.eq.'photon') n = n + 1
          if (nzasym.eq.0) then ! He I
             enlevel = 198305.0
             enion  = 24.580
+         elseif  (nzasym.eq.1) then !Li II
+            enlevel = 610078.526
+            enion = 75.64
+         elseif  (nzasym.eq.3) then !B IV
+c$$$            print*,'energies for B IV'
+            enlevel = 2091972.0
+            enion = 259.3715
          elseif (nzasym.eq.8) then ! Ne IX
             enlevel = 9644957  ! cm-1
             enion = 1195.822   ! eV
@@ -883,7 +957,7 @@ c$$$      if (projectile.eq.'photon') n = n + 1
             target = 'U90+'
          endif 
       else if (n.eq.3) then ! Li-like atoms and ions
-         if (nzasym.eq.7) then ! Ne VIII
+         if (nzasym.eq.7) then  ! Ne VIII
             enlevel = 1928462.0
             enion = 239.0989
          elseif (nzasym.eq.23) then !FeXXIV
@@ -971,7 +1045,8 @@ c$$$            do l = 0, lamax
 c$$$               corep(l) = 0.48
 c$$$               r0(l) = 1.115
 c$$$            enddo
-            print*,'Will be using Mg II parameters'
+            if (myid.le.0)
+     >           print*,'Will be using Mg II parameters'
             do l = 0, lamax
                corep(l) = 0.4814
                r0(l) = 1.3
@@ -1119,14 +1194,13 @@ c            r0(1) = 2.5
             target = 'Ga I'
             enlevel = 48387.634
             enion  = 5.9993
-c            do l = 0, lamax
-c               corep(l) = 2.6
-c               r0(l) = 2.0
-c            enddo
-c            corep(0) = 8.0
-c            corep(1) = 8.0            
-c            r0(0) = 2.3
-c            r0(1) = 2.5
+            do l = 0, lamax
+               corep(l) = 18.195
+               r0(l) = 5.05
+            enddo
+            r0(0) = 3.297
+            r0(1) = 4.282
+            r0(2) = 3.511
          endif 
       elseif (n.eq.36) then ! Kr-like atoms and ions
          lactop = 2
@@ -1152,6 +1226,14 @@ c            r0(1) = 2.5
             enddo
             r0(0) = 2.05
             r0(1) = 2.25
+!! Rav: parameters from Migdalek and Baylis Phys Rev A 24, 649 (1981)
+            do l = 0, lamax
+               corep(l) = 11.15
+            enddo
+            r0(0)=1.478 
+            r0(1)=1.581
+            r0(2)=1.767
+!!
          elseif (nzasym.eq.1) then ! Sr II
             target = 'Sr II'
             enlevel = 88964.0
@@ -1292,6 +1374,15 @@ c            r0(1) = 2.5
                corep(l) = 28.4 
                r0(l)  = 3.0
             enddo
+         else if (nzasym.eq.5) then
+            lactop = 3
+            target = 'W VI'
+            enlevel = 522370
+            enion  = 64.77
+            do l = 0, lamax
+               corep(l) = 0.0
+               r0(l)  = 3.0
+            enddo
          endif 
       elseif (n.eq.70) then ! Yb-like atoms and ions
          lactop = 3
@@ -1360,44 +1451,51 @@ c            r0(1) = 2.5
       endif
       
       read(nin,*) labot, latop, (nabot(l), natop(l), l = labot, latop)
-      print '(''labot, latop, nabot(l), natop(l):    '',2i7,99(i4,i3))',
+      if (myid.le.0)
+     >print '(''labot, latop, nabot(l), natop(l):    '',2i7,99(i4,i3))',
      >   labot, latop, (nabot(l), natop(l), l = labot, latop)
-
-      if (latop.lt.lptop) stop 'expect LPTOP <= LATOP'
+C Now can have lptop > latop
+c$$$      if (latop.lt.lptop) stop 'expect LPTOP <= LATOP'
       if (latop.gt.lamax) then
-         print*,'Must have LATOP <= LAMAX', latop, lamax
+         if (myid.le.0)
+     >        print*,'Must have LATOP <= LAMAX', latop, lamax
          stop 'Must have LATOP <= LAMAX'
       endif
       
 
       do l = labot, latop
          if (nabot(l).le.l) then
-            print*,'Must have NABOT(L) >= L + 1, NABOT(L), L:',
+            if (myid.le.0)
+     >           print*,'Must have NABOT(L) >= L + 1, NABOT(L), L:',
      >         nabot(l),l
             stop 'Must have NABOT(L) >= L + 1'
          endif
          if (natop(l).gt.nnmax) then
-            print*,'Must have NATOP(L) <= NNMAX',natop(l),nnmax
+            if (myid.le.0)
+     >           print*,'Must have NATOP(L) <= NNMAX',natop(l),nnmax
             stop 'Must have NATOP(L) <= NNMAX'
          endif
       end do
 
       read(nin,*) ntst,nunit,lnabtop,nnbtop,lttop,ncstates
-      print '(''ntst,nunit,lnabtop,nnbtop,lttop,ncstates:'',
+      if (myid.le.0)
+     >     print '(''ntst,nunit,lnabtop,nnbtop,lttop,ncstates:'',
      >   i3,5i7)',ntst,nunit,lnabtop,nnbtop,lttop,ncstates
       ntstart = ntst
       ntstop = ntst
 
       read(nin,*) lstart,lstop,ipar,nent,iborn
-      print '(''lstart, lstop, ipar, nent, iborn:    '',5i7)',
+      if (myid.le.0)
+     >     print '(''lstart, lstop, ipar, nent, iborn:    '',5i7)',
      >   lstart,lstop,ipar,nent,iborn
       if (lstop+latop.gt.lmax) stop 'Can not have LSTOP+LATOP > LMAX'
 
       read(nin,*) ndumm,luba,(nps(l),alpha(l),l=labot,latop)
-      print '(''ndumm,luba,nps(l),alpha(l):         '',
+      if (myid.le.0)
+     >     print '(''ndumm,luba,nps(l),alpha(l):         '',
      >   i4,i3,94(i3,f7.2))',
      >   ndumm,luba,(nps(l),alpha(l),l=labot,latop)
-      if (alpha(latop).eq.0.0) stop 'ALPHA(LATOP) can''t be zero'
+c$$$      if (alpha(latop).eq.0.0) stop 'ALPHA(LATOP) can''t be zero'
       
       read(nin,*) npot,lpot,ldw,npsbnd,albnd
       if (npot.eq.0) ldw = -1
@@ -1405,14 +1503,16 @@ c            r0(1) = 2.5
          npot = 0
          lpot = 0
       endif 
-      print '(''npot,lpot,ldw,npsbnd,albnd:          '',4i7,f7.2)',
+      if (myid.le.0)
+     >     print '(''npot,lpot,ldw,npsbnd,albnd:          '',4i7,f7.2)',
      >   npot,lpot,ldw,npsbnd,albnd
 
 C  FORMCUT cuts the form factors in FORM
 C  REGCUT determines the minimum value at which regular solutions start
 C  EXPCUT determines the smallest value of functions containing EXP fall off
       read(nin,*) formcut,regcut,expcut,gamm,rc
-      print '(''formcut,regcut,expcut,gamma,rc:       '',1p,3e7.0,0p,
+      if (myid.le.0)
+     >   print '(''formcut,regcut,expcut,gamma,rc:       '',1p,3e7.0,0p,
      >   2f7.3)', formcut,regcut,expcut,gamm,rc
       if (gamm.ge.0.0) then
          do la = 0, lamax
@@ -1423,11 +1523,16 @@ C  EXPCUT determines the smallest value of functions containing EXP fall off
       endif 
 
       read(nin,*) ifirst,isecond,nold,itail,theta
+      if (itail.eq.1.and.(ldw.ge.lstart.or.nzasym.ne.0)) then
+         print*,'itail needs to be -ve for DW or charged targets'
+         stop 'itail needs to be -ve for DW or charged targets'
+      endif
       if (nze.ge.1) then
          if (ifirst.gt.0) ifirst = 0
          if (isecond.gt.0) isecond = 0
       end if 
-      print '(''ifirst,isecond,nold,itail,theta:     '',4i7,f7.2)',
+      if (myid.le.0)
+     >     print '(''ifirst,isecond,nold,itail,theta:     '',4i7,f7.2)',
      >   ifirst,isecond,nold,itail,theta
       if (ndumm.eq.0.and.isecond.ge.0) then
          print*,'ISECOND >= 0 is inconsistent with NDUMM = 0'
@@ -1440,11 +1545,13 @@ C  There is some bug on the SS10 machines that causes malloc to get a SEGV
 C  if e2e is stopped before the CC calculation is completed
       lslow = max(latop,lslow)
       lfast = max(lstop,lfast)
-      print '(''ne2e,lslow,lfast, slowe(n),n=1,|ne2e|'',3i7,100f7.3)',
+      if (myid.le.0)
+     >  print '(''ne2e,lslow,lfast, slowe(n),n=1,|ne2e|'',3i7,100f7.3)',
      >   ne2e, lslow, lfast, (slowe(n), n=1, abs(ne2e))
       
       read(nin,*) nq,qcut,rmax,ndbl,fast,match,packed
-      print '(''nq,qcut,rmax,ndbl,fast,match,packed: '',
+      if (myid.le.0)
+     >     print '(''nq,qcut,rmax,ndbl,fast,match,packed: '',
      >   i7,2f7.1,i7,3l3)',nq,qcut,rmax,ndbl,fast,match,packed
 
       
@@ -1460,7 +1567,8 @@ C  if e2e is stopped before the CC calculation is completed
             do ne=1,nesp
                isp=isp+1
                erange(isp)=estartsp+(ne-1)*desp
-               print*,isp,erange(isp),'eV,',
+               if (myid.le.0)
+     >              print*,isp,erange(isp),'eV,',
      >          erange(isp)/13.6058,'Ryd'
             enddo
          enddo
@@ -1476,7 +1584,7 @@ C  if e2e is stopped before the CC calculation is completed
       do is = 1, ispeed
          lp = 0
          mint = 4
-         do while (lp.le.lstop+latop+2) !+2 is for two-electron targets  
+         do while (lp.le.lstop+max(latop,lptop)+2) !+2 is for two-electron targets  
             if (is.eq.1) then
                read(nin-1+is,*)l,nbnd(l),
      >            (nk(j,l,is),sk(j,l,is),j=1,mint)
@@ -1501,18 +1609,24 @@ c$$$               endif
                   nk(j,lp,is) = nk(j,l,is)
                   sk(j,lp,is) = sk(j,l,is)
                enddo
-               print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
-     >            2i3,4(i3,f5.2))',
+               if (myid.le.0)
+     >              print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
+     >            2i3,4(i3,f7.2))',
      >            lp,nbnd(lp),(nk(j,lp,is),sk(j,lp,is),j=1,mint)
                lp = lp + 1
             enddo
             nbnd(l) = max(0,nbnd(l)-l)
 c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
             lp = l + 1
-            print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
-     >         2i3,4(i3,f5.2))',
+            if (myid.le.0)
+     >           print '(''l,nbnd(l),(nk(j,l),sk(j,l),j=1,4)'',
+     >         2i3,4(i3,f7.2))',
      >         l,nbnd(l),(nk(j,l,is),sk(j,l,is),j=1,mint)
-            if (mod(nk(4,l,is),2).ne.0) stop 'NK(4,L,IS) must be even'
+            if (mod(nk(4,l,is),2).ne.0) then
+               print*,'on-shell points will be part of the k-grid'
+               if (lstart.le.lstoppos.and.lptop.ge.0)
+     >            stop'NK(4,L,IS) must be even for rearrangement'
+            endif            
             nktot = nk(1,l,is)+nk(2,l,is)+nk(3,l,is)+max(0,nk(4,l,is))
      >         + nbnd(l)
             if (nktot.gt.kmax) stop 'KMAX too small in par.f'
@@ -1520,9 +1634,11 @@ c$$$         if (zasym.eq.0.0.and.l.gt.ldw) nbnd(l) = 0
          CLOSE(nin-1+is)
       enddo
 
+c$$$      print*,'exiting readin with with enion,enlevel:',enion,enlevel
 
       if (lttop.gt.ltmax) then
-         print*,'LTTOP > LTMAX',lttop,ltmax
+         if (myid.le.0)
+     >        print*,'LTTOP > LTMAX',lttop,ltmax
          print*,'Recompile with larger LTMAX'
          stop 'ABORTED'
       end if
@@ -1716,18 +1832,20 @@ C  by trial and error, I chose P to be two.
 C  this subroutine sets up the arrays RPOW1=R**LNA and RPOW2=1/R**(LNA+1)
 C  which are used in FORM, as well as CNTFUG=L(L+1)/XMESH(J)**2 which 
 C  is used in Numerov integration.
+      use vmat_module, only: nodeid !to minimize writes
       include 'par.f'
       common /debye/ dbyexists, dblp, rmudeb, zdby
       common/meshrr/ meshr,rmesh(maxr,3)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   istartrp(0:ltmax),istoprp(0:ltmax),cntfug(maxr,0:lmax)
       common/smallr/ formcut,regcut,expcut,fast
-      logical fast, dbyexists
+      logical fast, dbyexists, exists
       complex*16 :: XX, FC(0:ltmax), GC(0:ltmax), FCP(0:ltmax),
      >     GCP(0:ltmax), SIG(0:ltmax), CMPLXI=(0d0,1d0), ZLMIN, ETA1
       integer ::  NL, KFN, IFAIL, MODE1
       real*8 :: dblp_dp, FCR(0:ltmax),GCR(0:ltmax)  
       real*8 :: gfact
+      character stringtemp*7
  
 
       do j=1,meshr
@@ -1823,6 +1941,7 @@ C     Calculation of electron-electron Coulomb Potential
          rpow1(i,0)=1.0
          rpow2(i,0)=1.0/rmesh(i,1)
       end do
+      inquire(file='waves',exist=exists)
       do lna=1,lttop
          istartrp(lna)=istartrp(lna-1)
          istoprp(lna)=istoprp(lna-1)
@@ -1847,6 +1966,14 @@ C The following stops overflows in single precision
          do while (rpow2(istartrp(lna),lna).gt.1.0/expcut)
             istartrp(lna)=istartrp(lna)+1
          end do
+         if (exists) then
+            write(stringtemp,'(i2,"_rpow")') lna              
+            open(42,FILE=adjustl(stringtemp))
+            do i = istartrp(lna), istoprp(lna)
+               write(42,*) rmesh(i,1), rpow1(i,lna), rpow2(i,lna)
+            enddo
+            close(42)
+         endif
       end do 
       end if
       end
@@ -2000,6 +2127,7 @@ C   njdouble - Number of doublings + 2
 C======================================================================      
       subroutine grids(qmax,ndouble,rmax,gridr,nmaxr,nr,jdouble,
      >   nmaxj,njdouble)
+      common /MPI_info/myid, ntasks, cnode, ench
 C
 C
       dimension gridr(nmaxr,3), jdouble(nmaxj)
@@ -2030,7 +2158,7 @@ C  Make sure NPDBL is even
       rleft = rmax - rdble
       nleft = int(rleft / hmax) / 2 * 2
       ntot = nleft + npdbl * ndouble
-      print*,'Estimated R max:',rdble + nleft * hmax,ntot,
+      if (myid.le.0)print*,'Estimated R max:',rdble + nleft * hmax,ntot,
      >   hmax * (float(npdbl) * (2**ndouble - 1) / float(2**ndouble)
      >   + nleft)
 c$$$      if (ntot.le.nmaxr) then
@@ -2045,12 +2173,12 @@ C  The value of the R point from which dR is constant, = HMAX, is RDBLE
 C  RDBLE = NPDBL * hmin * (2**NDOUBLE-1)
       rdble = float(npdbl) * hmin * (2**ndouble-1)
 
-      print*,'Grid R parameters:'
-      print*,'NDOUBLE:',ndouble
-      print*,'HMIN:',hmin
-      print*,'HMAX:',hmax
-      print*,'NPDBL:',npdbl
-      print*,'RDBLE:',rdble
+      if (myid.le.0)print*,'Grid R parameters:'
+      if (myid.le.0)print*,'NDOUBLE:',ndouble
+      if (myid.le.0)print*,'HMIN:',hmin
+      if (myid.le.0)print*,'HMAX:',hmax
+      if (myid.le.0)print*,'NPDBL:',npdbl
+      if (myid.le.0)print*,'RDBLE:',rdble
       
       dr = hmin
       jdouble(1) = 1
@@ -2082,7 +2210,7 @@ c$$$      nj = nj / 32
 c$$$      nj = nj * 32
       if (nj+j.gt.nmaxr) then
          nj = nmaxr - j
-         print*,'Warning: NR had to be reduced to NMAXR'
+         if (myid.le.0)print*,'Warning: NR had to be reduced to NMAXR'
       end if 
       do jj = 1, nj
          j = j + 1
@@ -2158,9 +2286,9 @@ c$$$      enddo
          enddo
          if (j-2**n.ne.nr)print*,'Warning last J should be NR',j-2**n,nr
          test = test * 2**n
-         print*,2**n,test*3.0/gridr(nr,1)**3
+         if (myid.le.0)print*,2**n,test*3.0/gridr(nr,1)**3
       enddo 
-      print*,'Last R and NR:', gridr(nr,1),nr
+      if (myid.le.0)print*,'Last R and NR:', gridr(nr,1),nr
 
       return
       end
@@ -2239,6 +2367,7 @@ c$$$            sk(2) = sqrt(rk**2 + 2.0 * rk * width)
          if (rk .lt. endk - 1.0 * width ) then
             nk(1) = max(nmin(np),int(np * rk / (endk - 1.0 * width)))
             nk(1) = min(nk(1), np - nmin(np))
+            if (mod(nk(1),2).eq.1) nk(1)=nk(1)+1
             npleft = np - nk(1)
             sk(3) = endk
             nk(3) = npleft
@@ -2263,6 +2392,7 @@ C  The two factors of 4.0 below put extra points in the first interval
      >      (4.0 * (sk(2) - sk(1)) + (endk2-endk))))
 c$$$         nk(2) = max(nmin(np2),int(np2 * (rk - endk) / (endk2-endk)))
          nk(2) = min(nk(2), np2 - nmin(np2))
+         if (mod(nk(2),2).eq.1) nk(2)=nk(2)+1
          npleft = np2 - nk(2)
          if (rk .lt. endk2 - width) then
             sk(4) = endk2
@@ -2306,7 +2436,8 @@ C  This is for very large incident energies
       complex ovlpnn
      
       real units(3), BornICS(knm,knm),ovlp(knm),esum(0:1),rcond(0:1),
-     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm)
+     >   BornPCS(nchan,nchan),oldBornPCS(nchan,nchan),ext(knm,knm),
+     >   oldpjp(knm,knm,0:1)
       common /corepartarray/ corepart(KNM,nicmax),ecore(nicmax)
       common /corearray/ nicm, ncore(nspmCI)
       real*8 t(ncmax,0:lamax),wts(ncmax),wf(2*ncmax),dstart,dstop,
@@ -2314,7 +2445,7 @@ C  This is for very large incident energies
       integer iwf(2*ncmax), nt(0:lamax), nlast(5,0:lmax), instate(100)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ip,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
-     >   npbot(0:lamax),nptop(0:lamax)
+     >   npbot(0:lamax),nptop(0:lamax),itail,iborn
       common /MPI_info/myid, ntasks, cnode, ench
       logical canstop,exists,assigned
       character*8 chunit(3), chun
@@ -2322,10 +2453,11 @@ C  This is for very large incident energies
       character projectile*(*), target*(*), csfile*(*), file_J*80,
      >   lockfile*80,cnode*3, ench*11
       common /charchan/ chan
-      common /chanen/ enchan(knm)
+      common /chanen/ enchan(knm),enchandiff(knm)
       real sigblast(5,0:lamax),sigbprev(5,0:lamax),
      >   tiecs(nicmax,0:1,nchan),tiecse(nicmax,0:1,nchan)
-      save ext
+      integer lgold(0:1)
+      save ext,oldpjp,oldpj,lgold,ticsextra,tnbBextra
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       
       data pi,ry,chunit/3.1415927,13.6058,
@@ -2344,7 +2476,7 @@ C  This is for very large incident energies
  10   inquire(file = lockfile, exist=exists)
       if (exists) then
          print*,'Surprisingly lockfile exists:',lg,n,lockfile
-         call sleep(lg)
+         call sleep(max(1,mod(lg*2,30)))
          if (n.le.100) then
             n = n + 1
 c$$$            call datetime(3)
@@ -2378,7 +2510,9 @@ c$$$            call datetime(3)
             enddo
          enddo
       enddo
-
+c$$$      ovlp(:) = 1.0
+c$$$      print*,'Reset bound state overlaps to 1'
+      
 C  We redefine NCHPMAX and NCHIPMAX here because on occasion NCHPMAX for
 C  the unnatural parity case comes out to be smaller than in the natural
 C  parity case
@@ -2460,23 +2594,55 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
       do incount = 1, nchipmax
          nchip = instate(incount)
          tbextra(nchip) = 0.0
-         tnbBextra(nchip) = 0.0
-         ticsextra(nchip) = 0.0
+         if (ipar.eq.0.or.iborn.ne.0) then
+            tnbBextra(nchip) = 0.0
+            ticsextra(nchip) = 0.0 !for ipar=1 keep ticsextra from the save statement
+         endif
          write(42,'("  transition   BornPCS        BornICS",
      >      "      last PCS(V)    last PCS(T) canstop")') 
          do nchp = 1, nchpmax
+c$$$            if (nchip.eq.2.and.nchp.eq.2) print*,lg,ipar,
+c$$$     >         oldpjp(nchp,nchip,ipar),partcs(nchp,nchip,0)
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
+            if (lgold(ipar).eq.lg-1.and.lg.gt.10
+     >         .and.chan(nchip)(1:1).eq.'p' !ne.chan(nchp)(1:1)
+     >         ) then
+               if (oldpjp(nchp,nchip,ipar).ne.0.0) then
+                  if (partcsT/oldpjp(nchp,nchip,ipar).gt.5.0) then
+c$$$                     if (nchip.eq.2) print*,lg,ipar,nchp,
+c$$$     >                  oldpjp(nchp,nchip,ipar),partcsT,
+c$$$     >                  partcsT/oldpjp(nchp,nchip,ipar)
+                     partcsT = oldpjp(nchp,nchip,ipar) *0.9
+                     sigtop(nchip,0:nsmax) = sigtop(nchip,0:nsmax) -
+     >                  partcs(nchp,nchip,0:nsmax) + partcsT
+                     partcs(nchp,nchip,0:nsmax) = partcsT
+                  endif
+               else 
+c$$$                  if (nchip.eq.2) print*,lg,ipar,nchp
+                  sigtop(nchip,0:nsmax) = sigtop(nchip,0:nsmax) -
+     >               partcs(nchp,nchip,0:nsmax)
+                  partcs(nchp,nchip,0:nsmax) = 0.0
+                  partcsT = 0.0
+               endif
+            endif
             if (BornICS(nchp,nchip).ne.0.0) then
                extra = BornICS(nchp,nchip) -
      >            BornPCS(nchp,nchip)*unit - oldBornPCS(nchp,nchip)
             else
-               extra = 0.0
+               if (partcs(nchp,nchip,0).ne.0) then
+                  extrapcs = extrap((partcs(nchp,nchip,0)+
+     >            partcs(nchp,nchip,1))*unit,
+     >               oldpjp(nchp,nchip,ipar), 0.0)
+               else
+                  extrapcs = 0.0
+               endif
+               extra = extrapcs !+ ext(nchp,nchip) ! this is from the "save" statement (was 0.0)
             endif 
             tbextra(nchip) = tbextra(nchip) + extra
-            if (enchan(nchp).lt.0) then
+            if (enchan(nchp).lt.0.and.chan(nchp)(1:1).ne.'p') then
                tnbBextra(nchip) = tnbBextra(nchip) +
      >            ovlp(nchp) * extra
-            else 
+            else if (enchan(nchp).gt.0.0) then
                ticsextra(nchip) = ticsextra(nchip) + extra
                btics(1,nchip) = btics(1,nchip) + BornICS(nchp,nchip)
                if (enchan(nchp).lt.etot/2.0)
@@ -2636,17 +2802,17 @@ c$$$     >               sigbprev(nc,l)*(n-1)**3/n**3, sig, n
 c$$$            print*,'SIGB, SIGBO:',sigb(nchip,ns), sigbo
 c$$$            print*,'TICS: sum, old proj, new proj',ticssum(nchip,ns),
 c$$$     >         sigt(nchip,ns) - sigb(nchip,ns), sigt(nchip,ns)-sigbo
-C  Redefine the ionization cross sections by SIGT - SIGB
-            do l = 0, ltop
-               sigionl(nchip,l,ns) = max(0.0,
-     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
-               do nc = 1, 5
-                  if (nlast(nc,l).ne.0) then
-c$$$                     print*,'Last bound excitation cross sections:',
-c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
-                  endif
-               enddo 
-            enddo
+c$$$C  Redefine the ionization cross sections by SIGT - SIGB
+c$$$            do l = 0, ltop
+c$$$               sigionl(nchip,l,ns) = max(0.0,
+c$$$     >            sigtl(nchip,l,ns)-sigbl(nchip,l,ns))
+c$$$               do nc = 1, 5
+c$$$                  if (nlast(nc,l).ne.0) then
+c$$$c$$$                     print*,'Last bound excitation cross sections:',
+c$$$c$$$     >                  sigbprev(nc,l),sigblast(nc,l),nlast(nc,l)
+c$$$                  endif
+c$$$               enddo 
+c$$$            enddo
             
             write(42,'(1p,2e13.5,0p,f10.5,a4,
      >         '' TCS (op. th.), last cont., ratio to sum'')')
@@ -2674,9 +2840,10 @@ C  theorem not being satisfied to full precision.
             do nchp = 1, nchpmax
                sig = partcs(nchp,nchip,ns) * unit + oldp(nchp,nchip,ns)
                call getchnl(chan(nchp),n,l,nc)
-               write(42,'(3i3,1p,4e15.5,a4,'' <-'',a3)') 
+               write(42,'(3i3,1p,5e15.5,a4,'' <-'',a3)') 
      >            ns,nchp,nchip, sig,enchan(nchp), ovlp(nchp),
-     >            partcs(nchp,nchip,ns) * unit, chan(nchp),chan(nchip)
+     >            partcs(nchp,nchip,ns) * unit, enchandiff(nchp),
+     >            chan(nchp),chan(nchip)
                if (chan(nchp)(1:1).eq.'p') then
                   nbstart = npbot(l)
                else
@@ -2731,7 +2898,7 @@ C  Need to make SIGTOLD from the info above
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         " TICS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * max(0.0,ein),chan(nchip),lg,ns,ip,
-     >         (sigtop(nchip,ns) * unit - sumo) 
+     >         max(sigtop(nchip,ns) * unit - sumo,0.0) 
             write(43,'(1p,e10.4,"eV on ",a3," for partial wave J =",i3,
      >         "   TNBCS(",i1,",",i1,"): ",1p,e11.3)')
      >         ry * ein,chan(nchip),lg,ns,ip,
@@ -2829,13 +2996,21 @@ C  Need to make SIGTOLD from the info above
      >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
      >      asym(sigb(nchip,0),sigb(nchip,1),fac)
 
+         write(43,'(i3,1p,e11.3,''eV on '',a3,
+     >      '' TNBCS,+extra, spin asymmetry:'',
+     >      1p,4e11.3)') lg, ry * ein,
+     >      chan(nchip),sigb(nchip,0)+sigb(nchip,1),
+     >      sigb(nchip,0)+sigb(nchip,1)+tnbBextra(nchip),
+     >      asym(sigb(nchip,0),sigb(nchip,1),fac)
+
          write(42,'(1p,e9.3,''eV on '',a3,
      >      '' TICS: s, t-s, +, a'',
      >      1p,4e11.3)') ry * ein,
      >      chan(nchip),ticssum(nchip,0) + ticssum(nchip,1), 
      >      sigion(nchip,0) + sigion(nchip,1),
      >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip), 
-     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
+     >      asym(sigion(nchip,0) ,!+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) ,fac)!+ ticsextra(nchip)*fac/(fac+1.0),fac)
          do ic = 1, nicm
             write(42,'(1p,e9.3,"eV on ",a3," TIECS(",i2,
      >         "), +extrap, and asym:",1p,3e11.3)')
@@ -2857,7 +3032,10 @@ C  Need to make SIGTOLD from the info above
      >      1p,4e11.3)')lg, ry * ein,
      >      chan(nchip),sigion(nchip,0) + sigion(nchip,1),
      >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
-     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
+     >      asym(sigion(nchip,0),!+ticsextra(nchip)/(fac+1.0),
+     >      sigion(nchip,1) ,fac)!+ ticsextra(nchip)*fac/(fac+1.0),fac)
+c$$$     >      sigion(nchip,0) + sigion(nchip,1) + ticsextra(nchip),
+c$$$     >      asym(sigion(nchip,0), sigion(nchip,1),fac)
          
 c$$$         write(42,'(1p,e9.3,''eV on '',a3,
 c$$$     >      " TICS: ",1p,e9.3,19(a3,e8.2))') 
@@ -2875,9 +3053,9 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
      >      asym(sigtope(nchip,0),sigtope(nchip,1),fac)
          write(42,'(79a)') ('-',i=1,79)
          write(42,'(''transition  cross section  extrapolated'',
-     >      ''     overlap       spin asym    energy'')')
-         write(43,'('' J   trans  cross section  extrap    PCS(V) '',
-     >      ''   PCS(T) S=0 PCS(T) S=1  energy     ovlp  ip'')')
+     >      ''     overlap       spin asym    energy     energydiff'')')
+         write(43,'(" J   trans    cross section    extrap      PCS(V)",
+     >   "       PCS(T) S=0   PCS(T) S=1   energy     ovlp  ip")')
          do l = 0, ltop
             nt(l) = 0
          enddo 
@@ -2885,8 +3063,8 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
             call getchnl(chan(nchp),n,l,nc)
             summedcs = partcs(nchp,nchip,0)*unit + oldp(nchp,nchip,0) +
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1)
-            Borne = BornICS(nchp,nchip) - 
-     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit
+            Borne = max(0.0,BornICS(nchp,nchip) - 
+     >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit)
 C  The following is not right if Born extrapolation is used due to
 C  the fact that the spin weights are not available here
 c$$$            extrapcs0 = extrap(partcs(nchp,nchip,0) * unit,
@@ -2896,42 +3074,59 @@ c$$$     >         oldpj(nchp,nchip,1), Borne) + oldp(nchp,nchip,1)
 c$$$            asymcs = asym(extrapcs0, extrapcs1,fac)
             asymcs = asym(partcs(nchp,nchip,0)*unit+oldp(nchp,nchip,0),
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1), fac)
-            if (chan(nchip).eq.chan(nchp)) then ! elastic scattering
-               if (target.ne.'H  I'.or.chan(nchp)(2:2).eq.'1') then
-                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
-     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*(2*lg+5)*(2*lg+7)*unit
-                  extrapcs = const/8.0/(2*lg+1)/(2*lg+3)/
-     >               (2*lg+5)/(2*lg+7)
-               else !excited H state elastic scattering
-                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
-     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*unit
-                  extrapcs = const/4.0/(4.0*(lg+1)**2-1.0)
-               endif 
-            else if (BornICS(nchp,nchip).ne.0.0) then
+c$$$            if (chan(nchip).eq.chan(nchp)) then ! elastic scattering
+c$$$               if (target.ne.'H  I'.or.chan(nchp)(2:2).eq.'1') then
+c$$$                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
+c$$$     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*(2*lg+5)*(2*lg+7)*unit
+c$$$                  extrapcs = const/8.0/(2*lg+1)/(2*lg+3)/
+c$$$     >               (2*lg+5)/(2*lg+7)
+c$$$               else !excited H state elastic scattering
+c$$$                  const = (partcs(nchp,nchip,0)+partcs(nchp,nchip,1)) *
+c$$$     >               (2*lg-1)*(2*lg+1)*(2*lg+3)*unit
+c$$$                  extrapcs = const/4.0/(4.0*(lg+1)**2-1.0)
+c$$$               endif
+c$$$               extrapcs = Borne
+c$$$            else
+C Keep it simple. The above screws up high-n elastic channels when IPAR=1
+            if (BornICS(nchp,nchip).ne.0.0) then
                extrapcs = Borne
+c$$$               if (nchp.eq.49.and.nchip.eq.42)
+c$$$     >            print*,chan(nchp),chan(nchip),BornICS(nchp,nchip),
+c$$$     >         oldBornPCS(nchp,nchip),BornPCS(nchp,nchip) * unit
             else 
-c$$$               summedcs = oldp(nchp,nchip,0) + oldp(nchp,nchip,1) !need to sort this out, Igor
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
-     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+     >            oldpjp(nchp,nchip,ipar), 0.0)
+c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
+               if (ipar.eq.0) then 
+                  if (partcs(nchp,nchip,0).ne.0.0) ! to help when rearrangement suddenly stops
+     >                 ext(nchp,nchip) = extrapcs
+               else
+                  extrapcs = extrapcs + ext(nchp,nchip)
+               endif
+c$$$               if (chan(nchp).eq.'p7S'.and.chan(nchip).eq.'p6H') then
+c$$$                  print'("J,IPAR,PCS1,PCS2:",2i3,1p,2e12.3)',lg,ipar,
+c$$$     >                 (partcs(nchp,nchip,0)+partcs(nchp,nchip,1))*unit,
+c$$$     >                 oldpjp(nchp,nchip,ipar)
+c$$$               endif
+C below ensures correct extrapolation for each parity
+c$$$               oldpjp(nchp,nchip,modulo(ipar+1,2)) = 
+c$$$     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             endif
-! Below doubled up extrapolation when Borne was non zero for H-like targets
-c$$$            if (ipar.eq.0) then 
-c$$$               ext(nchp,nchip) = extrapcs
-c$$$            else
-c$$$               extrapcs = extrapcs + ext(nchp,nchip)
-c$$$            endif
+            oldpjp(nchp,nchip,ipar) = 
+     >         partcs(nchp,nchip,0)+partcs(nchp,nchip,1)
+            lgold(ipar) = lg
             extrapcs = summedcs + extrapcs
             partcsT = partcs(nchp,nchip,0) + partcs(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
             canstop = canstop.and.(diff.lt.small.or.
      >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
-            write(42,'(a3,'' <-'',a3,1p,4e15.5,e11.3)') chan(nchp),
+            write(42,'(a3,'' <-'',a3,1p,4e15.5,2e11.3)') chan(nchp),
      >         chan(nchip),summedcs, extrapcs, ovlp(nchp), asymcs,
-     >         enchan(nchp)
+     >         enchan(nchp),enchandiff(nchp)
 c$$$     >         ,(diff.lt.small.or.
 c$$$     >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
-            write(43,'(i3,a4,'' <-'',a3,1p,6e11.3,0p,f8.4,i2)') 
+            write(43,'(i3,a4,'' <-'',a3,1p,6e13.5,0p,f8.4,i2)') 
      >         lg,chan(nchp),chan(nchip),summedcs,extrapcs,
      >         BornPCS(nchp,nchip)*unit,
      >         partcs(nchp,nchip,0)*unit,partcs(nchp,nchip,1)*unit, 
@@ -2960,8 +3155,9 @@ C  extrapolation works well for dipole transitions.
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.9) then
-         extrap = x / (1.0 - x / xp + 1e-20)
+      else if (0.0.lt.x.and.x.lt.xp*0.99) then
+         r = x/xp
+         extrap = x / (1.0 - r)
       endif
       end
       
@@ -2980,6 +3176,7 @@ c$$$      print*,'exiting extrapn3 with n:',n
       implicit real*8 (a-h,o-z)
       dimension x(nt),w(nt)
 
+      if (.false.) then
       k = 0
       if (dstart.lt.1e-10) k = 1
 
@@ -2997,6 +3194,18 @@ c$$$      print*,'exiting extrapn3 with n:',n
          sum = sum + x(n)**2 * w(n)
       enddo
       exact = (dstop**3 - dstart**3) / 3d0
+      else
+         do n = 2, nt-1
+            w(n) = (x(n+1)-x(n-1))/2.0
+         enddo
+         w(1) = (x(2)+x(1))/2.0-dstart
+         w(nt) = dstop-(x(nt-1)+x(nt))/2.0
+         sum = 0d0
+         do n = 1, nt
+            sum = sum + x(n) * w(n)
+         enddo
+         exact = (dstop**2 - dstart**2) / 2d0
+      endif
       if (abs(exact/sum - 1d0).gt.1d-10) print*,'problems in SIMPS',
      >   exact/sum
       return
@@ -3137,7 +3346,7 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       do i = 1, min(maxf,maxi)
          sum = sum + psif(i) * rmesh(i,1) * psii(i) * rmesh(i,3)
       enddo
-      oscil = (ef - ei) * sum**2 / 3.0
+      oscil = (ef - ei) * sum**2 / 3.0 !specific to s-p transitions, see main.f for generality
       return
       end
       
@@ -3158,18 +3367,20 @@ c$$$         pot0(i) = pot0(i) - rpow2(i,0) - temp(i)
       subroutine getstartk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-7
+      err = 1d-6
 #elif defined _double
-      err = 1d-14
+      err = 1d-12
 #endif
-      do while (dk/startk.gt.err)
+      startkold = -1.0
+      do while (abs(test).gt.err.and.startk.ne.startkold)!.and.dk/startk.gt.err
          startkold = startk
          if (test.gt.0.0) then
             startk = startk - dk
          else
             startk = startk + dk
          endif
-c$$$         print*,test,dk,startk,stopk,nmin
+c$$$         print'(1p,4e20.6,i3," test,dk,startk,stopk,nmin")',
+c$$$     >      test,dk,startk,stopk,nmin
          do n = 1, nt
             xx(n) = (xx(n)-startkold)*(stopk-startk)/
      >         (stopk-startkold) + startk
@@ -3190,18 +3401,20 @@ c$$$         print*,test,dk,startk,stopk,nmin
       subroutine getstopk(e,rk,startk,stopk,dk,test,xx,ww,nt)
       real*8 xx(nt),ww(nt),err
 #ifdef _single
-      err = 1d-7
+      err = 1d-6
 #elif defined _double
-      err = 1d-14
+      err = 1d-12
 #endif
-      do while (dk/stopk.gt.err)
+      stopkold = -1.0
+      do while (abs(test).gt.err.and.stopkold.ne.stopk)!.and.dk/stopk.gt.err)
          stopkold = stopk
          if (test.gt.0.0) then
             stopk = stopk - dk
          else
             stopk = stopk + dk
          endif
-c$$$         print*,test,dk,startk,stopk,nmin
+c$$$         print'(1p,4e20.6,i3," test,dk,startk,stopk,nmin")',
+c$$$     >      test,dk,startk,stopk,nmin
          do n = 1, nt
             xx(n) = (xx(n)-startk)*(stopk-startk)/
      >         (stopkold-startk) + startk
@@ -3213,7 +3426,8 @@ c$$$         print*,test,dk,startk,stopk,nmin
      >      (atanh(startk/rk)-acoth(stopk/rk))
          do n = 1, nt
             test = 2.0 * ww(n)/(e - xx(n)**2) + test
-         enddo 
+         enddo
+c$$$         print*,'stopk,test:',stopk,test
          if (test*testold.lt.0.0) dk = dk / 2.0
       enddo 
       return
@@ -3260,10 +3474,12 @@ c$$$         print*,test,dk,startk,stopk,nmin
       end
 
       subroutine makechil(lg,gk,wk,qcut,zasym,vdcore,npot,ui,ldw,dwpot,
-     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
+     >   npk,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,
+c$$$     >   npk,minchilx,chilx,phasel,nchtop,etot,nbnd,abnd,npsbndin,albnd,      
      >   sigma,nnbtop,pos,lnch)
       use gf_module
       use chil_module
+      use vmat_module, only: nodeid
       include 'par.f'
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   istartrp(0:ltmax),istoprp(0:ltmax),cntfug(maxr,0:lmax)
@@ -3292,6 +3508,8 @@ c$$$      dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
       common /chanen/ enchan(knm)
       common /debye/dbyexists, dblp, rmudeb, zdby
       logical::dbyexists,exists
+C     cray compiler bug workaround
+      character ch2      
 C     Added by Alex
 c$$$      logical analytic
       dimension vnucl(maxr)
@@ -3316,19 +3534,19 @@ C     End add
 #endif
 c$$$      inquire(FILE="analytic",EXIST=analytic)
       analytic = nanalytic.le.-2 !.and.e.ge.aenergyswitch
-      if (analytic) then
+c$$$      if (analytic) then
 c$$$         open(42,file = "analytic")
 c$$$         read(42,*) nbox
 c$$$         close(42)
-         nkmax = 0
+         kmaxgf = 0
          do nch = 1, nchtop
-            if (npk(nch+1)-npk(nch).gt.nkmax) nkmax=npk(nch+1)-npk(nch)
+            if (npk(nch+1)-npk(nch).gt.kmaxgf)kmaxgf=npk(nch+1)-npk(nch)
          enddo
-         if (allocated(gf)) deallocate(gf)
-         allocate(gf(nkmax,nkmax,nchtop))
          if (allocated(c)) deallocate(c)
-         allocate(c(maxr,nkmax))    ! Form routine expects maxr
-      endif 
+         allocate(c(maxr,kmaxgf))    ! Form routine expects maxr
+c$$$      endif 
+      if (allocated(gf)) deallocate(gf)
+      allocate(gf(kmaxgf,kmaxgf,nchtop))
       inquire(FILE="ndble",EXIST=torf)
       ndble = 0
       if (torf) then
@@ -3340,11 +3558,23 @@ c$$$         close(42)
       calculated(:,:) = .false. ! used to store psib in analytic call to pseudo
 c$$$      allocate (psib(meshr,nnbtop,latop),epsib(nnbtop,latop))
       nz = nint(zasym)
-      print*,'Entered MAKECHIL with ZASYM:',zasym
+c$$$      print*,'Entered MAKECHIL with ZASYM:',zasym
       alpha = 0.0
       utemp(:) = 0.0
 
-      if (npot.lt.0.and.ldw.ge.0) ui(:)=dwpot(:,-npot) ! Redefine UI
+      if (npot.lt.0.and.npot.ne.-99.and.ldw.ge.0) ui(:)=dwpot(:,-npot) ! Redefine UI
+      inquire(file='anatoli_dw',exist=exists)
+      if (exists) then
+c$$$               b = 14.7
+c$$$               a = 5.46
+         b = 9.84
+         a = 4.16
+         do i = 1, meshr
+            ui(i) = -2.0*(b*exp(-rmesh(i,1))+(53.0-b)*
+     >         exp(-a*rmesh(i,1))+1.0-zasym)/rmesh(i,1)
+         enddo
+      endif
+      
 C  First define the bound states, if any
 c$$$      do l = max(0,lg-latop), ldw
       do l = max(0,lg-latop), min(lg+latop,lamax)         
@@ -3364,13 +3594,15 @@ c$$$            print*,'Added VDCORE to DWPOT:',utemp(1)*rmesh(1,1)
      >            psib(n,l)%max)
                psib(n,l)%min = 1
                imax = psib(n,l)%max
-               print'("n,l,imax,en,ovlp",3i6,1p,1e12.3,0p,f9.3)',
+               if (nodeid.eq.1)
+     >            print'("n,l,imax,en,ovlp",3i6,1p,1e12.3,0p,f9.3)',
      >            n,l,psib(n,l)%max,psib(n,l)%en,dot_product(
-     >               psib(n,l)%radial(1:imax)*rmesh(1:imax,3),
-     >               psib(n,l)%radial(1:imax))
+     >            psib(n,l)%radial(1:imax)*rmesh(1:imax,3),
+     >            psib(n,l)%radial(1:imax))
             enddo
             if (l.gt.ldw.and.npsbndin.lt.0) then
                psibd(:,l) = psib(:,l) ! use exact eigenstates
+               nps = - npsbndin 
             else 
                nps = abs(npsbndin) !-l
                alpha = abnd(l)
@@ -3385,11 +3617,12 @@ c$$$                  alpha = max(abnd(l),alpha*1.1)
 c$$$               endif
                torf = .false.
 !               if (alpha.lt.10.0*(zasym+1)) then !.or.zasym.eq.-1.0) then
-               niter = 20
-               scale = 3.0
+               niter = 50
+               scale = 1.0
                if (alpha.gt.0.0) then
-                  print*,"Projectile diagonalisation: N, L, al",nps,l,
-     >                 alpha
+                  if (nodeid.eq.1)
+     >            print'("Projectile diagonalisation: L, N, al",2i4,
+     >            f10.5)', l,nps,alpha
                   call makeps(zasym, torf,alpha,l,expcut,nps,ps2,
      >               psen2,minps2, maxps2,rmesh,utemp,meshr,meshr,dummy)
                   if (nz.gt.0) then
@@ -3398,13 +3631,15 @@ c$$$               endif
                         do while (psen2(npose).lt.0.0)
                            npose = npose + 1
                         enddo
-! Below ensures that the first +ve-energy E1 point integrates from zero to 2*E1 by making E2=3E1. Interestingly, the factor 3 also works for the two -ve-energy points, see below print.
-                        test=(psen2(npose)*scale-psen2(npose+1))/
-     >                       psen2(npose+1)
-                        alpha = alpha * (1.0 - test /10.0)
-                        print'("nt,npose,al,test,4psen:",2i3,6f10.6)',
-     >                       ntimes,npose+l,alpha,test,
-     >                       (psen2(n),n=npose-2,npose+1) 
+                        npose = npose - 1
+! Below ensures that the continuum integration starts from zero by having -e,e around zero energy.
+                        test=(psen2(npose)*scale+psen2(npose+1))/
+     >                       (psen2(npose+1)-psen2(npose))
+                        alpha = alpha * (1.0 - test / nps)
+                        if (nodeid.eq.1)
+     >                     print'("nt,npose+l,al,test,en:",2i3,40f12.6)'
+     >                     ,ntimes,npose+l,alpha,test,
+     >                     (psen2(n),n=1,npose+1) 
                         if (abs(test).lt.1e-3) exit
                         call makeps(zasym,torf,alpha,l,expcut,nps,
      >                       ps2,psen2, minps2, maxps2, rmesh, utemp,
@@ -3415,8 +3650,10 @@ c$$$               endif
                   hmax = rmesh(meshr,2)
                   ra = abs(abnd(l))
                   nbmax = abs(npsbndin) ! - l There is a subtraction of L inside
-                  print*,'Projectile Box-based states; Z, N and R:',
+                  if (nodeid.eq.1)
+     >               print*,'Projectile Box-based states; Z, N and R:',
      >               -nze*zasym-1.0,nbmax,ra !note that z+1 is used in pseudo
+!                  utemp(:)=0.0
                   call pseudo(jdouble,id,hmax,-nze*zasym-1.0,l,ra,nbmax,
      >               maxr,utemp,psen2,ps2,jmax)
                   minps2(:) = 1
@@ -3427,14 +3664,15 @@ c$$$               endif
                         do while (psen2(npose).lt.0.0)
                            npose = npose + 1
                         enddo
+                        npose = npose - 1
 c$$$                   test=(psen2(npose)*0.5+psen2(max(npose-1,1))*0.5)/
 c$$$     >                       (psen2(npose) - psen2(max(npose-1,1)))
-                        test=(psen2(npose)*scale-psen2(npose+1))/
-     >                       psen2(npose+1)
-                        ra = ra * (1.0 + test/10.0)
-                        print'("nt,npose,Ra,test,4psen:",2i3,6f12.6)',
+                        test=(psen2(npose)*scale+psen2(npose+1))/
+     >                       (psen2(npose+1)-psen2(npose))
+                        ra = min(ra + 2.0*test,rmesh(meshr,1))
+                        print'("nt,npose+l,Ra,test,en:",2i3,40f12.6)',
      >                       ntimes,npose+l,ra,test,
-     >                       (psen2(n),n=npose-2,npose+1)
+     >                       (psen2(n),n=1,npose+1)
                         if (abs(test).lt.1e-3) exit
                         call pseudo(jdouble,id,hmax,-nze*zasym-1.0,l,ra,
      >                       nbmax,maxr,utemp,psen2,ps2,jmax)
@@ -3457,7 +3695,8 @@ c$$$     >                       (psen2(npose) - psen2(max(npose-1,1)))
      >                  psibd(n,l)%radial(1:imax)*rmesh(1:imax,3),
      >                  psib(np,l)%radial(1:imax))**2
                   enddo
-                  print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
+                  if (nodeid.eq.1)
+     >               print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
      >               n,l,psibd(n,l)%max,psibd(n,l)%en,psib(n,l)%en,proj
                   n = n + 1
                   psibd(n,l)%en = psen2(n-l)
@@ -3480,12 +3719,12 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       enddo
       trat = 1.0
       if (itail.lt.0) then
-         trat = 5.0 !gk(1,1)/qcut*rmesh(meshr,1)
-         print'("tail integral Rmax, Rtail, ratio:",3f6.1)',
-     >      rmesh(meshr,1),rmesh(meshr,1)/trat,trat
+         trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
+         if (nodeid.eq.1) print'("Rtail, max ktail:",2f6.1)',
+     >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
 
-      do nch = 1, nchtop
+      do nch = nchii, nchtop !nchii comes via chil_module
 C  NCH is the channel index
 C  NT is the state index
 C  LG is the total partial wave (J)
@@ -3508,7 +3747,39 @@ C  l is the projectile angular momentum (L)
          if (l.le.ldw) then
 c$$$            call makehart(lg,la,l,ltmax,psi,maxpsi,ea,1,-1,ui)
 C  Distorted-waves
-            dwpot(:,nch) = ui(:)
+            if (npot.eq.-99) then
+               ui(:) = dwpot(:,nch)
+               utemp(1:meshr)=-nze*(2.0*vdcore(1:meshr,l)+ui(1:meshr))
+               nps = abs(npsbndin) !-l
+               alpha = abnd(l)
+               if (nodeid.eq.1)
+     >            print'("Projectile diagonalisation: L, N, al",2i4,
+     >            f10.5)', l,nps,alpha
+               call makeps(zasym,torf,alpha,l,expcut,nps,ps2,
+     >            psen2,minps2,maxps2,rmesh,utemp,meshr,meshr,dummy)
+               n = l + 1
+               psibd(n,l)%en = psen2(n-l)
+               do while (psibd(n,l)%en.lt.0.0)
+                  proj = 0.0
+                  psibd(n,l)%max = maxps2(n-l)
+                  psibd(n,l)%radial(1:maxr) = 0.0
+                  psibd(n,l)%radial(1:maxps2(n-l)) =
+     >               ps2(1:maxps2(n-l),n-l)
+                  imax = psibd(n,l)%max
+                  do np = l+1, nbnd(l)+l !min(nnbtop,nnbm)
+                     proj = proj + dot_product(
+     >                  psibd(n,l)%radial(1:imax)*rmesh(1:imax,3),
+     >                  psib(np,l)%radial(1:imax))**2
+                  enddo
+                  if (nodeid.eq.1)
+     >               print'("n,l,imax,end,en,proj",3i6,1p,3e12.3)',
+     >               n,l,psibd(n,l)%max,psibd(n,l)%en,psib(n,l)%en,proj
+                  n = n + 1
+                  psibd(n,l)%en = psen2(n-l)
+               enddo
+            else
+               dwpot(:,nch) = ui(:)
+            endif
             if (ui(1).eq.0.0) stop 'DWPOT = 0.0'
 c$$$            if (npot.ge.0) then
 c$$$C  Define a single distorting potential (defined in POTENT) for all channels
@@ -3580,12 +3851,12 @@ c$$$                  n = n + 1
                enddo
 c$$$               psen2(n) = psibd(n+l,l)%en
                nneg = 1
-               do while (psen2(nneg).lt.0.0.and.nneg.lt.npsbnd)
+               do while (psen2(nneg).lt.0.0.and.nneg.le.npsbnd)
                   nneg = nneg + 1
                enddo
                nneg = nneg - 1
                if (nneg.gt.nbndm) then
-                  print*,
+                  if (nodeid.eq.1) print*,
      >               'Have generated more bound states than requested',
      >               ' NNEG, NBNDM, L:',NNEG, NBNDM, L
                   if (zasym.eq.0.0)
@@ -3621,13 +3892,13 @@ c$$$            endif
      >               dummy)
                enddo
                alpha = alpha + alpha/100.0
-               print*, 'ABND(l) changed to',alpha,l
+               if (nodeid.eq.1) print*, 'ABND(l) changed to',alpha,l
                call makeps(zasym,.false.,alpha,l,1e-10,npsbnd,ps2,
      >            psen2, minps2, maxps2, rmesh, utemp, meshr, meshr,
      >            dummy)
             endif 
-            print '(i2,2x,a3,i3,1p,100e12.5)', nneg, chan(nt), l,
-     >         (psen2(i), i=1, nbndm)
+            if (nodeid.eq.1) print '(i2,2x,a3,i3,1p,100e12.5)', 
+     >         nneg, chan(nt), l, (psen2(i), i=1, nbndm)
          else
             do n = 1, nbndm
 C  Any positive number will do
@@ -3648,18 +3919,19 @@ c$$$               wk(kp) = (1e,0.0)
 c$$$            endif 
             e1 = etot-ea-psen2(n)
             e2 = etot-ea-psen2(n+1)
-            if (n.lt.nbndm.and.e1*e2.lt.0.0) 
-     >         print'("CAUTION: WK changes sign across bound states",
-     >         i3,2f8.4,a5,i2)',n,e1,e2,chan(nt),l
+c$$$            if (n.lt.nbndm.and.e1*e2.lt.0.0.and.nodeid.eq.1) 
+c$$$     >         print'("CAUTION: WK changes sign across bound states",
+c$$$     >         i3,2f8.4,a5,i2)',n,e1,e2,chan(nt),l
 C     The choice of phase makes no difference
             phasel(k,nch) = (1.0,0.0)
 c$$$            phasel(k,nch) = (0.0,1.0)**(-l)
             if (psen2(n).lt.0.0) then
 c$$$            if (psen2(n).lt.0.0.and.etot-ea.gt.0.0) then
                gk(k,nch) = -sqrt(-psen2(n))
-               if (abs(etot - ea - psen2(n)).lt.0.1) print*,
-     >            'Warning for bound state have etot - ea - psen2(n)',
-     >            etot - ea - psen2(n), n
+c$$$               if (abs(etot - ea - psen2(n)).lt.0.1.and.nodeid.eq.1)
+c$$$     >            print*,
+c$$$     >            'Warning for bound state have etot - ea - psen2(n)',
+c$$$     >            etot - ea - psen2(n), n
                minchil(kp,1) = 1
 C The normalization sqrt(pi/2.0) is used as later all CHIL states are
 C multiplied by sqrt(2.0/pi).
@@ -3687,10 +3959,11 @@ c$$$               endif
 C  Having defined the bound states we now define the distorted waves
          summax = 0.0
          ebmax = 0.0
-c$$$C$OMP parallel do default(private)
-c$$$C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
-c$$$C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-c$$$C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax)
+C$OMP parallel do default(private)
+C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
+C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
+C$OMP& minchil,chil,rphase,nqm,sigma,summax,itail,trat,qcut,psi,
+C$OMP& maxpsi)reduction(+:testc)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
             if (gk(k,nch).eq.0.0) then
@@ -3705,16 +3978,23 @@ c$$$C$OMP& minchil,chil,rphase,nqm,testc,sigma,summax)
                call regular(l,en,eta,u,cntfug(1,l),ldw,
      >            rmesh,meshr,jdouble,id,regcut,expcut,
      >            temp,jstart,jstop,phasel(k,nch),sigc)
+c$$$               print*,'ldw,u,phase,sigc:',ldw,u(1),phasel(k,nch),sigc
+c$$$               inquire(file='anatoli_dw',exist=exists)
+c$$$               if (exists) then
+c$$$                  phasel(k,nch) = phasel(k,nch)*sigc
+c$$$               endif
 c$$$  if (dbyexists) sigc = (1.0,0.0)
 c$$$               if (nbnd(lg).ne.0.and.k.gt.1) then
 c$$$               if (k.lt.1) then     !Igor
-c$$$               if (k.gt.1) then
-c$$$                  call getprod(psi,maxpsi,jstart,temp,l,rmesh,
-c$$$     >               meshr,nt,tmp)
-c$$$                 tmp = tmp * wk(kp) * 2.0 / pi *
-c$$$     >               (etot - ea - en) / 2.0
-c$$$                  testc = testc + tmp
-c$$$               endif 
+               if (k.gt.1) then
+                  call getprod(psi,maxpsi,jstart,temp,l,rmesh,
+     >               meshr,nt,tmp)
+                 tmp = tmp * wk(kp) * 2.0 / pi *
+     >               (etot - ea - en) / 2.0
+c$$$!$omp critical
+                 testc = testc + tmp
+c$$$!$omp end critical
+              endif 
 c$$$               if (lg.gt.ldw) phasel(k,nch) = (1.0,0.0)
 
 C  The following generates the contribution to the T matrix due
@@ -3748,7 +4028,7 @@ c$$$                  print*,'phase,phasel:',phase,phasel(k,nch)
 c$$$                  print'("NCH, l, En, test and T dist:",
 c$$$     >               i4,i3,f7.3,f7.4,1p,2e13.4)', nch, l, en, test,
 c$$$     >               tmp*2.0/pi/en*phasel(k,nch)*sig**2
-                  if (abs(test-1.0).gt.0.1) 
+                  if (abs(test-1.0).gt.0.1.and.nodeid.eq.1) 
      >               print*,'Caution distorted waves are inaccurate',
      >               tmp,-aimag(phasel(k,nch)) * sqrt(en) / 2.0
                endif 
@@ -3833,8 +4113,8 @@ c$$$            endif
                      rkmax = gk(k,nch)
                   endif 
                endif 
-               if (nb.eq.nbndm.and.k.eq.nqm-nbndm) print*,
-     >            'L, Max overlap, bound state e, k:',
+               if (nb.eq.nbndm.and.k.eq.nqm-nbndm.and.nodeid.eq.1) 
+     >            print*,'L, Max overlap, bound state e, k:',
      >            l,summax,ebmax,rkmax
             enddo 
             minchil(kp,1) = jstart
@@ -3858,7 +4138,7 @@ c$$$     >            * exp(alpha * rmesh(i,1))
                   chil(i,kp,2) = 0.0
                end do
                minchil(kp,2) = meshr
-               if (entail.lt.1.1*qcut**2) then !qcut**2 too limited
+               if (entail.lt.qcut**2) then
                   do i = 1, meshr
 !                     utemp(i) = - nze * (- zasym * 2.0 / rmesh(i,1))
                      utemp(i) = zeff*2.0*rmesh(meshr,1)/trat/rmesh(i,1)
@@ -3867,18 +4147,77 @@ c$$$                  call regular(l,entail,etatail,utemp,cntfug(1,l),ldw,
 c$$$     >               rmesh,meshr,jdouble,id,regcut,expcut,
 c$$$     >               temp,minchil(kp,2),jstop,phase,sigc)
 c$$$                  if (abs(imag(phasel(k,nch))).gt.1e-3) then
-                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
-     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
-     >               temp,tempi,minchil(kp,2),jstop,phase)
-c$$$                  endif
+
+c$$$                  call makegreen(l.le.ldw,l,entail,etatail,utemp,
+c$$$     >               cntfug(1,l),rmesh,meshr,jdouble,id,regcut,expcut,
+c$$$     >               temp,tempi,minchil(kp,2),jstop,phase)
+
+c$$$              endif
+                  minchil(kp,2) = 1
                   do while(rmesh(minchil(kp,2),1).lt.trat.and.
      >               minchil(kp,2).lt.meshr) !tail integrates from TRAT
                      minchil(kp,2) = minchil(kp,2) + 1
-                  enddo 
-                  do i = minchil(kp,2), meshr
-                     chil(i,kp,2) = (real(phasel(k,nch))*temp(i) +
-     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
                   enddo
+                  rat = rmesh(meshr,1)/trat
+                  drt = rmesh(meshr,2)*rat
+                  r1 = rmesh(meshr,1)-3.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
+                  enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-3,1)*rat,s1,dchi)
+c$$$                  print*,'rmatch,s1:',rmesh(minchil(kp,2)-3,1)*
+c$$$     >               rat,s1
+                  r2 = rmesh(meshr,1)-2.0*drt
+                  i = meshr
+                  do while (rmesh(i,1).gt.r1)
+                     i = i - 1
+                  enddo
+                  r1 = rmesh(i-1,1)
+                  f1=chil(i-1,kp,1)/rmesh(i-1,3)
+                  r2 = rmesh(i,1)
+                  f2=chil(i,kp,1)/rmesh(i,3)
+                  r3 = rmesh(i+1,1)
+                  f3=chil(i+1,kp,1)/rmesh(i+1,3)
+                  r4 = rmesh(i+2,1)
+                  f4=chil(i+2,kp,1)/rmesh(i+2,3)
+                  call fourpointrule(r1,f1,r2,f2,r3,f3,r4,f4,
+     >               rmesh(minchil(kp,2)-2,1)*rat,s2,dchi)
+c$$$                  print*,'rmatch,s2:',rmesh(minchil(kp,2)-2,1)*
+c$$$     >               rat,s2
+                  temp(1:meshr)=0.0
+                  if (s1.ne.0.0.and.s2.ne.0.0)
+     >               call numerovf(l,entail,utemp,cntfug(1,l),rmesh(1,1)
+     >               ,meshr,jdouble,id,s1,s2,temp,minchil(kp,2)-2,meshr)
+                  do i = minchil(kp,2), meshr
+                     chil(i,kp,2) = temp(i) * rmesh(i,3)
+                  enddo
+                  
+c$$$                  r1 = rmesh(meshr-1,1)
+c$$$                  f1 = chil(meshr-1,kp,1)/ rmesh(meshr-1,3)
+c$$$                  r2 = rmesh(meshr,1)
+c$$$                  f2 = chil(meshr,kp,1)/rmesh(meshr,3)
+c$$$                  r3 = rmesh(meshr,1)*rmesh(minchil(kp,2),1)/trat
+c$$$                  fac = 1.0
+c$$$                  if (f1+f2.ne.0.0.and.temp(minchil(kp,2)).ne.0.0)
+c$$$     >               fac = (f1*(r3-r2)/(r1-r2)+f2*(r3-r1)/(r2-r1))/
+c$$$     >               temp(minchil(kp,2))
+c$$$                  if (abs(1.0-fac).gt.0.1)
+c$$$     >               print'("Tail integral rescaled; en,fac:",2f7.3)',
+c$$$     >               entail,fac
+c$$$                  do i = minchil(kp,2), meshr
+c$$$                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
+c$$$     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
+c$$$                  enddo
                   if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
      >               chil(minchil(kp,2):meshr,kp,2)*rmesh(meshr,1)/trat
 c$$$                  if (k.eq.1)
@@ -3889,10 +4228,10 @@ c$$$                  print*,'CHIL(:,kp,2)=0 for kp>qcut',sqrt(entail),qcut
                endif 
             end if !tails defined
          end do ! End of the loop over K
-c$$$C$OMP end parallel do
-         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
+C$OMP end parallel do
+c$$$         if (itail.lt.0) print*,'CHIL(:,kp,2)=0 for kp > qcut',qcut
 
-         if (nqm.gt.1.and.nbnd(lg).ne.0) print 
+         if (nqm.gt.1.and.nbnd(lg).ne.0.and.nodeid.eq.1) print 
      >      '("test integral for state:",a4,f10.6," =",f10.6," +",
      >      f10.6)',chan(nt),testb+testc,testb,testc
 c$$$         close(10*na+la)
@@ -3909,8 +4248,15 @@ C Alex for box basis.
             eta = zeff / sqrt(abs(eproj))
          endif
          nbmax=npk(nch+1)-npk(nch)-1
+         GF(:,:,nch)=0.0
+         do kp=2,npk(nch+1)-npk(nch)
+            GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
+         enddo
+c$$$         print*,'gf:',gf(2,2,1)
          if (analytic .AND. nbmax .GT. 1) then
             if (eproj.ge.aenergyswitch) then !aenergyswitch is in modules.f
+               if (nbox.ne.0) then !below is only for the box basis
+                  if (nodeid.eq.1) print*,'Box basis for nch:',nch
                hmax=rmesh(meshr,2)
 c$$$               zas=-nze*zasym-1.0 ! check this
                zas=-zeff-1.0 ! check this
@@ -3942,16 +4288,15 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   if (.true..or.nbmax.gt.npsbndin) then
                      zas=-zeff-1.0 ! check this
                      vnucl(:)=0.0
-                     print*, "L, ndble, nbmax, zas:",l,ndble,
-     >                  nbmax+ndble,zas
                      call pseudo(jdouble,id,hmax,zas,l,ra,nbmax+l+ndble,
      >                  maxr,vnucl,erydout(2),waveout(1,2),lastpt)
                      maxps2(:)=lastpt
                      minps2(:)=1
                      kstep = 0
                      do k = nbmax-ndble+2,nbmax+1
-                     print*,'k,k+kstep,k+kstep+1:',k,k+kstep,k+kstep+1,
-     >                     erydout(k+kstep),erydout(k+kstep+1)
+                        if (nodeid.eq.1)
+     >                     print*,'k,k+kstep,k+kstep+1:',k,k+kstep,
+     >                     k+kstep+1,erydout(k+kstep),erydout(k+kstep+1)
                         waveout(1:lastpt,k) = (waveout(1:lastpt,k+kstep)
      >                     + waveout(1:lastpt,k+1+kstep))/sqrt(2d0)
                         erydout(k)=(erydout(k+kstep)+erydout(k+kstep+1))
@@ -3961,7 +4306,8 @@ c$$$                  vnucl(i) = (vdcore(i,l)-rpow2(i,0)*(zasym))*2.0
                   else
                      temp(:) = 0d0
 c$$$  nbmax = max(nbmax, npsbndin-la)
-                     print*,'Diagonalising with L,N,a,zas,n:',
+                     if (nodeid.eq.1)
+     >                  print*,'Diagonalising with L,N,a,zas,n:',
      >                  l,npsbndin,abnd(l),zas,nbmax
                      call makeps(zasym,.false.,abnd(l),l,expcut,
      >                  npsbndin,waveout(1,2),erydout(2),minps2(2),
@@ -3988,7 +4334,7 @@ c$$$                  utemp(i) = - nze * (- zasym * 2.0/rmesh(i,1))
                   endif
                   temp(:)=0d0
 
-                  if (itail.lt.0.or.nze.eq.1.and.lptop.ge.0) then ! for positrons or analytic tail integrals need projections
+                  if (itail.lt.0.or.(nze.eq.1.and.lptop.ge.0)) then ! for positrons or analytic tail integrals need projections
                      call regular(l,erydout(k),eta,vnucl,
      >                  cntfug(1,l),ldw,rmesh,meshr,jdouble,id,
      >                  regcut,expcut,temp,j1,j2,phase,sig)
@@ -4013,7 +4359,7 @@ c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                         end do
                         minchil(kp,2) = meshr
                      endif 
-                     if (entail.lt.qcut**2*2.0.and.itail.lt.0) then
+                     if (entail.lt.qcut**2*1.1.and.itail.lt.0) then
                         call regular(l,entail,eta,utemp,cntfug(1,l),
      >                     ldw,rmesh,meshr,jdouble,id,regcut,expcut,
      >                     temp,minchil(kp,2),j2,phase,sig)
@@ -4023,7 +4369,8 @@ c$$$                  print*, 'analytic wk:',real(wk(k+npk(nch)-1))
                         do i = minchil(kp,2), meshr
                            chil(i,kp,2) = temp(i) * rmesh(i,3)
                         enddo
-                        print*,'Defined tail CHIL, MINCHIL for en:',
+                        if (nodeid.eq.1)
+     >                     print*,'Defined tail CHIL, MINCHIL for en:',
      >                     entail,minchil(kp,2)
                      endif 
                   else 
@@ -4042,7 +4389,8 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                   minchil(k+npk(nch)-1,1) = 1 !this needs to change for large L
 !                  print*,npk(nch+1)-npk(nch),nps
                   if (npk(nch+1)-npk(nch).le.nps+1) then
-                     print'("nch,k,gk,sqrt(abs(enb)):", 2i4,1p,2e12.3)', 
+                     if (nodeid.eq.1)
+     >               print'("nch,k,gk,sqrt(abs(enb)):", 2i4,1p,2e12.3)', 
      >                  nch,k,gk(k,nch),sqrt(abs(psibd(k-1+l,l)%en))*
      >                  psibd(k-1+l,l)%en/abs(psibd(k-1+l,l)%en)
                      gk(k,nch) = sqrt(abs(psibd(k-1+l,l)%en))*
@@ -4053,10 +4401,24 @@ c$$$                        chil(j,k+npk(nch)-1,1)=temp(j)*rmesh(j,3)
                      enddo 
                      chil(psibd(k-1+l,l)%max+1:meshr,k+npk(nch)-1,1)=0d0
                   else
-                     print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
+                     if (nodeid.eq.1)
+     >                  print'("nch, k, gk, wk, 2/ra:", 2i4,1p,3e12.3)', 
      >                  nch,k,gk(k,nch),real(wk(k+npk(nch)-1)),2.0/ra
                   endif
-               enddo
+               enddo !k loop
+               boxnorm = 1.0
+               else !nbox.eq.0
+                  lastpt = meshr
+                  do k=2,npk(nch+1)-npk(nch)
+                     do j=1,lastpt
+                        chil(j,k+npk(nch)-1,1)=chil(j,k+npk(nch)-1,1)
+!     >                  * tmp
+!     >                  /sqrt(real(wk(k+npk(nch)-1)))
+!     >                  *sqrt(pi/2d0)
+                     enddo
+                  enddo        
+                  boxnorm = 2.0/rmesh(meshr,1) * 2.0/pi
+               endif !nbox.ne.0
                Rpl(:) = 0.0
                Rpg(:) = 0.0
 
@@ -4089,65 +4451,121 @@ c$$$            endif
 
 C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP& SCHEDULE(dynamic)
+C$OMP& PRIVATE(w,kpp,kp)
                do kpp=2,npk(nch+1)-npk(nch)
-                  do kp=2,npk(nch+1)-npk(nch)
+                  do kp=2,npk(nch+1)-npk(nch) !kpp,kpp try diagonal?
+c$$$                     w = 1.0
+c$$$                     if (kp.eq.kpp) w = real(wk(kp+npk(nch)-1))
                      GF(kp,kpp,nch) =
      >                  - dot_product(chil(1:meshr,npk(nch)-1+kp,1),
-     >                  C(1:meshr,kpp)) * pi / const * !*(2.0/pi)
-     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+     >                  C(1:meshr,kpp)) * pi / const * boxnorm *
+     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1)) 
+c$$$                     print*,'k,wk:',kp,real(wk(kp+npk(nch)-1))
+c$$$                     if (kp.eq.kpp.and.kp.eq.2) print*,
+c$$$     >                  GF(kp,kpp,nch), pi / const * 
+c$$$     >                  real(wk(kp+npk(nch)-1))*real(wk(kpp+npk(nch)-1))
+c$$$     >                    *boxnorm 
                   enddo
                enddo
 C$OMP END PARALLEL DO
-            else !negative energies
+               if (nbox.eq.0) then !analytic with true continuum functions
+c$$$                  GF(:,:,nch) = 0.0
+                  do kp = 2, npk(nch+1)-npk(nch)
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+!     >                    real(wk(kp+npk(nch)-1))
+c$$$                     GF(kp,kp,nch)=
+c$$$     >                  real(wk(kp+npk(nch)-1))*
+c$$$     >                  2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+                  enddo
+               else ! for scalapack
+c$$$                  do kp = 2, npk(nch+1)-npk(nch)
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kp,nch)
+c$$$                  enddo
+               endif
+            else !eproj.lt.aenergyswitch (closed channels)
+               GF(:,:,nch)=0.0
                do kp=2,npk(nch+1)-npk(nch)
                   GF(kp,kp,nch) = real(wk(kp+npk(nch)-1))
 c$$$     >               *2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
 c$$$                  GF(kp,kp,nch) = pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
                enddo 
             endif 
+         endif                  !analytic
 
+         inquire(file='writegreen',exist=exists)
+         if (exists) then
             write(stringtemp,'("GFm",1P,SP,E10.3,"_",SS,I1)') eproj,l
-            inquire(file='writegreen',exist=exists)
-            if (exists) then
-               open(42,file=stringtemp)
-               do kp = 2, npk(nch+1)-npk(nch)
-                  do kpp = kp,kp !2, npk(nch+1)-npk(nch)
-                     write(42,'(1p,3e13.2)') 
-     >                  gk(kpp,nch),GF(kp,kpp,nch),
-     >                  pi/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
-c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)
-                  enddo
-c$$$                  write(42,*)
+            open(42,file=stringtemp)
+c$$$               GF(:,:,nch) = 0.0
+            do kp = 2, npk(nch+1)-npk(nch)
+               do kpp = 2, npk(nch+1)-npk(nch)
+c$$$                     GF(kp,kpp,nch) = pi/(eproj-gk(kp,nch)*
+c$$$     >                    abs(gk(kp,nch)))*real(wk(kp+npk(nch)-1))
+c$$$                     wk(kp+npk(nch)-1) = GF(kp,kpp,nch)/
+c$$$     >                    real(wk(kp+npk(nch)-1))/pi/pi
+c$$$     >                    pi/(eproj-gk(kp,nch)*
+c$$$  >                    abs(gk(kp,nch)))
+                  gforig = 0.0
+                  wkorig = 0.0
+                  if (kp.eq.kpp) then
+                     gforig = 2.0/(eproj-gk(kp,nch)*abs(gk(kp,nch)))
+                     wkorig = real(wk(kp+npk(nch)-1))
+                  endif
+                  write(42,'(1p,5e13.3)') 
+     >                 gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch),
+     >                 gforig,wkorig
+c$$$     >                  gk(kp,nch),gk(kpp,nch),GF(kp,kpp,nch)/
+c$$$     >                  real(wk(kp+npk(nch)-1))/real(wk(kpp+npk(nch)-1))
                enddo
+               write(42,*)
+            enddo
 c$$$               write(42,'("#   r    ",1p,500e24.3)') (gk(kp,nch),
 c$$$     >            kp=2,npk(nch+1)-npk(nch),10)
 c$$$               do i = 1, istop
 c$$$                  write(42,'(1p,500e12.3)') rmesh(i,1),(c(i,kp),
 c$$$     >               chil(i,kp,1)/rmesh(i,3),kp=2,npk(nch+1)-npk(nch),10)
 c$$$               enddo 
-               close(42)
-               print*,'Written:',stringtemp
-            endif 
-         endif                  !analytic
+            close(42)
+            if (nodeid.eq.1) print*,'Written:',stringtemp
+         endif 
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)
+C     cray compiler bug workaround
+      ch2=ch(mod(nch,10))      
       if (exists) then
-         open(42,FILE='chil'//ch(lg)//'_'//ch(nch))
-         write(42,'("#",11x,1000F6.3)')
+C        cray compiler bug workaround
+!         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
+         write(stringtemp,'(i3,"_chil_",a)') l,ch2              
+         open(42,FILE=adjustl(stringtemp)) !'chil'//ch(lg)//'_'//ch(nch))
+         write(42,'("#",13x,1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
-         write(42,'("#",1p,11x,1000E12.4)')(gk(k,nch)*abs(gk(k,nch)),
-     >      k=1,npk(nch+1)-npk(nch))
+         write(42,'("# en(Ry) ->   ",1p,1000E14.4)')
+     >      (gk(k,nch)*abs(gk(k,nch)),k=1,npk(nch+1)-npk(nch))
          do i=1,meshr,1
-            write(42,'(1p,1000E12.4)') rmesh(i,1),
+            write(42,'(1p,1000E14.4)') rmesh(i,1),
      >         (chil(i,k,1)/rmesh(i,3),k=npk(nch),npk(nch+1)-1)
          enddo
          close(42)
-         if (itail.ne.0) then
-            open(42,FILE='chiltail'//ch(lg)//'_'//ch(nch))
+         inquire(file='anatoli_dw',exist=exists)
+         if (exists) then
+            open(42,FILE='anatoli_dw')
+            write(42,*)'   e(a.u.)                 phase        l ='
+     >         ,lg
+            do k=2,npk(nch+1)-npk(nch)
+               write(42,'(1p,3E14.4)') gk(k,nch)*abs(gk(k,nch))/2.0,
+     >            phasel(k,nch)
+            enddo
+            close(42)
+         endif
+         if (itail.lt.0) then
+C           cray compiler bug workaround
+!            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch(nch)                 
+            write(stringtemp,'(i3,"_chiltail_",a)') lg,ch2
+            open(42,FILE=adjustl(stringtemp)) !'chiltail'//ch(lg)//'_'//ch(nch))
             write(42,'("#",11x,1000F6.3)')
      >         (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
-            write(42,'("#",1p,11x,1000E12.4)')
+            write(42,'("# en(Ry) -> ",1p,1000E12.4)')
      >      ((rmesh(meshr,1)/trat*gk(k,nch))**2,k=1,npk(nch+1)-npk(nch))
             do i=1,meshr,1
                write(42,'(1p,1000E12.4)')rmesh(i,1)*rmesh(meshr,1)/trat,
@@ -4157,10 +4575,11 @@ c$$$               enddo
          endif 
          open(42,file='dwpot')
          do i = 1, meshr
-            write(42,*) i,rmesh(i,1),ui(i)
+            write(42,'(1p,5e16.5)') rmesh(i,1),ui(i)!,cntfug(i,l),
+!     >       float(l)*float(l+1)/rmesh(i,1)**2,sin(gk(1,nch)*rmesh(i,1))
          enddo
          close(42)
-         print*,'Written chil for NCH, ZASYM:',nch,zasym
+         if (nodeid.eq.1)print*,'Written chil for NCH, ZASYM:',nch,zasym
       endif 
       end do ! End of the loop over NCH
       if (allocated(c)) deallocate(c)

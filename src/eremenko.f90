@@ -425,8 +425,8 @@ subroutine cwfnFull(p, q, l, eta, value)
     double precision, intent(in) :: q
     integer, intent(in) :: l
     double precision, intent(in) :: eta
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
 
     ! Parameters (computed later) to decide the best representation
     double precision:: pMin
@@ -483,8 +483,8 @@ subroutine cwfnfullnonpole(p, q, l, eta, value)
     double precision, intent(in) :: q
     integer, intent(in) :: l
     double precision, intent(in) :: eta
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
     ! Other variables
 !    double complex :: upsilon
 !    double complex :: omega
@@ -538,8 +538,8 @@ subroutine cwfnfullpolecached(p, q, l, eta, imxi, value)
     integer, intent(in) :: l
     double precision, intent(in) :: eta
     double precision, intent(in) :: imxi
-!    double complex, intent(out) :: value
-    double precision, intent(out) :: value
+    double complex, intent(out) :: value
+!    double precision, intent(out) :: value
     ! Other variables
 !    double complex :: theta
 !    double complex :: lambda
@@ -3344,3 +3344,33 @@ subroutine cwfnzeta(p, q, value)
 
     value = 4.d0 * q2 * p2 / denom
 end subroutine cwfnzeta
+
+! quicksort.f -*-f90-*-
+! Author: t-nissie
+! License: GPLv3
+! Gist: https://gist.github.com/t-nissie/479f0f16966925fa29ea
+!!
+recursive subroutine quicksort(a, first, last)
+  implicit none
+  real*8  a(*), x, t
+  integer first, last
+  integer i, j
+
+  x = a( (first+last) / 2 )
+  i = first
+  j = last
+  do
+     do while (a(i) < x)
+        i=i+1
+     end do
+     do while (x < a(j))
+        j=j-1
+     end do
+     if (i >= j) exit
+     t = a(i);  a(i) = a(j);  a(j) = t
+     i=i+1
+     j=j-1
+  end do
+  if (first < i-1) call quicksort(a, first, i-1)
+  if (j+1 < last)  call quicksort(a, j+1, last)
+end subroutine quicksort

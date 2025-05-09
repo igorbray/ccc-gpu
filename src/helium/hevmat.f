@@ -1,8 +1,9 @@
 c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sqrt(2J+1) <||V||>
       subroutine vdme(nze,nchmi,Nmaxi,Ni,Li,lai,si,lpari,nspmi,loi,
-     >   Ci,fli,maxfi,minfi,npki,chili,minci,
+     >   Ci,fli,maxfi,minfi,npki,!chili,minci,
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
-     >   Cf,flf,maxff,minff,npkf,chilf,mincf,ortint,KJ,dwpot,
+     >   Cf,flf,maxff,minff,npkf,!chilf,mincf,
+     >   ortint,KJ,dwpot,
      >   vdon,VVD,nchf,nchi,na,nam,namax,itail,gki,phasei,gkf,phasef)
       use chil_module
       include 'par.f'
@@ -15,17 +16,20 @@ c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sq
       dimension loi(nspmi), lof(nspmf),npki(nchmi+1),npkf(nchmf+1)
       dimension fli(maxr,nspmax),maxfi(nspmi),minfi(nspmi)
       dimension flf(maxr,nspmax),maxff(nspmf),minff(nspmf)
-      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
-      dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
+c$$$      dimension chili(1,1), minci(1)
+c$$$      dimension chilf(1,1), mincf(1)
+c$$$      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
+c$$$      dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
       dimension gki(kmax),phasei(kmax),gkf(kmax),phasef(kmax)
       complex phasei,phasef
-      dimension formout(maxr),dwpot(maxr,nchan)!,chiform(maxr,kmax)
-      allocatable :: chiform(:,:)
+      common /meshrr/ nr, gridr(nmaxr,3)
+      dimension formout(nr),dwpot(maxr,nchan) !,chiform(maxr,kmax)
+c$$$      real, allocatable :: chiform(:,:)
+      dimension chiform(nr), temp(nr)
       dimension VVD(kmax,kmax,0:1)
 c$$$      dimension VVD(npkf(nchmf+1)-1,npki(nchmi+1))
       dimension  Vang(0:ltmax), upot(maxr), vdon(nchan,nchan,0:1)
-      common /meshrr/ nr, gridr(nmaxr,3)
-      dimension temp(maxr), tail(kmax,kmax)
+      dimension tail(kmax,kmax)
 c      logical zeroc
       logical diag_ME
       real tmp_const(0:ltmax)
@@ -38,9 +42,7 @@ c
       ze = 2.0
 
       pnorm = 2.0/acos(-1.0)
-      do i = 1, maxr
-         temp(i) = 0.0
-      enddo
+      temp(:) = 0.0
 
       diag_ME = Ni.eq.Nf   ! set true if this is diagonal ME, to be used for subtraction of the nuclear term
 c     
@@ -91,82 +93,87 @@ c     on ang. momenta of s.p.functions
       lthuge = 100000
       ltmin = lthuge
 c     these are 2 s.p. loops on s.p. functions of the coordinate r1
-            do 68 jnf1=1,nam(Nf)
-               nf1 = na(jnf1,Nf)
-               lf1=lof(nf1)
-               rlf1=lf1
-               tmp2 = (-1)**(lf1)
-               do 67 jni1=1,nam(Ni)
-                  ni1 = na(jni1,Ni)
-                  li1=loi(ni1)
-                  rli1=li1
-                  tmp1 = tmp2 * hat(li1) 
+c$$$!$omp  parallel do default(private)shared(nam,na,lof,Nf,Ni,lambot1,
+c$$$!$omp& lamtop1,Cf,Ci,tmp_hat,tmp_const,fli,flf,minfi,minff,maxfi,maxff,
+c$$$!$omp& nr,diag_ME,formout,minform,maxform,upot,loi,ortint,
+c$$$!$omp& ltmin,lthuge,rlli,rllf,lt1,lt2)collapse(2),schedule(static)
+      do 68 jnf1=1,nam(Nf)
+         do 67 jni1=1,nam(Ni)
+         nf1 = na(jnf1,Nf)
+         lf1=lof(nf1)
+         rlf1=lf1
+         tmp2 = (-1)**(lf1)
+            ni1 = na(jni1,Ni)
+            li1=loi(ni1)
+            rli1=li1
+            tmp1 = tmp2 * hat(li1) 
 c     lambda loop:
-                  lamtop=min(li1+lf1,lamtop1)
-                  lambot=max(iabs(li1-lf1),lambot1)
-                        
+            lamtop=min(li1+lf1,lamtop1)
+            lambot=max(iabs(li1-lf1),lambot1)            
 c     lambda loop for calculation of the angular coefficent:
-                  do 5 lam=lambot,lamtop
-                     rlam=lam
-                     Vang(lam)=0.0
-                     const = tmp_const(lam) * tmp1 *
-     >                  CGC(rli1,0.,rlam,0.,rlf1,0.)
-                     if (const.eq.0.0) go to 5
-
+            do 5 lam=lambot,lamtop
+               rlam=lam
+               Vang(lam)=0.0
+               const = tmp_const(lam) * tmp1 *
+     >            CGC(rli1,0.,rlam,0.,rlf1,0.)
+               if (const.eq.0.0) go to 5
 c     These are loops on s.p. functions of the coordinate r2,
 c     coordinate r2 is not affected by V(r0,r1), but  nf2 is not necessary 
 c     equal to ni2 because nonorthogonal s.p. basis is used, but li2=lf2.
-
-                     lf2_old = -1
-                     do 10 jnf2=1,nam(Nf)
-                        nf2 = na(jnf2,Nf)
-                        lf2=lof(nf2)
-                        rlf2=lf2
-                        tmp_Cf = Cf(Nf,jnf1,jnf2)
-                        do 20 jni2=1,nam(Ni)
-                           ni2 = na(jni2,Ni)
-                           if(Ci(Ni,jni1,jni2).eq.0.0d0) goto 20
-                           rli2 = loi(ni2)
-                           const2 = ortint(ni2,nf2) * tmp_Cf * 
-     >                          Ci(Ni,jni1,jni2)
-                           if (const2.eq.0.0) goto 20
-                           if(lf2.ne.lf2_old) then
-                              tmp_6J = (-1)**lf2 *
-     >                             COF6J(rlf2,rlf1,rllf,rlam,rlli,rli1) 
-                              lf2_old = lf2
-                           end if
-                           Vang(lam) = Vang(lam) + const2 * tmp_6J
-                           
-c     end ni2,nf2 loops
- 20                     continue
- 10                  continue
-                     
-                     Vang(lam) = Vang(lam) * const
-c     end lambda loop                    
- 5                continue 
-                  do lam=lambot,lamtop
-                     if (Vang(lam).ne.0.0) then
-                        if (lam.eq.1) lt1 = 1
-                        if (lam.eq.2) lt2 = 2
-                        if (lam.gt.0.and.lam.lt.ltmin) ltmin = lam
-!                        print*,"###",nf,ni,ni1,nf1,Vang(lam)
-                        call getformout(lam,Vang(lam),upot,
-     >                     fli(1,ni1),flf(1,nf1),
-     >                     minfi(ni1),minff(nf1),
-     >                     maxfi(ni1),maxff(nf1),nr,diag_ME,
-     >                     formout,minform,maxform)
+               lf2_old = -1
+               do 10 jnf2=1,nam(Nf)
+                  nf2 = na(jnf2,Nf)
+                  lf2=lof(nf2)
+                  rlf2=lf2
+                  tmp_Cf = Cf(Nf,jnf1,jnf2)
+                  do 20 jni2=1,nam(Ni)
+                     ni2 = na(jni2,Ni)
+                     if(Ci(Ni,jni1,jni2).eq.0.0d0) goto 20
+                     rli2 = loi(ni2)
+                     const2 = ortint(ni2,nf2) * tmp_Cf * 
+     >                  Ci(Ni,jni1,jni2)
+                     if (const2.eq.0.0) goto 20
+                     if(lf2.ne.lf2_old) then
+                        tmp_6J = (-1)**lf2 *
+     >                     COF6J(rlf2,rlf1,rllf,rlam,rlli,rli1) 
+                        lf2_old = lf2
                      end if
-                  end do
+                     Vang(lam) = Vang(lam) + const2 * tmp_6J
+c     end ni2,nf2 loops
+ 20               continue
+ 10            continue
+               Vang(lam) = Vang(lam) * const
+c     end lambda loop                    
+ 5          continue 
+            do lam=lambot,lamtop
+               if (Vang(lam).ne.0.0) then
+                  if (lam.eq.1) lt1 = 1
+                  if (lam.eq.2) lt2 = 2
+                  if (lam.gt.0.and.lam.lt.ltmin) ltmin = lam
+!                        print*,"###",nf,ni,ni1,nf1,Vang(lam)
+                  call getformout(lam,Vang(lam),upot,
+     >               fli(1,ni1),flf(1,nf1),
+     >               minfi(ni1),minff(nf1),
+     >               maxfi(ni1),maxff(nf1),nr,diag_ME,
+     >               formout,minform,maxform)
+               end if
+            end do
 c     end ni1,nf1 loops
- 67            continue
- 68         continue 
+ 67      continue
+ 68   continue
+c$$$!$omp end parallel do
+c$$$      if (ni.eq.1.and.nf.eq.3) then
+c$$$         do i = minform, maxform
+c$$$            write(56,*) i, gridr(i,1), formout(i)
+c$$$         enddo
+c$$$      endif
 c     For Hg, modify diag. matrix elelments by additional atom-projectile
 c     polarization potential. Add atompol(i) to formout(i):
             if(diag_ME .and. ipol .eq. 1) then
                minform = min(minform,ipolmin)
                maxform = max(maxform,ipolmax)
                formout(1:minform) = 0.0
-               formout(maxform:maxr) = 0.0
+               formout(maxform:nr) = 0.0
                formout(minform:maxform) =  formout(minform:maxform) +
      >            atompol(minform:maxform)
             end if
@@ -208,23 +215,26 @@ c     momentum loops
 c$$$            print*,'lf,llf,li,lli,lt1,lt2,ctemp:',
 c$$$     >         lf,llf,li,lli,lt1,lt2,ctemp
             tail(:,:) = 0.0
-            if (itail.ne.0)
-     >         call maketail(itail,ctemp,chil(1,npki(nchi),2),
-     >         minchil(npki(nchi),2),gki,phasei,li,nqmi,
-     >         chil(1,npkf(nchf),2),minchil(npkf(nchf),2),
-     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
+            if (itail.ne.0.and.ltmin.le.2)
+     >         call maketail(itail,ctemp,chil(1,npki(nchi),ichildim),
+     >         minchil(npki(nchi),ichildim),gki,phasei,li,nqmi,
+     >         chil(1,npkf(nchf),ichildim),minchil(npkf(nchf),ichildim),
+     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,kmax,tail)
 c$$$            call maketail(itail,ctemp,chili(1,npki(nchi)),
 c$$$     >         minci(npki(nchi)),gki,phasei,li,nqmi,
 c$$$     >         chilf(1,npkf(nchf)),mincf(npkf(nchf)),
 c$$$     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
 
-            allocate(chiform(maxr,kmax))
-            do ki=npki(nchi), npki(nchi+1) - 1
-               minki = max(minform, minci(ki))
-               do i = minki, maxform
-                  chiform(i,ki-kistep) = temp(i) * chili(i,ki)
-               enddo
-            enddo
+c$$$            allocate(chiform(maxform,npki(nchi+1)-npki(nchi)))
+c$$$c$$$!$omp parallel do collapse(1)default(shared)private(i)schedule(static)
+c$$$            do ki=npki(nchi), npki(nchi+1) - 1
+c$$$c$$$               minki = max(minform, minchil(ki,1))
+c$$$               do i = max(minform, minchil(ki,1)), maxform
+c$$$c$$$               do i = minki, maxform                  
+c$$$                  chiform(i,ki-kistep) = temp(i) * chil(i,ki,1)
+c$$$               enddo
+c$$$            enddo
+c$$$c$$$!$omp end parallel do            
             kistart = npki(nchi)
             kistop = npki(nchi+1) - 1
             quart = 0.0
@@ -232,37 +242,50 @@ c$$$     >         gkf,phasef,lf,nqmf,nchf,nchi,ltmin,tail)
 C Note si(Ni) = sf(Nf) here
 c$$$c$par doall
             tmp = 0.0
+c$$$!$omp parallel do default(shared)private(ki,kii,kf,kff,tmp,
+c$$$!$omp&n,mini,minki)collapse(2)
             do ki=kistart, kistop
-               minki = max(minform, minci(ki))
+               minki = max(minform, minchil(ki,1))
+               do i = minki, maxform
+                  chiform(i) = temp(i) * chil(i,ki,1)
+               enddo
                kii = ki - kistep
                do 90 kf = npkf(nchf), npkf(nchf+1) - 1
+c$$$               do 90 kf = npkf(nchf), npkf(nchf+1) - 1
                   kff = kf - npkf(nchf) + 1
-                  mini = max(minki, mincf(kf))
+                  mini = max(minki, minchil(kf,1))
                   n = maxform - mini + 1
                   if (kf.lt.ki.or.n.le.0) go to 90
 !                  if(ki.eq.kistart .and. kf.eq.npkf(nchf)) then
 !                     print*,"!!>",chilf(100,kf),chiform(100,kii)
 !                  endif
-                  tmp = dot_product(chilf(mini:maxform,kf),
-     >               chiform(mini:maxform,kii)) + tail(kff,kii)
+                  tmp = dot_product(chil(mini:maxform,kf,1),
+     >               chiform(mini:maxform)) + tail(kff,kii)
+c$$$                  tmp = dot_product(chil(mini:maxform,kf,1),
+c$$$     >               chiform(mini:maxform,kii)) + tail(kff,kii)
 c$$$                  tmp = sdot(n,chilf(mini,kf),1,chiform(mini,kii),1)
 
                   vvd(kff,kii,0) = vvd(kff,kii,0) + tmp * const
-                  vvd(kff,kii,1) = (vvd(kff,kii,1) + tmp * const)*quart
+                  if (quart.ne.0.0)
+     >               vvd(kff,kii,1) = vvd(kff,kii,1) + tmp * const
                   
 c$$$                  VVD(kf,ki) = VVD(kf,ki) + tmp * const
-c$$$C  QUART is used to make sure that the quartet V matrix elements are
-c$$$C  nonzero for triplet-triplet transitions only. The multiplication
-c$$$C  by QUART zeros the contribution from the core.
+C  QUART is used to make sure that the quartet V matrix elements are
+C  nonzero for triplet-triplet transitions only. The multiplication
+C  by QUART zeros the contribution from the core.
 c$$$                  VVD(ki,kf+1) = (VVD(ki,kf+1) + tmp * const) * quart
 c     end ki,kf loops
  90            continue 
             end do
-            deallocate(chiform)
-            vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + tmp * const
+c$$$!$omp end parallel do
+c$$$            deallocate(chiform)
+c$$$            if (nchf*nchi.eq.1) print*,'vvd(1,1):',vvd(1,1,0)
+            vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vvd(1,1,0) !vdon(nchf,nchi,0) + tmp * const
             vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
-            vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+tmp*const) * quart
-            vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+            if (quart.ne.0.0) then
+               vdon(nchf,nchi,1) = vdon(nchf,nchi,1)+vvd(1,1,1) !(vdon(nchf,nchi,1)+tmp*const) * quart
+               vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+            endif
 c     end nchi,nchf loops
  30      continue       
  40   continue       
@@ -274,7 +297,8 @@ c*********************************************************************
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,KJ,VE1,nchf,nchi,
-     >   chiform,minchiform,maxchiform,na,nam,namax)
+     >   chiform,minchiform,maxchiform,nmr,km,na,nam,namax)
+      use chil_module
       include 'par.f'
       double precision Z
       common /Zatom/ Z
@@ -290,14 +314,17 @@ c*********************************************************************
       dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
       dimension VE1(kmax,kmax,0:1)
 c$$$      dimension VE1(npkf(nchmf+1)-1,npki(nchmi+1))
-      dimension formout(maxr), chiform(maxr,kmax),
+c$$$      dimension formout(maxr), chiform(:,:),
+c$$$     >   minchiform(:),maxchiform(:)
+      dimension formout(maxr), chiform(nmr,km),
      >   minchiform(kmax),maxchiform(kmax)
       double precision VA, tmp_Vang, tmp_Ci, hat, pnorm
-      dimension Vang(0:ltmax,nspmCI) 
+c$$$  dimension Vang(0:ltmax,nspmCI)
+      real, allocatable :: Vang(:,:,:)
       common /meshrr/ nr, gridr(nmaxr,3)
       dimension na(nspmCI,KNM), nam(KNM)
-
-
+      logical vangnonzero(0:ltmax)
+      integer m_lamtop(nam(Nf)),m_lambot(nam(Nf))
 c     Note : antisymmetrization is included through CI coefficients.
 c     
       hat(l)=dsqrt(2.0*l+1.0D0)
@@ -329,6 +356,8 @@ c     call   getchinfo2 (nchf,Nf,KJ,temp,ener,laf,naf,Lf)
       rllf=llf
       rsi=lsi
       rsf=lsf
+      allocate(Vang(nam(Ni),0:ltmax,nam(Nf)))
+
 c     Ni,Nf  -   numbers of physical chanels
 c     
 c     find maxumum value for maxfi(ni1) to be used in getformout2() routine.
@@ -345,13 +374,14 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1 and r0
          lf1=lof(nf1)
          rlf1=lf1
 
-         do jni1=1,nam(Ni)
-            do lam=0,ltmax
-               Vang(lam,jni1)=0.0
+         do lam=0,ltmax
+            do jni1=1,nam(Ni)
+c$$$  Vang(lam,jni1)=0.0
+               Vang(jni1,lam,jnf1)=0.0
             end do
          end do
-         m_lamtop = -1
-         m_lambot = ltmax
+         m_lamtop(jnf1) = -1
+         m_lambot(jnf1) = ltmax
 
          do 67 jni1=1,nam(Ni)
             ni1= na(jni1,Ni)
@@ -362,8 +392,8 @@ c     these are 2 s.p. loops on s.p. functions of the coordinate r1 and r0
 c     lambda loop for calculation of the angular coefficent:
             lamtop=min(li1+Lf,lf1+Li,ltmax)
             lambot=max(iabs(li1-Lf),iabs(lf1-Li))
-            m_lamtop = max(m_lamtop, lamtop)
-            m_lambot = min(m_lambot, lambot)
+            m_lamtop(jnf1) = max(m_lamtop(jnf1), lamtop)
+            m_lambot(jnf1) = min(m_lambot(jnf1), lambot)
             do 140 lam=lambot,lamtop
                rlam=lam
                tmp_Vang=0.0
@@ -407,50 +437,74 @@ c     this is loop on j that arise after angular momentum recoupling
 c     end ni2,nf2 loops
  10               continue
  20            continue
-               Vang(lam,jni1) = tmp_Vang * const
+c$$$  Vang(lam,jni1) = tmp_Vang * const
+               Vang(jni1,lam,jnf1) = tmp_Vang * const
 c     end lambda loop:
  140        continue
             
 c     end ni1 loop
  67      continue
-         
-         do 160 lam=m_lambot,m_lamtop
-            do jni1=1,nam(Ni)
+ 68   continue                  !     jnf1
+
+c$$$!$omp parallel do default(shared)private(ki,kii,jni1,tmp,minki,maxki,i,
+c$$$!$omp& jnf1,lam,nf1,ni1,minform,maxform,formout,vangnonzero)
+c$$$!$omp&collapse(2)schedule(static)!reduction(+:chiform)
+c$$$!$omp&reduction(max:maxchiform)reduction(min:minchiform)
+      do jnf1 = 1, nam(Nf)
+         do 160 lam=m_lambot(jnf1),m_lamtop(jnf1)
+c$$$            do jni1=1,nam(Ni)
 c     if at least one Vang() is nonzero for given  lam,jnf1 
 c     then call getformout() for these lam,jnf1 and all ki
-               if(Vang(lam,jni1).ne.0.0) go to 150
-            end do
-c     if programm get to this point then all Vang() are zero for 
-c     given lam,jnf1  therefore no need to call getformout2()
-            go to 160
- 150        do ki = 1, nqmi
+c$$$               if(Vang(lam,jni1).ne.0.0) go to 150
+c$$$            end do
+c$$$c     if programm get to this point then all Vang() are zero for 
+c$$$c     given lam,jnf1  therefore no need to call getformout2()
+c$$$            go to 160
+c$$$ 150        do ki = 1, nqmi
+c$$$               if (Vang(lam,jni1).ne.0.0) then
+            vangnonzero(lam)=.false.
+            do jni1 = 1, nam(Ni)
+               vangnonzero(lam) = vangnonzero(lam).or.
+     >            Vang(jni1,lam,jnf1).ne.0.0
+c$$$  enddo
+            enddo
+            if (.not.vangnonzero(lam)) cycle
+            nf1 = na(jnf1,Nf)
+            do ki = 1, nqmi
+c$$$               do lam=m_lambot(jnf1),m_lamtop(jnf1)
                kii = npki(nchi) + ki - 1
 c     calculation of radial integrals
-               call getformout2(lam,chili(1,kii),flf(1,nf1),
-     >              minci(kii),minff(nf1),
-     >              nr,maxff(nf1),m_maxfi,
-     >              formout,minform,maxform)
-
+               call getformout2(lam,chil(1,kii,1),flf(1,nf1),
+     >            minchil(kii,1),minff(nf1),
+     >            nr,maxff(nf1),m_maxfi,
+     >            formout,minform,maxform)
+c$$$!$omp critical
                do jni1=1,nam(Ni)   
-                  tmp = Vang(lam,jni1)
-                  if(tmp.ne.0.0) then
+c$$$  tmp = Vang(lam,jni1)
+                  tmp = Vang(jni1,lam,jnf1)
+                  if (tmp.ne.0.0) then
                      ni1= na(jni1,Ni)
                      minki = max(minform, minfi(ni1))
                      maxki = min(maxform, maxfi(ni1))
+c$$$!$omp parallel do default(shared)private(i)reduction(+:chiform)
                      do i = minki, maxki
                         chiform(i,ki) = chiform(i,ki) +
-     >                       formout(i)*fli(i,ni1)*tmp
+     >                     formout(i)*fli(i,ni1)*tmp
                      enddo
+c$$$!$omp end parallel do                     
                      minchiform(ki) = min(minki,minchiform(ki))
                      maxchiform(ki) = max(maxki,maxchiform(ki))
                   end if
                enddo
-            end do             
- 160     continue 
-c     end nf1 loop
- 68   continue
-
-
+c$$$!$omp end critical
+            enddo
+ 160     continue ! lam loop
+c$$$  68   continue !end nf1 loop
+      enddo ! jnf1
+c$$$!$omp end parallel do            
+c$$$      if (ni.eq.1.and.nf.eq.2)print*,
+c$$$     >   'minchi,maxchi:',(minchiform(ki),maxchiform(ki),ki=1,5)
+      deallocate(Vang)
       TSpin = 0.5
       c0p5 = pnorm * ze * COF6J(0.5,0.5,rsf,0.5,TSpin,rsi)
       if (lsi.eq.lsf.and.lsf.eq.1) then
@@ -459,16 +513,20 @@ c     end nf1 loop
       else
          c1p5 = 0.0
       endif 
-c$$$c$par doall
+c$$$  c$par doall
+c$$$!$omp parallel do default(shared)private(ki,kii,maxi,mini,kf,kff,n,tmp)
+c$$$!$omp& collapse(2)schedule(static)
       do ki = 1, nqmi
-         kii = npki(nchi) + ki - 1
-         maxi=maxchiform(ki)
+c$$$         if (maxchiform(ki).gt.m_maxfi)
+c$$$     >      stop 'maxchiform(ki).gt.m_maxfi in VE1ME'
          do 90 kf = 1, nqmf
+            kii = npki(nchi) + ki - 1
+            maxi=maxchiform(ki)
             kff = npkf(nchf) + kf - 1
-            mini = max(minchiform(ki), mincf(kff))
+            mini = max(minchiform(ki), minchil(kff,1))
             n = maxchiform(ki) - mini + 1
             if (kff.lt.kii.or.n.le.0) go to 90
-            tmp = dot_product(chilf(mini:maxi,kff),
+            tmp = dot_product(chil(mini:maxi,kff,1),
      >         chiform(mini:maxi,ki))
 c$$$            tmp = sdot(n,chilf(mini,kff),1,chiform(mini,ki),1)
             ve1(kf,ki,0) = ve1(kf,ki,0) - c0p5 * tmp
@@ -478,6 +536,7 @@ c$$$            VE1(kii,kff+1)=VE1(kii,kff+1) - c1p5 * tmp
 c     end ki,kf loops
  90      continue 
       end do
+c$$$!$omp end parallel do
 c     end nchi,nchf loops
 c$$$ 30   continue       
 c$$$ 40   continue       
@@ -490,7 +549,8 @@ c     this subroutine calculates matrix elements for V(r0,r2).
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,
      >   ortint,ortchil,flchil,KJ,gridk,VE2,nchf,nchi,
-     >   chiform,minchiform,maxchiform,na,nam,namax)
+     >   chiform,minchiform,maxchiform,nrm,km,na,nam,namax)
+      use chil_module
       include 'par.f'
       double precision Z, fangint
       common /Zatom/ Z
@@ -503,7 +563,8 @@ c     this subroutine calculates matrix elements for V(r0,r2).
       dimension  flf(maxr,nspmax),maxff(nspmf),minff(nspmf)
       dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
       dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
-      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
+c$$$      dimension chiform(maxr,kmax),minchiform(kmax),maxchiform(kmax)
+      dimension chiform(nrm,km),minchiform(kmax),maxchiform(kmax)
       dimension Ang(kmax), Ang2(kmax)
       double precision  hat,pnorm,e1r
       dimension ortchil(npki(nchmi+1)-1,nspmf),
@@ -631,11 +692,11 @@ c                                 tmp_rel = 0.0
 c                              end if
                              
                               if(ipol .ne. 0) then
-                                 j1=max(minff(nf1),minci(kii))
+                                 j1=max(minff(nf1),minchil(kii,1))
                                  j2=maxff(nf1)
                                  tmp_Hg =  SUM(flf(j1:j2,nf1)*
      >                              atompol(j1:j2)*
-     >                              chili(j1:j2,kii))
+     >                              chil(j1:j2,kii,1))
                               else
                                  tmp_Hg = 0.0
                               end if
@@ -672,7 +733,7 @@ c     end nf1 loop
      >                        minff(nf2),maxfi(ni2),maxff(nf2),
      >                        fli(1,ni1),minfi(ni1),maxfi(ni1),
      >                        chiform,minchiform,maxchiform,
-     >                        Ang,nqmi)
+     >                        nrm,km,Ang,nqmi)
                         endif 
 c     end lambda loop:
  140                 continue
@@ -727,6 +788,7 @@ c     this subroutine is similar to the ve2me that do the same for V(r0,r2)
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,ortint,ortchil,
      >   flchil,Etot,KJ,gridk,theta,inc,VEE,nchf,nchi,na,nam,namax,
      >   nspm_po,ortchil_po,lo_po,nicm,ncore,is_core_orb)
+      use chil_module
       include 'par.f'
       double precision Z, fangint
       common /Zatom/ Z
@@ -808,7 +870,9 @@ c$$$  if(abs(si(Ni)-0.5).gt.S.or.S.gt.si(Ni)+0.5) go to 40
 c$$$  if(abs(sf(Nf)-0.5).gt.S.or.S.gt.sf(Nf)+0.5) go to 30
 c     Ni,Nf  -   numbers of physical chanels
 c
-      allocate(formout(maxr,kmax))
+      nrm = nr
+      km = nqmf
+      allocate(formout(nrm,km))
       do kf=1,nqmf
          do i = 1, nr
             formout(i,kf) = 0.0
@@ -933,7 +997,7 @@ c     target hamiltonian overlap
      >                  fli(1,ni2),flf(1,nf2),minfi(ni2),
      >                  minff(nf2),maxfi(ni2),maxff(nf2),
      >                  flf(1,nf1),minff(nf1),maxff(nf1),
-     >                  formout,minform,maxform,
+     >                  formout,minform,maxform,nrm,km,
      >                  Ang,nqmf)
                   end if
                enddo 
@@ -962,11 +1026,11 @@ c$$$  c$par doall
          kii = npki(nchi) + ki - 1
          do 90 kf = 1, nqmf
             kff = npkf(nchf) + kf - 1
-            mini = max(minci(kii),minform(kf))
+            mini = max(minchil(kii,1),minform(kf))
             maxi = maxform(kf)
             n = maxform(kf) - mini + 1
             if (kff.lt.kii.or.n.le.0) go to 90
-            veT = dot_product(chili(mini:maxi,kii),
+            veT = dot_product(chil(mini:maxi,kii,1),
      >         formout(mini:maxi,kf))
 c$$$  veT = sdot(n,chili(mini,kii),1,formout(mini,kf),1)
             vee(kf,ki,0) = vee(kf,ki,0) - veT * const
@@ -1299,6 +1363,7 @@ C the following is not used in the nuclear routine
 
        call form(fun,minfun,maxfun,rpow1(1,lam),rpow2(1,lam),
      >    minrp(lam),maxrp(lam),maxni1,temp,i1,i2)
+c$$$       if (i2.lt.nr) print*,'maxni1,i2:',maxni1,i2
 c     if this is diagonal ME then for lambda = 0  do subtraction of the nuclear term
        if (lam.eq.0.and.torf) call nuclear(fun,.true.,minfun,maxfun,i2,
      >      upot,nznuc,temp)
@@ -1313,12 +1378,13 @@ c     if this is diagonal ME then for lambda = 0  do subtraction of the nuclear 
              temp(i) = temp(i) - tmp*pol(i)
           end do
        end if
-       
+c$$$!$omp critical       
        do i = i1, i2
           formout(i) = formout(i) + temp(i) * Vang
-       enddo 
+       enddo
        minform = min(minform,i1)
        maxform = max(maxform,i2)
+c$$$!$omp end critical
        return
        end
 c*******************************************************************
@@ -1361,12 +1427,12 @@ c     This routine is called only from the exchange ME routine ve1me(...)
 c************************************************************************
        subroutine getformout3(lam,flam,fli,flf,minfi,minff,
      >    maxfi,maxff,fl,minfl,maxfl,formout,minform,maxform,
-     >    Ang,nqm)
+     >    nrm,km,Ang,nqm)
        include 'par.f'
        common /meshrr/ nr, gridr(maxr,3)
        dimension  fli(maxr), flf(maxr), fl(maxr)
        dimension   Ang(kmax), minform(kmax), maxform(kmax)
-       dimension temp(maxr), fun(maxr), formout(maxr,kmax)
+       dimension temp(maxr), fun(maxr), formout(nrm,km)
        common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >    minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
        common /di_el_core_polarization/ gamma, r0, pol(nmaxr)

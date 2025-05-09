@@ -1,18 +1,18 @@
       subroutine pwrite(nent,instate,nopen,energy,nznuci,
-     >   zasymi,ry,noprint,ovlp,
-     >   ovlpn,phasen,phaseq,jstart,jstop,projectile,target,nsmax,
+     >   zasymi,ry,noprint,ovlp,ovlpn,phasen,phaseq,
+     >   jstart,ipstart,jstop,projectile,target,nsmax,
      >   nchimax,nchanmax,npar,hlike,NTunit,vdcore,minvdc,maxvdc,ne2e,
      >   slowery,iborn,bornICS,tfile,nnbtop,ovlpnl,ovlpnn)
       implicit real (a-h,o-z)
       include 'par.f'
-      parameter (ntype=2*(lamax+1),npoints=ncmax+10)
+      parameter (ntype=2*(lamax+1),npoints=ncmax+10,ntdcs=250)
       character projectile*8,target*6,chunit(3)*8,chun*8,tfile*(*)
       dimension lea(nchan),onshellk(nchan),onshold(nchan),temp(maxr),
-     >   psii(maxr),psif(maxr),ff(0:200,0:lamax),chi(maxr),ovlpn(knm),
-     >   sweight(0:200,10),bornICS(knm,knm),ovlp(ncmax,0:lamax),
+     >   psii(maxr),psif(maxr),ff(0:ntdcs,0:2*lamax),chi(maxr),
+     >   sweight(0:ntdcs,10),bornICS(knm,knm),ovlp(ncmax,0:lamax),
      >   ucentr(maxr),units(3),BornPCS(nchan,nchan),esum(0:1),
      >   partcs(nchan,nchan,0:1),sigtop(nchan,0:1),rcond(0:1),
-     >   vdcore(maxr,0:lamax),test(6),slowery(ncmax),
+     >   vdcore(maxr,0:lamax),test(6),slowery(ncmax),ovlpn(knm),
      >   npt(npoints,-lamax:lamax),enf(npoints,ntype,-lamax:lamax),
      >   le2e(ntype),tin(npoints,ntype,-lamax:lamax,4),spinw(0:1),
      >   sdcs(ntype,npoints+100), finalcont(3),sigint(knm,ntype,0:1),
@@ -39,12 +39,12 @@ C  XIN,...,YOUT are used for (e,2e) and BORN interpolation
      >   nonnew(knm,-lamax:lamax,0:1,0:lmax)
       integer nstep(10),nnset(3),nopen(0:1),nopenold(0:1),
      >   nchfi(knm,0:1), iwf(2*100), nttop(0:1), instate(100)
-      parameter (lentr=8,lexit=lamax)
+      parameter (lentr=10,lexit=lamax)
 C ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), 
       complex phase, sigc, !vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop),
      >   phaseq(nchan),
-     >   Bornamp(0:200,-lexit:lexit,-lentr:lentr),phasen(ncmax,0:lamax),
-     >   phasediv(nchan),
+     >   Bornamp(0:ntdcs,-lexit:lexit,-lentr:lentr),
+     >   phasen(ncmax,0:lamax),phasediv(nchan),
      >   phasetim(ntype,npoints),te2ec(-latop:latop,ntype),fe2e(0:1),
      >   f0(2),f1(2),ce2e!te2e(0:nsmax,0:jstop,-latop:latop,ntype,ne2e*2)
       complex, allocatable :: te2e(:,:,:,:,:), ton(:,:,:,:,:),
@@ -88,7 +88,7 @@ c$$$      pointer (ptrte2e, te2e)
          endif             
          h = pi / 180.0 * nstep(nn)
          nprev = 1
-         do n = 0, 200
+         do n = 0, ntdcs
             sweight(n,nn) = 0.0
          enddo 
          do n = 0, 180, nstep(nn)
@@ -236,26 +236,28 @@ c$$$     >         ,phasediv(nch),nch
          call getchinfo (nch, nchp, ipar, temp, maxpsi, ea, la, na, l)
          if (nch.ne.0) go to 10
       enddo 
+      print* !give a clean finish to the above state printouts
 C  restore ipar to zero
       ipar = 0
       xerr = 0.1
       yerr = 0.0
-      print*
-      if (cnode.eq.'') then
-         open(42,file='cfile')
-         open(43,file='cfile1')
-         open(44,file='dfile')
-         open(45,file='dfile1')
-      else
-         open(42,file=cnode//'cfile'//ench)
-         open(43,file=cnode//'cfile1'//ench)
-         open(44,file=cnode//'dfile'//ench)
-         open(45,file=cnode//'dfile1'//ench)
-      endif 
-      do ip = 0, 1
-         do nt = 1, nttop(ip)
-            do np = 1, npt(nt,ip)
-               if (enf(np,nt,ip).gt.0.0) then
+c$$$      print*
+c$$$      if (cnode.eq.'') then
+c$$$         open(42,file='cfile')
+c$$$         open(43,file='cfile1')
+c$$$         open(44,file='dfile')
+c$$$         open(45,file='dfile1')
+c$$$      else
+      if (jstart.eq.0) then
+         open(42,file=adjustl(cnode//'cfile'//ench))
+         open(43,file=adjustl(cnode//'cfile1'//ench))
+         open(44,file=adjustl(cnode//'dfile'//ench))
+         open(45,file=adjustl(cnode//'dfile1'//ench))
+c$$$      endif 
+         do ip = 0, 1
+            do nt = 1, nttop(ip)
+               do np = 1, npt(nt,ip)
+                  if (enf(np,nt,ip).gt.0.0) then
 c$$$                  if (np.le.npt(nt,ip)-2) then
 c$$$                     check = (enf(np,nt,ip)*4.0-enf(np+1,nt,ip)-
 c$$$     >                  enf(np+2,nt,ip))/enf(np,nt,ip)
@@ -265,30 +267,31 @@ c$$$     >                  enf(np,nt,ip)
 c$$$                  else
 c$$$                     check = 0.0
 c$$$                  endif 
-                  if (np.gt.1) then
+                     if (np.gt.1) then
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  (enf(np-1,nt,ip)+enf(np,nt,ip))/2.0*ry,
      >                  enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
-                  else
+                     else
                      write(42+ip,'(i2,1p,900e11.3)')nt,enf(np,nt,ip)*ry,
      >                  xerr,yerr,etot*ry,etot*ry/2.0,
      >                  enf(np,nt,ip)/2.0*ry,enf(np,nt,ip)*ry*2.0,
      >                  (slowery(ne)*ry,ne=1,ne2e)
+                     endif 
+                  else
+                     write(44+ip,'(i2,1p,100e13.5)')
+     >                  nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
                   endif 
-               else
-                  write(44+ip,'(i2,1p,100e13.5)')
-     >               nt,enf(np,nt,ip)*ry,xerr,yerr,etot*ry
-               endif 
+               enddo
             enddo
-         enddo
-      enddo 
-      print*,'efiles written to disk'
-      close(42)
-      close(43)
-      close(44)
-      close(45)
+         enddo 
+         print*,'efiles written to disk'
+         close(42)
+         close(43)
+         close(44)
+         close(45)
+      endif !jstart=0
       ip = 0
       
       nsp = nsmax + 1
@@ -318,6 +321,7 @@ C  from the 'tcs' file.
             partcs(:,:,:) = 0.0
             sigtop(:,:) = 0.0
             BornPCS(:,:) = 0.0
+            nchpmax = 0
             call wrtcs(partcs,sigtop,nchpmax,nent,instate,
      >         jstop,etot,nsmax,0,
      >         ovlpn,nunit,nznuc,zasym,projectile,target,canstop,
@@ -337,16 +341,21 @@ C  from the 'tcs' file.
      >      recl=irecl)
          print*,'POTL and IRECL:',tfile,irecl
          call update(6)
-c         open(88,file=tfile)
-         read(88,*,err=25,end=25)
-         read(88,*,err=25,end=25) enold, zasymold,nold
+c     open(88,file=tfile)
+         j = jstart
+         read(88,*,err=20,end=20) ! At 20 will append to potl
+         read(88,*,err=20,end=20) enold, zasymold,nold
+         print*,'enold,energy:', enold,energy
          if (abs(enold-energy)/energy.gt.1e-4) then
 c$$$            print*,'Stopping: incident energy is not same in potl'
 c$$$            call update(6)
 c$$$            call mpi_finalize(ierr)
 c$$$            print*,'MPI_FINALIZE returned:',ierr
 c$$$            call update(6)
-            stop 'incident energy is not same in potl'
+c$$$            stop 'incident energy is not same in potl'
+            print*,'Will append to:',tfile
+            j = jstart
+            goto 20
          endif
          read(88,'(1000(i2,2(e12.4)))',err=25,end=25)
      >      (laold(n),ovlpnold(n),onshold(n),n=1,nold)
@@ -361,6 +370,8 @@ c$$$               onshellk(n) = onshold(n)
 c$$$               enchan(n) = etot - onshellk(n)**2
 c$$$               enpsinb(n,laold(n)) = enchan(n)
 c$$$               ovlpn(n) = ovlpnold(n)
+            else
+c$$$               print*,n,onshold(n),onshellk(n)
             endif 
          enddo             
          read(88,*,err=25,end=25) (nopenold(np),np=0,npar), nparityold,
@@ -631,22 +642,26 @@ C  channels after say J=20, even though these cross sections are set to zero
 C  for J > 8. Note that this affects the accuracy of the TCS test using the
 C     optical theorem, since the imaginary part of the elastic amplitude
 C     is not altered. 
-                        if (j.gt.8) then 
-                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
-     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
-                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
-     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
-                              if (q.gt.1.0) q = 0.0
-                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
-     >                           ton(nchf,nchi,ns,np,j-1)
-                           endif
-                        endif 
+c$$$                        if (j.gt.8) then 
+c$$$                           if (abs(ton(nchf,nchi,ns,np,j)).eq.0.0 .and.
+c$$$     >                        abs(ton(nchf,nchi,ns,np,j-1)).ne.0.0)then
+c$$$                              q = abs(ton(nchf,nchi,ns,np,j-1))**2/
+c$$$     >                           abs(ton(nchf,nchi,ns,np,j-2)+1e-10)**2
+c$$$                              if (q.gt.1.0) q = 0.0
+c$$$                              ton(nchf,nchi,ns,np,j)=sqrt(q) *
+c$$$     >                           ton(nchf,nchi,ns,np,j-1)
+c$$$                           endif
+c$$$                        endif 
                         partcs(nchpf,nchpi,ns) = partcs(nchpf,nchpi,ns) 
      >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
                         tcs(ns) = tcs(ns)
      >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
                         BornPCS(nchpf,nchpi) = BornPCS(nchpf,nchpi) +
      >                     abs(vdon(nchf,nchi,ns,np,j))**2 * const
+c$$$                        if (nchpf.eq.49.and.nchpi.eq.42)
+c$$$     >                     print*,chan(nchpf),chan(nchpi),
+c$$$     >                     BornPCS(nchpf,nchpi)
+                        
 c$$$                        if(nchpf  .eq. 18 .and. nchpi  .eq. 14) then
 c$$$c !!!
 c$$$                           write(*,*)
@@ -657,6 +672,8 @@ c$$$                        end if
                      endif 
                      enddo
                      if (nfich(nchi+1).ne.nchpi.and.tcs(ns).gt.0.0) then
+c$$$                        print*,'J,NCHPI,NS,sigtop,tcs:',
+c$$$     >                     j,nchpi,ns,tcs(ns),sigtop(nchpi,ns)
                        if(abs(sigtop(nchpi,ns)/tcs(ns)-1.0).gt.1e-4)then
                            print*,'ratio of tcs not 1 (Ps extrap?):',
      >                       sigtop(nchpi,ns)/tcs(ns),
@@ -1154,11 +1171,13 @@ c$$$         endif
          j = j + 1
          go to 15
  20      print*  ! end of J loop
+         print*,'J,JSTOP:',j,jstop
          if (j.le.jstop) then
             close(88)
             open (88,file=tfile,position='append',status='old',
      >         recl=irecl)
-            jstart = j
+            jstart = max(j,jstart) ! bad file name can result j=0
+            ipstart = ipar
 c$$$            call memfree(ptrv)
 c$$$            call memfree(ptrt)
             deallocate(ton,stat=istat1)
@@ -1572,13 +1591,14 @@ C  Incident on a hydrogenic target. Total spin S = ns.
      >   nunit,projectile,target,hlike,vdcore,minvdc,maxvdc,bornsubin,
      >   nchfi,ovlpn,phaseq,ne2e,slowery,nonnew,tfile)
       include 'par.f'
-      parameter (lentr=8,lexit=lamax,npoints=30,ntype=20)
+      parameter (lentr=10,lexit=lamax,npoints=30,ntype=20)
       character projectile*(*), target*(*), tfile*(*)
-      integer nchfi(nomax,0:1)
+      integer nchfi(nomax,0:1),nopen(0:1)
+      parameter(ntdcs=250)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),
-     >   ovlp(20,100), chi(maxr), sweight(0:200), spinw(0:1), units(3),
+     >   ovlp(20,100), chi(maxr), sweight(0:ntdcs), spinw(0:1),units(3),
      >   psii(maxr), psif(maxr), vdcore(maxr,0:lamax),slowery(ne2e),
-     >   ovlpn(knm),dcs(0:200,knm),sign(0:1),
+     >   ovlpn(knm),dcs(0:ntdcs,knm),sign(0:1),
      >   sigm(-lexit:lexit,-lentr:lentr),
      >   ticsm(-lentr:lentr),res2(5),csmt(5,knm),crossmt(5),sum(knm)
       logical hlike
@@ -1586,17 +1606,17 @@ C  Incident on a hydrogenic target. Total spin S = ns.
      >   nonnew(nomax,-lamax:lamax,0:1,0:lmax)
       complex ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), cfac(0:1),
      >   vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), phase,
-     >   f(0:200,0:1,-lexit:lexit,-lentr:lentr),ampt(0:200,0:1),cip,
-     >   fB(0:200,-lexit:lexit,-lentr:lentr),phaseq(knm),ovlpq,ci,x,
+     >   f(0:ntdcs,0:1,-lexit:lexit,-lentr:lentr),ampt(0:ntdcs,0:1),cip,
+     >   fB(0:ntdcs,-lexit:lexit,-lentr:lentr),phaseq(knm),ovlpq,ci,x,
      >   t, getT, getTextr, Tel(0:1), Vel(0:1),
-     >   fbsum(0:200,-lexit:lexit,-lentr:lentr)
+     >   fbsum(0:ntdcs,-lexit:lexit,-lentr:lentr)
       real*8 rylm,xin(npoints),yin(npoints),xout(npoints),yout(npoints)
       character chan(knm)*3
       common /charchan/ chan
       common /chanen/ enchan(knm)
       common/meshrr/ meshr,rmesh(maxr,3)
       character ch*1, xunit(3)*8
-      integer satom
+      integer satom, omp_get_num_threads, omp_get_max_threads
       common /helium/ latom(KNM), satom(KNM), lpar(KNM), np(KNM)
       asym(sing,trip,fac) = (sing - trip / fac) / (sing + trip + 1e-30)
       ch(i)=char(i+ichar('0'))
@@ -1608,7 +1628,8 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       data units/1.0,0.3183099,28.002e-18/
       data pi/3.1415927/
       data ci/(0.0,1.0)/
-      
+
+
 
       if (nunit.gt.0) unit = units(nunit)
       fac = 2.0
@@ -1622,19 +1643,34 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       crossmt(:) = 0.0
       print*,
      >   'Enter max J for extrapolation' ! and bornsub (1 or 0)'
-      read(*,err=100), jextrap
+c$$$      read(*,err=100), jextrap
+      read(*,*) jextrapor
       bornsub = bornsubin
-      print*, 'JEXTRAP, BORNSUBIN:',jextrap, bornsubin
+      print*, 'JEXTRAP, BORNSUBIN:',jextrapor, bornsubin
  
  37   print*,'Please enter NISTART, NISTOP, NFSTART and NFSTOP:'
-      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+c$$$      read(*,err=100), NISTART, NISTOP, NFSTART, NFSTOP
+      read(*,*) NISTART, NISTOP, NFSTART, NFSTOP
       print*,'NISTART, NISTOP, NFSTART, NFSTOP:',
      >   NISTART, NISTOP, NFSTART, NFSTOP
       if (nistart.le.0) then
 c$$$         call MPI_FINALIZE(ierr)
          stop 'amplitude generation completed'
-      endif 
+      endif
+      print*,'OMP_NUM_THREADS:',omp_get_max_threads()
+C$OMP PARALLEL DO
+C$OMP& SCHEDULE(dynamic)
+C$OMP& DEFAULT(PRIVATE)
+C$OMP& SHARED(onshellk,bornsubin,chan,pi,unit,lpar)
+C$OMP& shared(ovlpn,jextrapor,ton,nonnew,nchfi,jstop,npar,non,vdon,nze)
+C$OMP& shared(nistart, nistop,nfstart, nfstop,xunit,ci)
+C$OMP& shared(nchimax,nchanmax,jstart,nsmax,enchan)
+C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep)
+C$OMP& shared(nunit,projectile,target,hlike,vdcore,minvdc,maxvdc)
+C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac)
       do ni = nistart, nistop
+c$$$         nthr = omp_get_thread_num()
+c$$$         print*,'OMP NT,ni:',nthr,ni
          if (onshellk(ni).le.0.0) cycle
          ndcs = 0
          ticsm(:) = 0.0
@@ -1653,7 +1689,8 @@ c$$$     >         chan(nf)(1:1).eq.'p').or.ni.eq.nf) then
                print*,'No Born subtraction for this channel pair'
                bornsub = 0.0
             endif 
-            do nth = 0, 200
+
+            do nth = 0, ntdcs
                dcs(nth,ndcs) = 0.0
             enddo
             rkf = onshellk(nf)
@@ -1672,7 +1709,7 @@ c$$$     >         chan(nf)(1:1).eq.'p').or.ni.eq.nf) then
             do mi = - lentr, lentr
                do mf = - lexit, lexit
                   do ns = 0, nsmax
-                     do nth = 0, 200
+                     do nth = 0, ntdcs
                         f(nth,ns,mf,mi) = (0.0,0.0)
                         fbsum(nth,mf,mi) = (0.0,0.0)
                      enddo 
@@ -1708,14 +1745,18 @@ C the factor of 1/Kb multiplying the TDCS. Note OVLPQ will be squared for TDCS.
             endif
 c$$$            jextrap = jstop
             rki = onshellk(ni)
-            if (ni.eq.nf) then
-c$$$               print*,'Elastic extrapolation is set to J = 80'
-c$$$               jextrap = 80
-               alpha = real(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+
+
+            if (ni.eq.nf.and.ni.eq.1) then
+               jextrap = jextrapor
+               nchi = nonnew(nchfi(ni,0),0,0,jstop)
+               nchf = nonnew(nchfi(nf,0),0,0,jstop)
+               alpha = real(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3)
-               beta = aimag(ton(1,1,0,0,jstop)) * (2*jstop-1) *
+               beta = aimag(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3) * (2*jstop+5) * (2*jstop+7)
-               print*,'ALPHA, BETA:',alpha/rki, beta/rki
+               print*,'nchf,nchi,ALPHA, BETA:',nchf,nchi,
+     >            -alpha/rki, -beta/rki
                do j = jstop+1, jextrap
                   c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
                   treal = alpha / (2*j-1) / (2*j+1) / (2*j+3)
@@ -1724,17 +1765,61 @@ c$$$               jextrap = 80
                   do ns = 0, nsmax
                      cfac(ns) = c2*cmplx(treal,timag)
                   enddo
-                  do nth = 0, 200, nstep
+                  do nth = 0, ntdcs, nstep
                      theta = float(nth)
-                     if (nth.gt.180) theta = (nth - 180) / 21.0
+                     if (nth.gt.180) theta = 4.0*(nth - 180)/
+     >                  (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21.0
                      thrad = theta * pi / 180.0
                      sh=rylm(j,0,dble(thrad))
+c$$$                     if (nth.eq.135) print*,'j,sh,c2:'
+c$$$     >                  ,chan(nf),j,sh,cfac(0)
                      do ns = 0, nsmax
-                        f(nth,ns,0,0) = sh * cfac(ns)+ f(nth,ns,0,0) 
+                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
                      enddo
                   enddo
                enddo
+            else !if (chan(ni)(3:3).eq.chan(nf)(3:3).and.
+!     >            chan(ni)(3:3).eq.'S') then
+               jextrap = jextrapor
+               js = jstop
+               nchi = nonnew(nchfi(ni,0),0,0,js)
+               nchf = nonnew(nchfi(nf,0),0,0,js)
+               jp = jstop -5
+               nchip = nonnew(nchfi(ni,0),0,0,jp)
+               nchfp = nonnew(nchfi(nf,0),0,0,jp)
+               rts = real(ton(nchf,nchi,0,0,js))
+               rtp = real(ton(nchf,nchi,0,0,jp))
+               aits = aimag(ton(nchf,nchi,0,0,js))
+               aitp = aimag(ton(nchf,nchi,0,0,jp))
+               rc1 = log(abs(rts/rtp))/(jp-js)
+               rc2 = rts/exp(-rc1*js)
+               aic1 = log(abs(aits/aitp))/(jp-js)
+               aic2 = aits/exp(-aic1*js)
+c$$$               do j = jp, js
+c$$$                  print*,ton(nchf,nchi,0,0,j),rc2*exp(-rc1*j),
+c$$$     >               aic2*exp(-aic1*j)
+c$$$               enddo
+c$$$               do j = jstop+1, jextrap
+c$$$                  c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
+c$$$                  treal = rc2*exp(-rc1*j)
+c$$$                  timag = aic2*exp(-aic1*j)
+c$$$                  do ns = 0, nsmax
+c$$$                     cfac(ns) = c2*cmplx(treal,timag)
+c$$$                  enddo
+c$$$                  do nth = 0, ntdcs, nstep
+c$$$                     theta = float(nth)
+c$$$                     if (nth.gt.180) theta = 4.0*(nth - 180) / (ntdcs-180+1.0)/1.1**(ntdcs-nth)!21.0
+c$$$                     thrad = theta * pi / 180.0
+c$$$                     sh=rylm(j,0,dble(thrad))
+c$$$                     do ns = 0, nsmax
+c$$$                        f(nth,ns,0,0) = sh * cfac(ns) + f(nth,ns,0,0) 
+c$$$                     enddo
+c$$$                  enddo
+c$$$               enddo
+c$$$            else
+c$$$               jextrap = jstop
             endif 
+            print*,'J extrapolation used:',jextrap
 c$$$            open (77,file='klaus.25ev.bsr')
 c$$$            read(77,*)
             do j = 0, jextrap
@@ -1780,6 +1865,8 @@ c$$$            read(77,*)
                               do ns = 0, nsmax
                                  Tel(ns) = ton(nchf,nchi,ns,ipar,j)
                                  Vel(ns) = vdon(nchf,nchi,ns,ipar,j)
+c$$$                                 Tel(ns) = Vel(ns) !Born approximation
+
 c$$$                                 read(77,*) xx,kj,ks,kp,kli,klf,trk,tik
 c$$$                                 write(*,'(5i5,1p,4e15.5)')
 c$$$     >                              j,ipar,li,lf,ns,
@@ -1804,24 +1891,34 @@ c$$$     >                              (2.0*pi*sqrt(rki*rkf))
 !     >                              ton(nchf,nchi,ns,ipar,jstop))
 !                                 Vel(ns) = getT(j,jstop,
 !     >                              vdon(nchf,nchi,ns,ipar,jstop))
-                                 Tel(ns) = getTextr(j,jstop,
+                                 Tel(ns) = getTextr(j,jstop, !geometric extrapolation
      >                              ton(nchf,nchi,ns,ipar,jstop),
-     >                                ton(nchf,nchi,ns,ipar,jstop-1))
+     >                              ton(nchf,nchi,ns,ipar,jstop-1))
+c$$$                                 treal = rc2*exp(-rc1*j) !exponential extrapolation
+c$$$                                 timag = aic2*exp(-aic1*j)
+c$$$                                 print*,'j,t:',j,Tel(ns),treal,timag
+c$$$                                 Tel(ns) = cmplx(treal,timag)
                                  Vel(ns) = getTextr(j,jstop,
      >                              vdon(nchf,nchi,ns,ipar,jstop),
      >                              vdon(nchf,nchi,ns,ipar,jstop-1))
                               enddo 
-                              if (j.eq.jstop+1) then
-                                 t = getT(0,jstop,ton(nchf,nchi,0,
-     >                              ipar,jstop))
-                                 print*,'ALPHA, BETA:',-real(t)/rki
-     >                              *3.0,-aimag(t)/rki*105.0
-                                 do jpr = jstop - 3, jstop
-                                    print*, jpr, getT(jpr,jstop,
-     >                                 ton(nchf,nchi,0,ipar,jstop)),
-     >                                 ton(nchf,nchi,0,ipar,jpr)
-                                 enddo
-                              endif 
+c$$$                              if (j.eq.jstop+1) then
+c$$$                                 t = getT(0,jstop,ton(nchf,nchi,0,
+c$$$     >                              ipar,jstop))
+c$$$                                 print*,'ALPHA, BETA:',-real(t)/rki
+c$$$     >                              *3.0,-aimag(t)/rki*105.0
+c$$$                                 do jpr = jstop, jstop - 9, -1
+c$$$                                    print'("getT,T,err(%)",i4,1p,4e12.3,
+c$$$     >                                 0p,f5.1)', jpr, getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop)),
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr),
+c$$$     >                                 abs(getT(jpr,jstop,
+c$$$     >                                 ton(nchf,nchi,0,ipar,jstop))-
+c$$$     >                                 ton(nchf,nchi,0,ipar,jpr))/
+c$$$     >                                 abs(ton(nchf,nchi,0,ipar,jpr))
+c$$$     >                                 *100.0
+c$$$                                 enddo
+c$$$                              endif 
                            endif 
                            rlf  = lf
                            cip = (0d0,1d0)**dfloat(li-lf)
@@ -1850,10 +1947,11 @@ c$$$     >                              (2.0*pi*sqrt(rki*rkf))
                                        cfac(ns) = c4 * cip *
      >                                    (Tel(ns) - bornsub * Vel(ns))
                                     enddo
-                                    do nth = 0, 200, nstep
+                                    do nth = 0, ntdcs, nstep
                                        theta = float(nth)
                                        if (nth.gt.180) theta =
-     >                                    (nth - 180) / 21.0
+     >                                    4.0*(nth - 180) /
+     >                             (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21.0
                                        thrad = theta * pi / 180.0
                                        sh=rylm(lf,mi-mf,dble(thrad))
                                        do ns = 0, nsmax
@@ -1924,21 +2022,20 @@ C  subtraction for total spin = 3/2 if the transition involves singlet states.
             endif 
             y = sqrt(c1/(2.0 * rlia + 1.0)) 
             
-            open(42,file='amp.'//chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
-
-            write(42,"(a8,' - ',a6,'scattering:',1p,e10.3,'eV on ',a3,
-c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
+            open(9+ni,file='amp.'
+     >         //chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
+            write(9+ni,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
      >         ' ->',a3,(2(e10.3,'eV'))/)") projectile,target,
      >         13.6058*(etot-enchan(ni)),chan(ni),chan(nf),
      >         13.6058 * enchan(nf), 13.6058 * (etot-enchan(nf))
 
-            write(42,'(''When the amplitudes are squared the result '',
-     >         ''contains the factor Kf/Ki/(2Li+1) ''/
+            write(9+ni,'(''When the amplitudes are squared the result'',
+     >         '' contains the factor Kf/Ki/(2Li+1) ''/
      >         ''and is in units of: '',a8,
      >         ''The last amplitude is Born (analytic if calculated).''
      >         )') xunit(nunit)
 
-            write(42,'(
+            write(9+ni,'(
      >         ''The CCC amplitudes may be read in the following way:''/
      >         ''      read(n,*) lf, li, nth, rkf, rki, tsp1, nsm,'',
      >         '' (spinw(ns), ns=0, nsm)''/
@@ -1947,21 +2044,22 @@ c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
      >         ''            read(n,*) mfprev, miprev''/
      >         ''            if (mfprev.ne.mf.or.miprev.ne.mi) stop'',
      >         '' "incorrect format" '')')
-            write(42,'(
+            write(9+ni,'(
      >         ''            do ith = 1, nth''/
      >         ''               read(n,*) theta(ith), (freal(ns),'',
      >         '' fimag(ns), ns = 0, nsm)''/
      >         ''               f(ith,mf,mi,0) = cmplx(freal(0),'',
      >         '' fimag(0))'')')
-            write(42,'(
+            write(9+ni,'(
      >         ''               f(ith,mf,mi,1) = cmplx(freal(1),'',
      >         '' fimag(1))''/
      >         ''            end do''/
      >         ''         end do''/
      >         ''      end do'')')
-            write(42,'(2i2,i4,2f8.5,2i2,2f8.5,
+            nthmax = ntdcs+1
+            write(9+ni,'(2i2,i4,2f10.6,2i2,2f6.3,
      >         " Lf,Li,Nth,Kf,Ki,2Sf+1,Nsm,SpinW(ns)")')
-     >         lfa, lia, 181/1,  onshellk(nf), onshellk(ni),
+     >         lfa, lia, nthmax-3,  onshellk(nf), onshellk(ni),
      >         nint(2.0*sf+1.0),nsmax,(spinw(ns),ns=0,1)
             bornint = 0.0
             csmt(:,nf) = 0.0
@@ -1970,7 +2068,7 @@ c$$$     >         ' -> ',a3,(2f10.5,'eV')/)") projectile,target,
                do mlf = -lfa, lfa
                   sigm(mlf,mli) = 0.0
                   do ns = 0, nsmax
-                     do nth = 0, 200, nstep
+                     do nth = 0, ntdcs, nstep
 c$$$                        if (nth.lt.10) print*,
 c$$$     >                     nth,f(nth,ns,mlf,mli),fb(nth,mlf,mli)
                         ampt(nth,ns)=y*(f(nth,ns,mlf,mli)+
@@ -1981,7 +2079,6 @@ c$$$     >                     nth,f(nth,ns,mlf,mli),fb(nth,mlf,mli)
 C  The ,0.0, below indicates that ampt is on a linear theta grid
                      call intamp(ampt(0,ns),0.0,onshellk(nf),
      >                  onshellk(ni),sweight,res,res2,err1,err2)
-                     
 c$$$                     call integrate(ampt(0,ns),sweight,nstep,res,res2)
                      sigm(mlf,mli) = sigm(mlf,mli) + spinw(ns) * res
                      csmt(:,nf) = csmt(:,nf) + spinw(ns) * res2(:)
@@ -1991,7 +2088,7 @@ c$$$                     call integrate(ampt(0,ns),sweight,nstep,res,res2)
      >               onshellk(ni),sweight,res,res2,err1,err2)
 c$$$                  call integrate(fB(0,mlf,mli),sweight,nstep,res,res2)
                   bornint = bornint + y ** 2 * res * bornsub
-                  write(42,'(2i5,1p,e15.6,"  MF, MI, ICS")') 
+                  write(9+ni,'(2i5,1p,e15.6,"  MF, MI, ICS")') 
      >               mlf,mli,sigm(mlf,mli)
                   print'(a3,'' <-'',a3,1p,e10.3,2i3,
      >               " magnetic sublevel integrated DCS, Mf, Mi")',
@@ -1999,30 +2096,54 @@ c$$$                  call integrate(fB(0,mlf,mli),sweight,nstep,res,res2)
                   if (enchan(nf).gt.0.0) ticsm(mli) =
      >                ticsm(mli) + sigm(mlf,mli)
                   if (enchan(nf).lt.0.0) then
-                     do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                     nth = 0
+                     dtheta = dfloat(nth)
+c$$$                     qsq = rkf * rki * (dble(rkf/rki) + dble(rki/rkf) -
+c$$$     >                  dble(2.0 * cos(dble(dtheta*pi/180.0))))
+c$$$                     q = sqrt(qsq)
+                     write(9+ni,'(f10.6,1p,5(1x,2e11.3))') dtheta,
+     >                  (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
+     >                  sign(0) * y * fB(nth,mlf,mli) * ovlpq,
+     >                  sign(0) * y * fBsum(nth,mlf,mli) * ovlpq!,q
+                     do nth = 181, nthmax-1
+                        dtheta = 4.0*(nth - 180) /
+     >                     (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21d0
+c$$$                        qsq=rkf * rki * (dble(rkf/rki) + dble(rki/rkf)-
+c$$$     >                     dble(2.0 * cos(dble(dtheta*pi/180.0))))
+c$$$                        q = sqrt(qsq)
+                        write(9+ni,'(1p,e10.3,5(1x,2e11.3))') dtheta,
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     sign(0) * y * fB(nth,mlf,mli) * ovlpq,
-     >                     sign(0) * y * fBsum(nth,mlf,mli) * ovlpq
+     >                     sign(0) * y * fBsum(nth,mlf,mli) * ovlpq!,q
+                     enddo
+                     do nth = 4, 180
+                        dtheta = dfloat(nth)
+c$$$                        qsq=rkf * rki * (dble(rkf/rki) + dble(rki/rkf)-
+c$$$     >                     dble(2.0 * cos(dble(dtheta*pi/180.0))))
+c$$$                        q = sqrt(qsq)
+                        write(9+ni,'(f10.6,1p,5(1x,2e11.3))') dtheta,
+     >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
+     >                     sign(0) * y * fB(nth,mlf,mli) * ovlpq,
+     >                     sign(0) * y * fBsum(nth,mlf,mli) * ovlpq!,q
                      enddo
                   else if (abs((etot-2.0*enchan(nf))/etot).lt.0.01) then
                      print*,'AMP suitable for equal-energy (e,2e)'
                      do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                        write(9+ni,'(f5.1,1p,4(1x,2e11.3))') float(nth),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax)
                      enddo
                   else
                      print*,'AMP suitable for asymmetric-energy (e,2e)'
                      do nth = 0, 180, nstep
-                        write(42,'(f5.1,1p,4(1x,2e11.3))') float(nth),
+                        write(9+ni,'(f5.1,1p,4(1x,2e11.3))') float(nth),
      >                     (ampt(nth,ns) * ovlpq, ns = 0,nsmax),
      >                     (ampt(nth,ns) * 0.0, ns = 0,nsmax)
                      enddo
-                  endif 
+                  endif
                enddo
             enddo 
-            close(42)
+            close(9+ni)
             if (target .eq. 'H  I') then
                if (lia.eq.0.and.lfa.eq.1) then
                   pol = (sigm(0,0) - sigm(1,0)) /
@@ -2063,29 +2184,43 @@ c$$$            endif
          do while (tfile(i:i).ne.' ')
             i = i + 1
          enddo
-         open(42,file=tfile(1:i-1)//'_dcs'//ch(ni))
-         write(42,"('# ',f8.3,' eV ',a8,' - ',a6,a3,
+         open(9+ni,file=tfile(1:i-1)//'_dcs'//ch(ni))
+         write(9+ni,"('# ',f8.3,' eV ',a8,' - ',a6,a3,
      >      '   scattering DCS in units of ',a8)")
      >      13.6058*(etot-enchan(ni)),projectile,target,chan(ni),
      >      xunit(nunit)
          do n = 1, ndcs
             if (csmt(1,n+nfstart-1).gt.0.0)
-     >         write(42,"('#',a4,' ICS:',1p,e10.3,'  MTCS(l):',5e11.3)") 
-     >         chan(n+nfstart-1),sum(n+nfstart-1),
+     >         write(9+ni,"('#',a4,' ICS:',1p,e10.3,'  MTCS(l):',
+     >         5e11.3)") chan(n+nfstart-1),sum(n+nfstart-1),
      >         (csmt(l,n+nfstart-1),l=1,5)
          enddo 
-         write(42,"('#ICS',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
-         write(42,"('#angle',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
-         
-         do nth = 0, 180, nstep
-            write(42,'(i4,1p,1000e10.3)') nth,(dcs(nth,n),n=1,ndcs)
+         write(9+ni,
+     >      "('# ICS     ',1p,1000e10.3)")(sum(n+nfstart-1),n=1,ndcs)
+         write(9+ni,
+     >      "('# angle     ',1000(a4,6x))")(chan(n+nfstart-1),n=1,ndcs)
+         nth = 0
+         dtheta = dfloat(nth)
+         write(9+ni,'(f10.6,1p,1000e10.3)') dtheta,
+     >      (dcs(nth,n),n=1,ndcs)
+         do nth = 181, nthmax-1
+            dtheta = 4.0*(nth - 180)
+     >         / (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21d0
+            write(9+ni,'(1p,1000e10.3)') dtheta,
+     >         (dcs(nth,n),n=1,ndcs)
          enddo
-         close(42)
+         do nth = 4, 180
+            dtheta = dfloat(nth)
+            write(9+ni,'(f10.6,1p,1000e10.3)') dtheta,
+     >         (dcs(nth,n),n=1,ndcs)
+         enddo
+         close(9+ni)
          do mli = -lia, lia
             print*,'chan, m, TICS(m):', chan(ni), mli, ticsm(mli)
-         enddo 
+         enddo
       end do                    ! end ni loop
-      go to 37
+C$OMP END PARALLEL DO
+      go to 37 !another opportunity for NI, NF input
  100  stop 'incorrect input to amplitude generation'
       return
       end
@@ -2093,7 +2228,8 @@ c$$$            endif
 C  The following routine integrates the complex amplitude over the theta
 C  and phi angles
       subroutine integrate(amp,w,nstep,res1,res2)
-      dimension amp(0:200),w(0:200,3)
+      parameter(ntdcs=250)
+      dimension amp(0:ntdcs),w(0:ntdcs,3)
       complex amp
       data pi/3.1415927/
 
@@ -2114,11 +2250,12 @@ C  and phi angles
      >   lexit,lentr,thfac,Bornamp)
       use CI_MODULE 
       include 'par.f'
-      complex Bornamp(0:200,-lexit:lexit,-lentr:lentr)
+      parameter(ntdcs=250)
+      complex Bornamp(0:ntdcs,-lexit:lexit,-lentr:lentr)
       logical hlike
       dimension psif(maxr), psii(maxr), vdcore(maxr,0:lamax), 
-     >   temp(maxr), ucentr(maxr), q(0:200), qth(0:200), vc(0:200),
-     >   ff(0:200,0:lamax)
+     >   temp(maxr), ucentr(maxr), q(0:ntdcs), qth(0:ntdcs),vc(0:ntdcs),
+     >   ff(0:ntdcs,0:2*lamax)
       common/meshrr/ meshr,rmesh(maxr,3)
       real*8 rylm,dtheta,thrad,pi,dki,dkf,tmp
       common /double/njdouble,jdouble(22)
@@ -2153,7 +2290,7 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
       do i = 1, maxr
          temp(i) = 0.0
       enddo
-      if (lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax) then
+      if (lf.gt.lexit.or.li.gt.lentr) then !.or.li+lf.gt.lamax) then
          print*,lf,lexit,li,lentr,li+lf,lamax
          stop 'lf.gt.lexit.or.li.gt.lentr.or.li+lf.gt.lamax'
       endif
@@ -2177,7 +2314,7 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
       endif 
       do mi = - li, li
          do mf = - lf, lf
-            do nth = 0, 200, nstep
+            do nth = 0, ntdcs, nstep
                Bornamp(nth,mf,mi) = (0.0,0.0)
             enddo 
          enddo
@@ -2186,21 +2323,21 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
       qmin = abs(dkf - dki)
       qmax = dkf + dki
 
-      do nth = 0, 200, nstep
+      do nth = 0, ntdcs, nstep
          dtheta = dfloat(nth)
-         if (nth.gt.180) dtheta = (nth - 180) / 21d0
+         if (nth.gt.180) dtheta = 4.0*(nth - 180) /
+     >      (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21d0
          thrad = dtheta * pi / 180d0 
-C  Q = Ki - Kf  (as vectors)               
-         qsq = dkf**2 + dki**2 - 2d0 * dkf * dki * cos(thrad)
-         qsq = dkf * dki * (dble(dkf/dki) + dble(dki/dkf) -
-     >      dble(2d0 * cos(thrad)))
+C     Q = Ki - Kf  (as vectors)
+         onemcos = 1.0-cos(thrad)
+         if (nth.ge.181) !for angles < 4 degrees
+     >      onemcos = thrad*thrad/2.0-thrad**4/24.0+thrad**6/720.0 
+c$$$         qsq = dkf * dki * (dble(dkf/dki) + dble(dki/dkf) -
+c$$$     >      dble(2d0 * cos(thrad)))
+         qsq = (dki-dkf)**2+2.0*dki*dkf*onemcos
+c$$$         qsq = dkf**2 + dki**2 - 2d0 * dkf * dki * cos(thrad)
 c$$$         qsq = (rkf - rki) ** 2 - 2.0 * rkf * rki * (cos(thrad) - 1d0)
          q(nth) = sqrt(abs(qsq))
-c$$$         print*, dtheta, q(nth)
-c$$$               tmp = -(rkf**2-q(nth)**2-rki**2)/
-c$$$     >            2.0/q(nth)/rki
-
-c$$$         if (dkf.eq.dki.and.nth.eq.0) print*,'Q at zero degrees:',q(nth)
          if (q(nth).eq.0.0) then
 c$$$            q(nth) = 1e-10
             tmp = 0d0
@@ -2208,7 +2345,8 @@ C  The following ensures that for elastic P-P transitions we get 0 amplitude
 C  for MI <> MF at theta = 0,  which leads to a step, unlike if tmp = 0 above.
 c$$$            tmp = 1.0
          else 
-            tmp = (dki-dkf*cos(thrad)) / q(nth)
+c$$$            tmp = (dki-dkf*cos(thrad)) / q(nth)
+            tmp = (dki-dkf+dkf*onemcos) / q(nth)
          endif 
 
 C The following is used to calculate the Born amp on q grid
@@ -2260,7 +2398,7 @@ C  Note that VC(0) will not be continuous with others.
                rmu = mu
                cgcoeff = - nze * cgc(rli,rmi,rlam,rmu,rlf,rmf) 
                if (cgcoeff.ne.0.0) then
-                  do nth = 0, 200, nstep
+                  do nth = 0, ntdcs, nstep
                      dtheta = dble(qth(nth))
                      srylm = sqrt4pi / sqrt(2.0 * rlf + 1.0) *
      >                  rylm(lam,mu,dtheta)*(-1)**mu
@@ -2269,6 +2407,7 @@ c$$$     >                  'dtheta,lam,mai,maf,ff(nth,lam),SRYLM:',
 c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
                      Bornamp(nth,maf,mai) = Bornamp(nth,maf,mai) +
      >                  srylm * cgcoeff * ff(nth,lam) * (0.0,1.0) ** lam
+c$$$                     if (nth.ge.181) print*,nth,ff(nth,lam)
                   enddo
                endif 
             enddo               ! end maf loop
@@ -2281,8 +2420,9 @@ c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
       subroutine formfac(hlike,nf,ni,rlf,rli,temp,maxtemp,lam,nstep,
      >   q,vc,ff,Nmax,namax,C,ze)
       include 'par.f'
+      parameter(ntdcs=250)
       logical hlike             !,zeroc
-      real temp(maxr), chi(maxr), q(0:200), vc(0:200), ff(0:200),
+      real temp(maxr), chi(maxr), q(0:ntdcs), vc(0:ntdcs), ff(0:ntdcs),
      >   ucentr(maxr)
       common/meshrr/ meshr,rmesh(maxr,3)
       common /double/njdouble,jdouble(22)
@@ -2303,9 +2443,9 @@ c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
       common /CIdata/ na(nspmCI,KNM), nam(KNM)
       common /atompol/ atompol(maxr), ipolmin, ipolmax, ipol
       common /di_el_core_polarization/ gamma, r0, pol(nmaxr) 
-      real chin(maxtemp,0:200)
-      integer istartchi(0:200), istopchi(0:200)
-      real tmp_hat, tmp_hat1, tmp_atom_pol(0:200)
+      real chin(maxtemp,0:ntdcs)
+      integer istartchi(0:ntdcs), istopchi(0:ntdcs)
+      real tmp_hat, tmp_hat1, tmp_atom_pol(0:ntdcs)
       common /noblgegas_switch/ i_ng    ! set in  cc/main.f
       common /noblegas/ l_ng, n_ng, minf_ng, maxf_ng, f_ng(maxr)
       common /debye/ dbyexists, dblp, rmudeb, zdby
@@ -2318,7 +2458,7 @@ c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
       rlam = lam
       rm = 0.0
       rr = 0.0
-      do nth = 0, 200
+      do nth = 0, ntdcs
          ff(nth) = 0.0
       enddo 
       if (hlike) then
@@ -2328,7 +2468,7 @@ c$$$     >                  dtheta,lam,mai,maf,ff(nth,lam),srylm
                rr = rr + temp(i) * rmesh(i,1) * rmesh(i,1) * rmesh(i,3)
             enddo
             rr = rr * hat(rli) * hat(rlam) * const
-            do nth = 0, 200, nstep
+            do nth = 0, ntdcs, nstep
                if (q(nth).gt.0.0) then  !1e-5
                   qsq = q(nth) * q(nth)
                   call regular(lam,qsq,eta,ucentr,cntfug(1,lam),-1,
@@ -2366,7 +2506,7 @@ c     ------------
          if (sa(ni).ne.sa(nf)) return
 c     Make array of chin(i,nth) - it is the same inside s.p. loops. and 
 c     can be made outside of them.
-         do nth = 0, 200, nstep
+         do nth = 0, ntdcs, nstep
             if (q(nth).gt.0.0) then  !1e-5
                qsq = q(nth) * q(nth)
                call regular(lam,qsq,eta,ucentr,cntfug(1,lam),-1,
@@ -2374,10 +2514,11 @@ c     can be made outside of them.
      >              chin(1,nth),istartchi(nth),istopchi(nth),
      >              phase,sigc)
                do i = 1, maxtemp
-c$$$                  if (i.lt.10) print*,qsq,i,sin(q(nth)*rmesh(i,1)),
-c$$$     >               chin(i,nth)
+c$$$                  if (i.gt.maxtemp-10) print*,qsq,i,
+c$$$     >               sin(q(nth)*rmesh(i,1)),chin(i,nth)
                   chin(i,nth) = chin(i,nth) * rmesh(i,3) / rmesh(i,1)
                enddo
+               
 c     modify array  chin(i,nth)  due to two-electron pol.potential
                if(lam.eq.1.and.gamma.ne.0.0) then
                   sump = 1.0
@@ -2443,7 +2584,7 @@ c
      >                  rmesh(i,1) * rmesh(i,1) * rmesh(i,3)
                   enddo
                   rr = rr + sump * const
-                  do nth = 0, 200, nstep
+                  do nth = 0, ntdcs, nstep
                      if (q(nth).gt.0.0) then  !1e-5
                         imax = min(istopchi(nth),maxf(ni1),maxf(nf1))
                         imin = max(istartchi(nth),minf(ni1),minf(nf1))
@@ -2453,12 +2594,13 @@ c
                            sump = sump + fl(i,ni1)*fl(i,nf1)*chin(i,nth) 
                         enddo
                         ff(nth) = ff(nth) + const * sump / q(nth)
+c$$$                        if (nth.ge.181) print*,nth,ff(nth),const
                      endif
                   enddo    ! end nth loop
                end if
  68         continue 
  67      continue 
-         elseif(i_ng .eq. 1) then
+      elseif(i_ng .eq. 1) then
             nfcel = 4*l_ng + 1  ! number of 'frozen'-core electrons (5 : for Ne 2p^5)
 
          li = nint(rli)
@@ -2520,7 +2662,7 @@ c     start <4l+1|f_k|4l+1> ME
      >                          rmesh(i,1) * rmesh(i,1) * rmesh(i,3)
                         enddo
                         rr = rr + sump * const
-                        do nth = 0, 200, nstep
+                        do nth = 0, ntdcs, nstep
                            if (q(nth).gt.0.0) then !1e-5
                        imax = min(istopchi(nth),maxf(ni1),maxf(nf1))
                        imin = max(istartchi(nth),minf(ni1),minf(nf1))
@@ -2554,7 +2696,7 @@ c     start <l2|f_k|l2'> ME
      >                          rmesh(i,1) * rmesh(i,1) * rmesh(i,3)
                         enddo
                         rr = rr + sump * const
-                        do nth = 0, 200, nstep
+                        do nth = 0, ntdcs, nstep
                            if (q(nth).gt.0.0) then !1e-5
                        imax = min(istopchi(nth),maxf(ni1),maxf(nf1))
                        imin = max(istartchi(nth),minf(ni1),minf(nf1))
@@ -2581,29 +2723,30 @@ c     start <l2|f_k|l2'> ME
             print*,'processt.f: wrong value for i_ng=',i_ng
             stop
          endif
-
-
-
-
-
-
-
       endif
 
+      nthmax = 0 !will be used for interpolation when there is precision loss
       if (nf.eq.ni.and.lam.eq.0) then
-         do nth = 0, 200, nstep
-            ff(nth) = ff(nth) - hat(rli) * (1.0 - vc(nth))
+         do nth = 0, ntdcs, nstep
+            if (abs(ff(nth)-hat(rli)*(1.0-vc(nth)))/hat(rli).lt.1e-2 !1e-3 or 1e-4  
+     >         .and.nth.gt.nthmax) nthmax = nth
+c$$$     >         print*,'Precision loss:',nth,q(nth),ff(nth)- hat(rli),
+c$$$     >         (ff(nth)- hat(rli))/q(nth)**2
+            ff(nth) = ff(nth) - hat(rli) * (1.0 - vc(nth)) !loses accuracy for small angles
 c     account of additional atom polarazability:
             if(ipol .eq.1 ) then
                ff(nth) = ff(nth) + hat(rli) *  tmp_atom_pol(nth)
             endif
          enddo
+         if (nthmax.gt.0) print*,'will interpolate between 0 and:',
+     >      q(nthmax), nthmax
       endif 
       rmusq = rmudeb * rmudeb
-      do nth = 0, 200, nstep
+      do nth = 0, ntdcs, nstep
          ff(nth) = ff(nth) * 2.0 / (q(nth) * q(nth) + rmusq + 1e-20)
-      enddo 
-      if (q(0).le.0.0) then  !1e-5
+      enddo
+
+      if (q(0).le.0.0) then  !elastic scattering only
 c$$$         if (ni.ne.nf) then
 c$$$C  Here we have degeneracy as in the case of e-H 2s -> 2p. Set both
 c$$$C  the zero and the next formfactor to large numbers. The latter is so
@@ -2622,8 +2765,14 @@ c$$$         else
          if (dbyexists) then
             ff(0) =0.0
          end if
-      endif 
-      do nth = 0, 200, nstep
+         do nth = 181, nthmax, nstep !very small angles < 4 degs.
+            ff(nth) = 
+     >         cubint(q(0),ff(0),q(nthmax-3),ff(nthmax-3),
+     >         q(nthmax-2),ff(nthmax-2),
+     >         q(nthmax-1),ff(nthmax-1),q(nth))
+         enddo
+      endif
+      do nth = 0, ntdcs, nstep
          ff(nth) = ze * ff(nth) / sq2pi
       enddo 
       return
@@ -2633,11 +2782,12 @@ c$$$         else
      >   rkf,rki,nunit,nt,ne,sweight,nstep,projectile,target,
      >   ninttype,rmpow,rnpow,chani,chanf,sums,sumf,chun,nze)
       include 'par.f'
+      parameter(ntdcs=250)
       complex te2es(0:nsmax,0:jstop,-latop:latop),cfacs(0:1),cfacf(0:1),
-     >   fs(0:200,0:1,-lamax:lamax),ff(0:200,0:1,-lamax:lamax),
+     >   fs(0:ntdcs,0:1,-lamax:lamax),ff(0:ntdcs,0:1,-lamax:lamax),
      >   te2ef(0:nsmax,0:jstop,-latop:latop)
       real*8 rylm
-      dimension units(3),spinw(0:1),sweight(0:200),sums(0:1),sumf(0:1)
+      dimension units(3),spinw(0:1),sweight(0:ntdcs),sums(0:1),sumf(0:1)
       character ch*1, xunit(3)*8,chanf*3,chani*3,fn*2,a3*3
       character projectile*(*), target*(*),chun*(*)
       ch(i)=char(i+ichar('0'))
@@ -2651,7 +2801,7 @@ C  Divide cm^2 by eV = 27.21 a.u.
       chun = xunit(nunit)
       do mf = - lamax, lamax
          do ns = 0, nsmax
-            do nth = 0, 200
+            do nth = 0, ntdcs
                fs(nth,ns,mf) = (0.0,0.0)
                ff(nth,ns,mf) = (0.0,0.0)
             enddo 
@@ -2798,16 +2948,20 @@ c$$$      print*,'The slow and fast TCS:',sums,sumf
       close(42)
       return
       end
+
       
       subroutine intamp(amp,thfac,rkf,rki,sweight,res,csmt,err1,err2)
-      real sweight(0:200,10),test(6),csmt(5)
-      complex amp(0:200)
-      double precision yin(201),xin(201),yout(180*32+1),xout(180*32+1)
+      parameter(ntdcs=250)
+      real sweight(0:ntdcs,10),test(6),csmt(5)
+      complex amp(0:ntdcs)
+      double precision yin(ntdcs+1),xin(ntdcs+1),yout(180*32+1),
+     >   xout(180*32+1)
       data pi/3.141592654/
 
       do n = 1, 6
          test(n) = 0.0
       enddo
+      sum = 0.0
       csmt(:) = 0.0
       qmin = abs(rkf - rki)
       qmax = rkf + rki
@@ -2815,12 +2969,42 @@ c$$$      print*,'The slow and fast TCS:',sums,sumf
 C  Here the amplitude is assumed to be on a linear theta grid
          thdiv = 1.0
          do n = 1, 3
-            do i = n, 180, n
+            do i = 4, 180, n ! Starting the integration at 4 degrees
                test(n) = test(n) + sweight(i,n) *
      >            abs(amp(i)) ** 2 * sin(i * pi / 180.0)
             enddo
-c$$$            print*,'testing theta:',test(n)
+c$$$            print*,'testing theta integral for n:',n,test(n)
          enddo
+         i = 4 !At 4 degrees the weight should be 1 rather than 2, hence /2 below
+         n = 1
+         test(n) = test(n) - sweight(i,n) *
+     >            abs(amp(i)) ** 2 * sin(i * pi / 180.0)/2.0
+c$$$         dth = 1.0/(ntdcs-180+1.0)/1.1**(ntdcs-nth)*pi/180.0
+         nprev = 2
+         sum = 0.0
+         thprev = 0.0
+         tmpprev= 0.0
+         do nth = 181, ntdcs
+c$$$            if (nprev.eq.2) then
+c$$$               nprev = 4
+c$$$            else
+c$$$               nprev = 2
+c$$$            endif
+            theta = 4.0*(nth - 180) /
+     >         (ntdcs-180+1.0)/1.1**(ntdcs-nth) * pi / 180.0
+            tmp = sin(theta)*abs(amp(nth))**2
+c$$$  sum = sum + dth*nprev/3.0*sin(theta)*abs(amp(nth))**2
+            sum=sum+(theta-thprev)*(tmp+tmpprev)/2.0 !trapezoidal rule
+            thprev=theta
+            tmpprev=tmp
+c$$$            print*, nth,theta,sum,1.0-cos(theta)
+         enddo
+         theta = 4.0*pi/180.0
+         corr = (theta-thprev)*(tmp+sin(theta)*abs(amp(4))**2)/2.0
+c$$$         print*,'sum,corr:',sum,corr
+         sum = sum + corr
+
+         n = 1
          if (qmin.eq.0.0) then
             do l = 1, 5
                do i = 1, 180
@@ -2831,10 +3015,11 @@ c$$$            print*,'testing theta:',test(n)
             enddo 
          endif 
 
-         do nth = 0, 200
+         do nth = 0, ntdcs
             q = qmin + nth * (qmax - qmin) / 180.0 
             theta = float(nth)
-            if (nth.gt.180) theta = (nth - 180) / 21.0
+            if (nth.gt.180) theta = 4.0*(nth - 180) /
+     >         (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21.0
             thrad = theta * pi / 180.0 
 C     Q = Ki - Kf  (as vectors)               
             qsq = rkf * rki * (dble(rkf/rki) + dble(rki/rkf) -
@@ -2842,13 +3027,16 @@ C     Q = Ki - Kf  (as vectors)
             q = sqrt(qsq)
             if (nth.eq.0) then
                i = 1
+c$$$            elseif (nth.le.2) then
+c$$$               cycle
             elseif (nth.le.180) then
-               i = 21 + nth
+               i = ntdcs-179 + nth
             else
                i = nth - 179
             endif
             xin(i) = q
             yin(i) = abs(amp(nth))**2
+c$$$            print*,'i,theta,xin,yin:',i,theta,xin(i),yin(i)
          enddo
       else 
 C  Here the amplitude is assumed to be on a linear q grid
@@ -2876,79 +3064,80 @@ c$$$            print*,'testing q:',test(n)
       endif 
       err1 = abs((test(1)-test(2))/(test(1)+1e-30))*100.0
       err2 = abs((test(1)-test(3))/(test(1)+1e-30))*100.0
-      res = test(1)
+      res = test(1)+sum
 
-      if ((err1.gt.0.1.or.err2.gt.0.1).and.thfac.eq.0.0) then
-C  Here the amplitude will be extrapolated on to a linear q grid
-C  The value of NP is used to determine the interpolation. At high energies it
-C  has some effect so some care needs to be taken!
-         if (yin(2).gt.yin(1)) then
-            np = 3
-         else
-            np = 4
-         endif
-         np = 2
-         print*,'Interpolation with NP =',np
-         if (rki.eq.rkf) then
-C  This logic avoids the problem of 0**0 on the Cray.
-            np = 0
-         else 
-            do nth = 1, 200
-               yin(nth) = yin(nth) * xin(nth) ** np
-c$$$               (1d0 - exp( - xin(nth) ** np ))
-            enddo
-         endif 
-         ntwo = 5
-         nthi = 180 * 2 ** ntwo + 1
-         do nth = 1, nthi
-            q = qmin + (nth-1) * (qmax - qmin) / (nthi-1) / thdiv
-            xout(nth) = q
-         enddo
-c$$$         if (qmin.gt.0.0) then
-c$$$            do nth = 1, 181
-c$$$               write(67,*) xin(nth),yin(nth)
+c$$$      if ((err1.gt.0.1.or.err2.gt.0.1).and.thfac.eq.0.0) then
+c$$$C  Here the amplitude will be extrapolated on to a linear q grid
+c$$$C  The value of NP is used to determine the interpolation. At high energies it
+c$$$C  has some effect so some care needs to be taken!
+c$$$         if (yin(2).gt.yin(1)) then
+c$$$            np = 3
+c$$$         else
+c$$$            np = 4
+c$$$         endif
+c$$$         np = 2
+c$$$         print*,'Interpolation with NP =',np
+c$$$         if (rki.eq.rkf) then
+c$$$C  This logic avoids the problem of 0**0 on the Cray.
+c$$$            np = 0
+c$$$         else 
+c$$$            do nth = 1, ntdcs
+c$$$               yin(nth) = yin(nth) * xin(nth) ** np
+c$$$c$$$               (1d0 - exp( - xin(nth) ** np ))
 c$$$            enddo
-c$$$            write(67,*)
 c$$$         endif 
-c$$$      
-         call intrpl(200,xin,yin,nthi,xout,yout)
-c$$$         if (qmin.gt.0.0) then
-c$$$            do nth = 1, nthi
-c$$$               write(68,*) xout(nth),yout(nth)
+c$$$         ntwo = 5
+c$$$         nthi = 180 * 2 ** ntwo + 1
+c$$$         do nth = 1, nthi
+c$$$            q = qmin + (nth-1) * (qmax - qmin) / (nthi-1) / thdiv
+c$$$            xout(nth) = q
+c$$$         enddo
+c$$$c$$$         if (qmin.gt.0.0) then
+c$$$c$$$            do nth = 1, 181
+c$$$c$$$               write(67,*) xin(nth),yin(nth)
+c$$$c$$$            enddo
+c$$$c$$$            write(67,*)
+c$$$c$$$         endif 
+c$$$c$$$      
+c$$$         call intrpl(ntdcs+1,xin,yin,nthi,xout,yout)
+c$$$c$$$         if (qmin.gt.0.0) then
+c$$$c$$$            do nth = 1, nthi
+c$$$c$$$               write(68,*) xout(nth),yout(nth)
+c$$$c$$$            enddo
+c$$$c$$$            write(68,*)
+c$$$c$$$         endif 
+c$$$         do n = 0, 5
+c$$$            tmp = 0.0
+c$$$            test1 = 0.0
+c$$$            h = xout(2**n+1)
+c$$$            h = (xout(2**n+1) - xout(1)) 
+c$$$            nprev = 1
+c$$$            do nth = 1, nthi, 2**n
+c$$$               weight = float(nprev) / 3.0 * h
+c$$$               contrib = weight * yout(nth) * xout(nth) ** (1-np)
+c$$$c$$$     >           / (1d0 - exp( - xout(nth) ** np ))
+c$$$               tmp = tmp + contrib
+c$$$               contribt = xout(nth)**2 * weight
+c$$$               test1 = test1 + contribt
+c$$$               if (nprev.eq.4) then
+c$$$                  nprev = 2
+c$$$               else
+c$$$                  nprev = 4
+c$$$               endif
 c$$$            enddo
-c$$$            write(68,*)
-c$$$         endif 
-         do n = 0, 5
-            tmp = 0.0
-            test1 = 0.0
-            h = xout(2**n+1)
-            h = (xout(2**n+1) - xout(1)) 
-            nprev = 1
-            do nth = 1, nthi, 2**n
-               weight = float(nprev) / 3.0 * h
-               contrib = weight * yout(nth) * xout(nth) ** (1-np)
-c$$$     >           / (1d0 - exp( - xout(nth) ** np ))
-               tmp = tmp + contrib
-               contribt = xout(nth)**2 * weight
-               test1 = test1 + contribt
-               if (nprev.eq.4) then
-                  nprev = 2
-               else
-                  nprev = 4
-               endif
-            enddo
-            test(n+1) = (tmp - contrib / 2.0) / rki / rkf
-            test1 = test1 - contribt / 2.0
-c$$$            print*,'n,ICS, test:',n, test(n+1),
-c$$$     >         test1 * 3.0 / (qmax**3-qmin**3)
-         enddo 
-         err1 = abs((test(1)-test(2))/(test(1)+1e-30))*100.0
-         err2 = abs((test(1)-test(3))/(test(1)+1e-30))*100.0
-         if (abs((test(1)-res)/res).gt.0.2) print*,
-     >      'CAUTION: extrapolation using NP had an effect > 20%',
-     >      res, test(1), np
-      endif 
-      res = test(1) * 2.0 * pi
+c$$$            test(n+1) = (tmp - contrib / 2.0) / rki / rkf
+c$$$            test1 = test1 - contribt / 2.0
+c$$$c$$$            print*,'n,ICS, test:',n, test(n+1),
+c$$$c$$$     >         test1 * 3.0 / (qmax**3-qmin**3)
+c$$$         enddo 
+c$$$         err1 = abs((test(1)-test(2))/(test(1)+1e-30))*100.0
+c$$$         err2 = abs((test(1)-test(3))/(test(1)+1e-30))*100.0
+c$$$         if (abs((test(1)-res)/res).gt.0.2) print*,
+c$$$     >      'CAUTION: extrapolation using NP had an effect > 20%',
+c$$$     >      res, test(1), test(2), test(3)
+c$$$      endif 
+c$$$      res = test(1) * 2.0 * pi
+      res = res * 2.0 * pi
       csmt(:) = csmt(:) * 2.0 * pi
       return
       end

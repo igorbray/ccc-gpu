@@ -1,42 +1,51 @@
-      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,chil,
-     >   minchil,u,ldw,dwpot,phasel,itail,nznuci,nchtop,nchtope2e,qcut,
-     >   vdon,vmat,theta,vdcore,minvdc,maxvdc,lfast,lslow,slowery,td,
-     >   te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e,nchmaxe2e,
-     >   vmatp,nsmax,
-     >   nchistart,nchistop,nodeid,scalapack,
-     >   vmat01,vmat0,vmat1,
-     >   vni,vnf,vnd,nodes,myid,natomps)
-#ifdef GPU
+      subroutine first(ispeed,ifirst,second,nold,etot,lg,gk,npk,
+!     >   chilx,minchilx,
+     >   u,ldw,dwpot,phasel,itail,nznuci,nchtop,qcut,
+     >   vdon,theta,vdcore,minvdc,maxvdc,
+c$$$     >   lfast,lslow,slowery,td,
+c$$$     >   te1,te2,ve2ed,ve2ee,dphasee2e,ephasee2e,ne2e,nchmaxe2e,
+c$$$     >   vmatp,nsmax,
+c$$$     >   nchistart,nchistop,nodeid,scalapack,
+c$$$     >   vmat01,vmat0,vmat1,
+c$$$  >   vni,vnf,vnd,nodes,
+     >   nsmax,natomps,lnch)
+#ifdef GPU_ACC
       use openacc
+#endif
+#ifdef GPU_OMP
+      use omp_lib
 #endif
       use ubb_module
       use apar
       use date_time_module
-C      use chil_module
-C      use vmat_module
+      use chil_module
+      use vmat_module
       include 'par.f'
 
-      integer:: vni,vnf,vnd,nodes
-      real, dimension(vnf+1:vnd,vni:vnf) :: vmat0
-      real, dimension(vni:vnf,vni:vnf+1) :: vmat01
-      real, dimension(vni:vnf,vnf+1+1:vnd+1) :: vmat1
-      integer,dimension(nodes):: nchistart, nchistop
-      integer::  nodeid
-      logical:: scalapack
+c$$$      integer:: vni,vnf,vnd,nodes
+c$$$      real, dimension(vnf+1:vnd,vni:vnf) :: vmat0
+c$$$      real, dimension(vni:vnf,vni:vnf+1) :: vmat01
+c$$$      real, dimension(vni:vnf,vnf+1+1:vnd+1) :: vmat1
+c$$$      integer,dimension(nodes):: nchistart, nchistop
+c$$$      integer::  nodeid
+c$$$      logical:: scalapack
 
       integer npk(nchtop+1),mintemp3(nchan),maxtemp3(nchan),ltmin(nchan)
-      dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
-     >   ,u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
-     >   uf(maxr,nchan)
+     >   ,gpuin(8),gpuout(8),gputime,gputimetot
+c$$$      dimension chil(meshr,npk(nchtop+1)-1,1),minchil(npk(nchtop+1)-1,1)
+      dimension 
+     >   u(maxr),gk(kmax,nchan),vdon(nchan,nchan,0:1),ui(maxr),
+     >   uf(maxr,nchan),lnch(nchan,2),nchinew(nchan,2)
      >   ,vdcore(maxr,0:lamax),u1e(maxr),dwpot(maxr,nchan),ctemp(nchan)
       complex phasei, phasef
       complex phasel(kmax,nchan),phasefast,phaseslow,sigc,
      >   dphasee2e(nchane2e),ephasee2e(nchane2e)
-      real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
-     >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
+c$$$      real vmat(npk(nchtop+1)-1,npk(nchtop+1)),
+c$$$     >   vmatp((npk(nchtop+1)-1)*npk(nchtop+1)/2,0:nsmax)
       common/matchph/rphase(kmax,nchan),trat
       common /charchan/ chan
-      character chan(knm)*3
+      character chan(knm)*3, nodetfile*20,ench*11,cnode*3
+      common /MPI_info/myid, ntasks, cnode, ench
       common/meshrr/ meshr,rmesh(maxr,3)
 C      common/meshrr/ rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -61,15 +70,15 @@ C      common/meshrr/ rmesh(maxr,3)
 
 C  Note that ve2eon will not be defined correctly due to the declaration
 C  in makev31d. However, ve2eon is not used.
-      real ve2ed(nchmaxe2e,npk(nchtop+1)-1),
-     >   ve2eon(nchane2e,nchan), uplane(maxr), ud(maxr),
-     >   ve2ee(nchmaxe2e,npk(nchtop+1)-1)
+c$$$      real ve2ed(nchmaxe2e,npk(nchtop+1)-1),
+c$$$     >   ve2eon(nchane2e,nchan), 
+c$$$     >   ve2ee(nchmaxe2e,npk(nchtop+1)-1)
       integer, allocatable :: nchansi(:), nchansf(:)
 C      allocatable :: chitemp(:,:), temp3(:,:),vmati(:,:,:)
 C      allocatable :: chitemp(:,:)
-      real,allocatable :: vmati(:,:,:),temp3(:,:),vmatt(:,:,:,:)
+      real,allocatable :: temp3(:,:),vmatt(:,:,:,:)!,vmati(:,:,:),
       real, allocatable :: temp2(:,:,:)
-      real vmatt_out(nchtop)
+      real vmatt_out(nchtop), uplane(maxr), ud(maxr)
 !      data pi/3.14159265358979/
       data uplane/maxr*0.0/
  
@@ -80,9 +89,13 @@ C      allocatable :: chitemp(:,:)
       integer maxpsii,maxpsif
 
       integer ngpus,ntpg,nnt,gpunum
-      integer childim
-      integer, external :: omp_get_max_threads
-      integer, external :: omp_get_thread_num
+#ifndef GPU_ACC
+#ifndef GPU_OMP
+      integer OMP_GET_MAX_THREADS !If GPU get a compiler error on Cray
+#endif
+#endif
+
+!     integer ichildim in chil module
 
 C      integer nchistart(:),nchistop(:)
 C      real vmat01(npk(nchistart(nodeid)):npk(nchistop(nodeid)+1)-1,
@@ -94,27 +107,23 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
 
       hat(l)= sqrt(2.0 * l + 1.0)
 
+c$$$      if (npk(2)-npk(1).eq.1) return ! if 1st call
       ni=0
       nf=0
+c$$$      if (lg.lt.10) then
+c$$$         write(nodetfile,'(i3,"_",i1,"_",i1)') nodeid,lg,ipar
+c$$$      elseif (lg.lt.100) then
+c$$$         write(nodetfile,'(i3,"_",i2,"_",i1)') nodeid,lg,ipar
+c$$$      else
+c$$$         write(nodetfile,'(i3,"_",i3,"_",i1)') nodeid,lg,ipar
+c$$$      endif
+      write(nodetfile,'(i3,"_",i1,a11,"_",i3.3)') lg,ipar,ench,nodeid
+      nodetfile=adjustl(nodetfile)
 
-! set number of GPUs, OpenMP threads per GPU and nested threads
-#ifdef GPU
-      ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
-! 2 threads per GPU seems to be a good choice for P100 arch
-!      ntpg=1
-!      if(ngpus>0) then
-!        nnt=max(1,omp_get_max_threads()/(ngpus*ntpg))
-!        nthreads=ngpus*ntpg
-!      else
-!        nnt=1
-!        nthreads=max(1,omp_get_max_threads())
-!      endif
-#endif
-!      nnt=1
-!      nthreads=max(1,omp_get_max_threads())     
-!      write(*,*) "nnt,nthreads",nnt,nthreads
-!#endif
+      nodetime = 0
+      gputimetot = 0
       nnt=omp_get_max_threads()
+c$$$      print'("nodeid, nnt:",2i4)', nodeid,nnt
 
       td = 0.0
       te1 = 0.0
@@ -139,25 +148,60 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
          enddo
       enddo
       nchansmax = nch
-      print'("nodeid, nchii, nchif, nchansmax, and allocation:",5i8)',
-     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
+c$$$      print'("nodeid, nchii, nchif, nchansmax, and allocation:",5i8)',
+c$$$     >   nodeid,nchii,nchif,nchansmax,(nchif-nchii+1)*(nchtop-nchii+1)
 
       nch = 0
 
       if(itail.lt.0) then
-        childim=2
+        ichildim=2
       else
-        childim=1
+        ichildim=1
       endif
 
 !      allocate(vmati(1:kmax,1:kmax,nchii:nchtop))
 
-#ifdef GPU
-      do gpunum=0,ngpus-1
-         call acc_set_device_num(gpunum,acc_device_nvidia)
-!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
-!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
-       end do
+#ifdef GPU_ACC
+      ngpus=max(1,acc_get_num_devices(acc_device_nvidia))
+      if (ngpus.gt.1) then
+         print*,'ACC GPUS:',ngpus
+         stop 'more than 1 GPU per MPI process'
+      endif
+c$$$      do gpunum=0,ngpus-1
+
+c$$$      gpunum = mod(myid,ngpus)
+c$$$      call acc_set_device_num(gpunum,acc_device_nvidia)
+c$$$      print*,'NGPUS, NODEID, GPUNUM, acc_get_device_num:',ngpus,nodeid,
+c$$$     >   gpunum,acc_get_device_num(acc_device_nvidia)
+      
+c$$$!$acc enter data copyin(chil(1:meshr,1:(npk(nchtop+1)-1),1))
+c$$$!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+!$acc enter data copyin(chil(1:meshr,npkstart:npkstop,1:1),ifirst)
+!$acc& copyin(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
+
+c$$$       end do
+#endif
+
+#ifdef GPU_OMP
+      ngpus=max(1,omp_get_num_devices())
+      if (ngpus.gt.1) then
+         print*,'OMP GPUS:',ngpus
+         stop 'more than 1 GPU per MPI process'
+      endif
+
+c$$$      gpunum=mod(myid,ngpus)
+c$$$      call omp_set_default_device(gpunum)
+c$$$      print*,'NODEID, MYID associated with GPU:',nodeid,myid,
+c$$$     >     omp_get_device_num()
+!$omp target enter data
+!$omp& map(to:chil(1:meshr,npkstart:npkstop,1:1),
+!$omp& npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
+#endif 
+
+#ifdef _single
+#define nbytes 4
+#elif defined _double
+#define nbytes 8
 #endif
 
 !$omp parallel do private(nchf,nt) schedule(dynamic)
@@ -167,16 +211,21 @@ C Unroll the nchi/nchf two loops into one over nch, for OpenMP efficiency.
      >                 e_t(nchf), la_t(nchf), na_t(nchf),l_t(nchf))
          npos_t(nchf)=0
          pos(nchf)=positron(na_t(nchf),la_t(nchf),npos_t(nchf)) 
+c$$$         print*,'nch,nt,e,chan:',nchf,nt_t(nchf),
+c$$$     >      e_t(nchf),chan(nt_t(nchf))
       end do
 !$omp end parallel do
 
-      nqmimax=1
-      do nchi = nchii, nchtop
-         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
-      enddo
+c$$$      nqmimax=1
+c$$$      do nchi = nchii, nchtop
+c$$$         nqmimax = max(nqmimax,npk(nchi+1)-npk(nchi))
+c$$$      enddo
 
+c$$$C Put the larger l states first for OpenMP efficiency
+c$$$      call ordernchi(nchii,nchif,lnch,nchinew(1,1))
+c$$$      print*,'nodeid,nchii,nchif:',nodeid,nchii,nchif
 
-      do nchi = nchii, nchif
+      do nchi = nchii, nchif    ! main nchi loop
          call date_and_time(date,time,zone,valuesin)
          psii(:)=psi_t(:,nchi)
          maxpsii=maxpsi_t(nchi)
@@ -209,25 +258,41 @@ C  which contains VDCORE.
             nqmfmax = max(nqmfmax,npk(nchf+1)-npk(nchf))
          enddo
 
-         allocate(temp2(meshr,nqmi,nchtop))
+         if (nqmfmax.gt.1) open(42,file=nodetfile)
+         maxtemp3(:) = 0
+         allocate(temp3(1:meshr,nchi:nchtop))
+         rmem3 = meshr*(nchtop+1-nchi)
+         allocate(vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax))
+         rmemt = nqmfmax*nqmfmax*(nchtop+1-nchi)*(nsmax+1)
+         vmatt(1:nqmfmax,1:nqmfmax,nchi:nchtop,0:nsmax) = 0.0
          if (ifirst.eq.1) then
-          call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
-     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
-     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,
-     >      nnt,ngpus,temp2,maxi2)
+            maxpsii2 = maxpsii
+            nqmi2 = nqmi
+            nchtop2 = nchtop
+            allocate(temp2(maxpsii,nqmi,nchi:nchtop)) !allocate(temp2(meshr,nqmi,nchi:nchtop))
+            rmem2=maxpsii*nqmi*(nchtop+1-nchi)
+            call makev3e(chil,psii,maxpsii,lia,nchi,psi_t,
+     >         maxpsi_t,la_t,li,l_t,minchil,nqmi,
+     >         lg,rnorm,second,npk,nchtop,nnt,temp2)
+         else
+            maxpsii2 = 1
+            nqmi2 = 1
+            nchtop2 = nchi
+            allocate(temp2(1:maxpsii2,1:nqmi2,nchi:nchtop2))
+            rmem2 = 1
          endif
-
-         allocate(temp3(1:meshr,nchi:nchtop),
-     >        vmatt(nqmfmax,nqmi,nchi:nchtop,0:1))
-         vmatt(1:nqmfmax,1:nqmi,nchi:nchtop,0:1) = 0.0
+c$$$         print'("nodeid, nchi, mem2, mem3, memt(Mb):",5i6)',nodeid,nchi,
+c$$$     >      nint(rmem2*1e-6*nbytes),nint(rmem3*1e-6*nbytes),
+c$$$     >      nint(rmemt*1e-6*nbytes)
+         
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdcore,npk,meshr,minvdc,maxvdc,dwpot,nchi,nchtop,lg,ud)
-C$OMP& SHARED(ldw,rmesh,temp3,mintemp3,maxtemp3,rpow1,rpow2,nznuc,nze)
+C$OMP& SHARED(ldw,rmesh,mintemp3,maxtemp3,temp3,rpow1,rpow2,nznuc,nze)
 C$OMP& SHARED(rnorm,nqmi,li,lia,psii,minrp,maxrp,u,maxpsii,ltmin,ctemp)
 C$OMP& SHARED(pos,ni,nf,itail,gk,minchil,chil,nqmfmax,vmatt)
-C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf)
-C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho)
+C$OMP& SHARED(psi_t,maxpsi_t,e_t,la_t,na_t,l_t,uf,latop)
+C$OMP& SHARED(zasym,alkali,ubb_max3,ubb_max1,arho,ichildim)
         do nchf = nchi, nchtop
             ef=e_t(nchf)
             lfa=la_t(nchf)
@@ -304,6 +369,7 @@ c$$$            stop 'CJ6 and W do not agree in D'
          endif 
          
          c = c1 * c2 * c3
+c$$$         print*,'lg,nchf,nchi,c:',lg,nchf,nchi,c,c1,c2,c3
          if (abs(c).lt.1e-10) go to 10
 !          const = (-nze)*(-1)**(lg + lfa) * hat(li) *
          const = (-1)**(lg + lfa) * hat(li) *
@@ -318,7 +384,7 @@ C  Subtract 1/r, but only for same atom-atom channels when lambda = 0
      >         nznuc,temp)
          endif
 
-       if(pos(nchf)) then 
+         if(pos(nchf).and.pos(nchi)) then
 C     ANDREY: Hydrogen: ssalling + interpolation:
             if (.not.alkali) then
 C  The factor of two below is the reduced mass. We are working with
@@ -401,7 +467,6 @@ C  pos-pos
 C  channels
             const = - nze * const
          endif ! pos
-
          do i = i1, i2
             temp3(i,nchf) = const * temp(i) + temp3(i,nchf)
          enddo
@@ -414,8 +479,10 @@ c$$$         if ((lt.eq.1.or.lt.eq.2).and.i2.eq.meshr) then
                ltmin(nchf) = lt
          endif 
  10   continue
-      if (ltmin(nchf).lt.10.and.maxi.eq.meshr) then
+      if (ltmin(nchf).lt.3.and.maxi.eq.meshr) then !for higher lt numerical problems arise
          ctemp(nchf) = rnorm * temp3(maxi,nchf)/rpow2(maxi,ltmin(nchf))
+      else
+         ctemp(nchf) = 0.0
       endif 
       if (nchi.eq.nchf.and.nqmi.eq.1.and.u(1).eq.0.0) then
 C  Define the channel dependent distorting potential when running the
@@ -427,12 +494,14 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.ltmin(nchf).lt.10)
-     >     call maketail(itail,ctemp(nchf),chil(1,npk(nchi),2),
-     >     minchil(npk(nchi),2),gk(1,nchi),phasei,li,nqmi,
-     >     chil(1,npk(nchf),2),minchil(npk(nchf),2),gk(1,nchf),phasef,
-     >     lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
-
+      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.
+     >   (li.gt.latop.or.lf.gt.latop)) then
+         call maketail(itail,ctemp(nchf),chil(1,npk(nchi),ichildim),
+     >      minchil(npk(nchi),ichildim),gk(1,nchi),phasei,li,nqmi,
+     >      chil(1,npk(nchf),ichildim),minchil(npk(nchf),ichildim),
+     >      gk(1,nchf),phasef,
+     >      lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
+      endif
 C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
 C  them.
       do i = mini, maxi
@@ -445,27 +514,36 @@ C  them.
 
       mini1 = mintemp3(nchtop)
 
-! create an array of pos to have all posf and 
+      call date_and_time(date,time,zone,gpuin)
       call gpuvdirect(maxr,meshr,rmesh,kmax,nqmi,nchi,nchtop,npk,
-     >     mintemp3,maxtemp3,temp3,ltmin,minchil,chil,ctemp,itail,trat,
-     >     nchan,nqmfmax,vmatt,childim,ngpus,nnt,nchii,second,
-     >     maxi2,temp2,ifirst)
+     >     mintemp3,maxtemp3,temp3,!ltmin,minchil,chil,ctemp,itail,trat,
+     >     nchan,nqmfmax,vmatt,ichildim,ngpus,nnt,nchii,second,
+     >     maxpsii2,temp2,nqmi2,nchtop2,nsmax,ifirst)
+      call date_and_time(date,time,zone,gpuout)
+      gputime=idiff(gpuin,gpuout)
+      gputimetot = gputimetot + gputime
+      deallocate(temp2,temp3)
 
-      deallocate(temp2)
 
-
+c$$$      call ordernchi(nchi,nchtop,lnch,nchinew(1,2))
 
 C$OMP PARALLEL DO DEFAULT(PRIVATE) num_threads(nnt)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& SHARED(vdon,vmatt,nchi,nchtop,npk,nqmi,nsmax,e_t,la_t,na_t)
 C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
-      do nchf = nchi, nchtop
-        if(pos(nchi).eqv.pos(nchf)) then
-         vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + (vmatt(1,1,nchf,0)
-     >                         + vmatt(1,1,nchf,1))/2 
-         vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
-         nqmf = npk(nchf+1) - npk(nchf)
-        else
+C$OMP& SHARED(nchinew,nt_t,ei,chan)
+      do nchftmp = nchi, nchtop
+         nchf = nchftmp !nchinew(nchftmp,2)
+         if(pos(nchi).eqv.pos(nchf)) then
+            if (nsmax.eq.0) then
+               vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vmatt(1,1,nchf,0)
+            else
+               vdon(nchf,nchi,0:1) = vdon(nchf,nchi,0:1) + 
+     >            (vmatt(1,1,nchf,0) + vmatt(1,1,nchf,1))/2.0
+            endif
+            vdon(nchi,nchf,0:1) = vdon(nchf,nchi,0:1)
+            nqmf = npk(nchf+1) - npk(nchf)
+        else 
            nqmf = npk(nchf+1) - npk(nchf)
            do ns = 0, nsmax
               do ki = 1, nqmi
@@ -475,6 +553,14 @@ C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
               enddo
            enddo
            ef=e_t(nchf)
+c$$$           print*,'nchf,nchi,ef,ei,ntf,nti:',nchf,nchi,ef,ei,nt_t(nchf),
+c$$$     >        nt_t(nchi)
+c$$$           if (npk(2)-npk(1).eq.1) cycle ! if 1st call
+c$$$           if (abs(ef-ei)*lg.gt.50.0) then
+c$$$c$$$              print*,'skipping:',ef,ei,chan(nt_t(nchf)),
+c$$$c$$$     >           ' ',chan(nt_t(nchi))
+c$$$              cycle
+c$$$           endif
            lfa=la_t(nchf)
            nfa=na_t(nchf)
            lf=l_t(nchf)
@@ -491,11 +577,13 @@ C$OMP& SHARED(l_t,npos_t,lia,li,nia,nposi,gk,lg,etot,nqmfmax,pos)
      >             gk(1,nchi),nchi,lg,npk,etot,nqmfmax,
      >             vmatt(1,1,nchf,0),lm)
            endif
+           vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vmatt(1,1,nchf,0)
+           vdon(nchi,nchf,0) = vdon(nchf,nchi,0)           
         endif
       end do
 !$omp end parallel do
-      call clock(s2)
-      td = td + s2 - s1
+c$$$      call clock(s2)
+c$$$      td = td + s2 - s1
  
 C Define exchange terms if IFIRST = 1
       if (ifirst.eq.1) then
@@ -504,8 +592,8 @@ C Define exchange terms if IFIRST = 1
 !     >      maxpsi_t,la_t,li,l_t,minchil,nqmi,
 !     >      lg,rnorm,second,npk,nqmfmax,vmatt,nchtop,nnt,ngpus)
 
-            call clock(s3)
-            te1 = te1 + s3 - s2
+c$$$            call clock(s3)
+c$$$            te1 = te1 + s3 - s2
 
 !$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
 !$omp& schedule(dynamic)
@@ -525,10 +613,10 @@ C  Define energy dependent exchange terms
      >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
      >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
-     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,
-     >      uf,ui,nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nchtop)
-         call clock(s4)
-         te2 = te2 + s4 - s3
+     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,uf,ui,
+     >      nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nsmax,nchtop)
+c$$$         call clock(s4)
+c$$$         te2 = te2 + s4 - s3
       end do
 !$omp end parallel do
       end if ! End of exchange
@@ -584,27 +672,74 @@ C  Define energy dependent exchange terms
 
 C  End of NCHI loop
 
-         deallocate(temp3,vmatt)
+         deallocate(vmatt)
          call date_and_time(date,time,zone,valuesout)
-         if (nqmi.gt.1)
-     >        print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished at:",
-     >        3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
-     >        chan(nt_t(nchi)),natomps(nchi),
-     >        idiff(valuesin,valuesout)
-
+         if (nqmi.gt.1) then
+c$$$            print'(/,i4,":nodeid NCHI CHAN Li IPAR, finished:   ",
+c$$$     >      3i4,a4,i11,", diff (secs):",i6)',nodeid,nchi,li,ipar,
+c$$$     >         chan(nt_t(nchi)),natomps(nchi),
+c$$$     >         idiff(valuesin,valuesout)
+            nodetime = nodetime + idiff(valuesin,valuesout)
+            write(42,'(2i5,a4,i6,2i11,3i4)') nchi,li,chan(nt_t(nchi)),
+     >         idiff(valuesin,valuesout),natomps(nchi),nodetime,nodeid,
+     >         gputime,gputimetot
+         endif
       end do
 
-#ifdef GPU
-      do gpunum=0,ngpus-1
-         call acc_set_device_num(gpunum,acc_device_nvidia)
+#ifdef GPU_ACC
+c$$$      do gpunum=0,ngpus-1
+      gpunum = mod(myid,ngpus)
+      call acc_set_device_num(gpunum,acc_device_nvidia)
+c$$$!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
+c$$$!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
+!$acc exit data delete(chil(1:meshr,npkstart:npkstop,1:1))
+!$acc& delete(nchtop,npk(1:nchtop+1),minchil(npkstart:npkstop,1:1))
 
-!$acc exit data delete(chil(1:meshr,1:(npk(nchtop+1)-1),1:1))
-!$acc& delete(nchtop,npk(1:nchtop+1),minchil(1:npk(nchtop+1)-1,1:1))
 !$acc& finalize
 
-      enddo
+c$$$      enddo
 #endif
+
+#ifdef GPU_OMP
+      gpunum=mod(myid,ngpus)
+      call omp_set_default_device(gpunum)
+!$omp target exit data map(delete:minchil,chil,npk)     
+!!$omp target exit data device(gpunum)
+!!$omp& map(release:chil,nchtop,npk,minchil)
+#endif
+
+      if (nqmfmax.gt.1) close(42)
       deallocate(nchansi,nchansf)
       return
       end
 
+      subroutine ordernchi(nchii,nchif,lnch,nchinew)
+      include 'par.f'
+      integer lnch(nchan,2),nchinew(nchan)
+      logical finished
+
+      do nchi = nchii, nchif
+         nchinew(nchi) = nchi
+      enddo
+
+      finished = .false.
+      do while (.not.finished)
+         finished = .true.
+         do nchi = nchii, nchif-1
+            if (lnch(nchinew(nchi),1).lt.lnch(nchinew(nchi+1),1)) then
+               finished = .false.
+               ntmp = nchinew(nchi)
+               nchinew(nchi) = nchinew(nchi+1)
+               nchinew(nchi+1) = ntmp
+            elseif(lnch(nchinew(nchi),1).eq.lnch(nchinew(nchi+1),1).and.
+     >            lnch(nchinew(nchi),2).lt.lnch(nchinew(nchi+1),2)) then
+               finished = .false.
+               ntmp = nchinew(nchi)
+               nchinew(nchi) = nchinew(nchi+1)
+               nchinew(nchi+1) = ntmp
+            endif
+         enddo
+      enddo
+      return
+      end
+      

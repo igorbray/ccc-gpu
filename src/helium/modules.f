@@ -24,20 +24,26 @@
       
       end module VDCORE_MODULE
 
+      module photo_module
+      real, allocatable  :: dr(:,:),dv(:,:),dx(:,:)
+c$$$     >   ,dr1(:,:),dv1(:,:),dx1(:,:) ! not used
+      end module photo_module
+
       module vmat_module
-      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:)
+      real, allocatable :: vmat01(:,:), vmat0(:,:), vmat1(:,:),
+     >   vmat(:,:),vmatp(:,:)
       integer, allocatable :: nchistart(:), nchistop(:)
-      integer, allocatable ::  ntime(:,:),
+      integer, allocatable ::  ntime(:,:), nodet(:),
      >   nntime(:),nchistartold(:,:),nchistopold(:,:)
-      integer  nodeid
+      integer  nodeid, nodes
       logical scalapack
       end module vmat_module
       
       module gf_module
-      allocatable gf(:,:,:)
+      real, allocatable :: gf(:,:,:)
       logical analytic
-      integer nanalytic
-      real aenergyswitch, gf
+      integer nanalytic,nbox,kmaxgf
+      real aenergyswitch
       data aenergyswitch/0.0/
       end module gf_module
 
@@ -49,7 +55,7 @@
       module chil_module
       real, allocatable :: chil(:,:,:)
       integer, allocatable :: minchil(:,:)
-!      real trat ! used for tail integrals
+      integer meshrr,npkstart,npkstop,ichildim,nchii,nchif
       end module chil_module
       
 
@@ -74,11 +80,14 @@
       module ftps_module
       integer :: maxp
       logical :: interpol, error  
-      real,   allocatable :: pmesh(:)
-      real*8, allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
+c$$$      real pmesh(-1:20001)!  allocatable :: pmesh(:)
+c$$$      real*8 ftps(-1:20001,1:50,0:10) , ftpsv(-1:20001,1:50,0:10) !allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
+      real, allocatable :: pmesh(:)
+      real, allocatable :: ftps(:,:,:) , ftpsv(:,:,:)
       integer, parameter :: nexp = 8, nr = 2**nexp 
       real, dimension (nr) :: kk
       real dkk
+      real qcut,dp2i,dp3i
 c      logical, parameter :: oldftps = .false.
       logical, parameter :: oldftps = .true.
       end module ftps_module
@@ -122,3 +131,56 @@ C      qlgmin = -8.0; qlgmax = 4.5;
 !      real*8  :: qlgmin, qlgmax, dqlg ! qlgmax = log10(qcut)
       
       end module ql_module
+      module state_module
+      public
+      
+c     This is  unsymmetrized configuration.
+      type configuration
+      double precision value
+      integer n1                ! index to first one-electron function
+      integer n2                ! index to second one-electron function
+      integer l1                !  orbital angular momentum of the first one-electron function
+      integer l2                !  orbital angular momentum of the second one-electron function
+      type(configuration), pointer :: NEXT   ! pointer to next configuration      
+      end type configuration
+c      
+c     This is a target state
+      type state
+      character(LEN=3) label    ! state label
+      double precision en       ! state energy in a.u.
+      integer pa                ! parity
+      integer la                ! orbital angular momentum
+      real sa                   ! spin angular momentum
+      real ja                   ! total (la + sa - vectors) angular momentum
+      integer nst               ! state number
+      integer num_config        ! number of unsymmetrized configurations
+      type(configuration), pointer ::  first_config ! pointer to first configuration structure, it is initialized to NULL.
+      end type state
+      
+      interface assignment (=)
+          module procedure copy_st
+       end interface
+
+      contains
+      
+      subroutine copy_st(st_l,st_r)
+      type(state),intent(out):: st_l
+      type(state), intent(in):: st_r
+      
+      
+      st_l%label = st_r%label
+      st_l%en = st_r%en
+      st_l%pa = st_r%pa
+      st_l%la = st_r%la
+      st_l%sa = st_r%sa
+      st_l%ja = st_r%ja
+      st_l%nst = st_r%nst
+      st_l%num_config = st_r%num_config
+!      st_l%first_config = st_r%first_config
+
+      end subroutine copy_st
+
+      end module state_module
+      
+
+      

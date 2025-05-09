@@ -3,7 +3,7 @@
       REAL*8 plm,dcos
       real*8 fl
 
-      common/fl0/fl(0:300)
+      common/fl0/fl(0:5000)
       pi = acos(-1.0)
       if ((m .lt. 0) .or. (m .gt. l)) then
          YLM = 0.0

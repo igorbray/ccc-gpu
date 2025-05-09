@@ -177,7 +177,7 @@ c     make factorials call factorials, and then return
 c     to call subroutine config(ll,ls,lparity,l1max,l2max,nk1,nk2) 
 
       subroutine inputdata(ll,ls,lparity,l1max,l2max,nk1,nk2)
-
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension  nk1(0:lomax), nk2(0:lomax)  
       common /nstatearray/ nstate(0:lomax,0:1,2)
@@ -204,15 +204,16 @@ c 20   en_max = global_en_max
 
       if(nstate(ll,ls,ip).le.0) go to 1
 
+      if (nodeid.eq.1) then
       write(4,'(a20)') newsym
-      print*, 'Calculating target symmetry: ', newsym
+      if (nodeid.eq.1) print*, 'Calculating target symmetry: ', newsym
       write(4,'("l =",I3,",  s =",I3,",  parity =",I3)')
      >   ll,ls,lparity
       write(4,'("l1max =",I5)') l1max
       write(4,'("nk1(l) =",10I5)') (nk1(l), l=0,l1max)
       write(4,'("l2max =",I5)') l2max
       write(4,'("nk2(l) =",10I5)') (nk2(l), l=0,l2max)
-
+      endif
       call checklomax(l1max,l2max)
       return
       end
@@ -234,7 +235,7 @@ c-----------------------------------------------------------------
 c************** Set list of configurations  **********************
 c-----------------------------------------------------------------
       subroutine config(ll,ls,lparity,l1max,l2max,nk1,nk2)
-
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension   nk1(0:lomax), nk2(0:lomax)
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
@@ -247,7 +248,8 @@ c-----------------------------------------------------------------
       common /ngive_ionic_orb/  ngive_ion_orb(nspmax)
       common /include_opt/  include_opt(nspmCI,nspmCI)
 
-      write(4,'("number of s.p. orbitals nspm=",I4)') nspm
+      if (nodeid.eq.1)
+     >   write(4,'("number of s.p. orbitals nspm=",I4)') nspm
 !      print*, "l_ion_core:", l_ion_core,", nk_ion_core:",
 !     >     (nk_ion_core(l2), l2=0,l2max)
 !      print*, " nk2:", (nk2(l1), l1=0,l1max)
@@ -308,8 +310,8 @@ c     >              (k1.le.nk2(l1).or.nset(nsp1).eq.2
       if(nco.gt.ncmCI) then         
          write(*,'("Stop in config(): check par.f: nco>ncmCI",2i5)')
      >        nco, ncmCI
-         write(4,'("Stop in config(): check par.f: nco>ncmCI,2i5")')
-     >        nco, ncmCI
+c$$$         write(4,'("Stop in config(): check par.f: nco>ncmCI,2i5")')
+c$$$     >        nco, ncmCI
          stop
       end if
                            no1(nco)=nsp1
@@ -332,7 +334,8 @@ c     >                        nset(no2(nco)),ngivesym(no1(nco))
          end do                 ! end nsp1 loop
       end do                    ! end nsp2 loop
       ncm=nco
-      write(4,'("number of configurations ncm=",I5)') ncm
+      if (nodeid.eq.1)
+     >write(4,'("number of configurations ncm=",I5)') ncm
 c     find core orbitals: they are in general given by array nk2(l2);
 c     but not all of them will be used (due to selection rules). Therefore
 c     it is better to find core orbitals after list of configurations is set.
@@ -374,7 +377,7 @@ c-----------------------------------------------------------------
 **** Calculation two-electron and one electron matrix elements ***
 c-----------------------------------------------------------------
       subroutine hammat(H,bb,ll,ls,lparity,fl,maxf,minf)
-
+      use vmat_module, only: nodeid
       include 'par.f'
       real  fl(nmaxr,nspmax)
       integer  maxf(nspmax),minf(nspmax)
@@ -385,7 +388,8 @@ c-----------------------------------------------------------------
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       common /switch_manifold/  isw_manifold
 
-      write(4,'("enter hammat")')
+      if (nodeid.eq.1)
+     >write(4,'("enter hammat")')
       do nc=1,ncm
          do ncp=1,nc
             n1=no1(nc)
@@ -549,7 +553,7 @@ c     print*, sum1,sum2, gamma,r0
       end
 c-----------------------------------------------------------
       subroutine di_el_pol
-
+      use vmat_module, only: nodeid
       include 'par.f'
       common /di_el_core_polarization/ gamma, r0, pol(nmaxr)
       common /meshrr/ nr,gridr(nmaxr,3)
@@ -578,9 +582,11 @@ c         pol(i) = ww/(r*r)
       end do
 
       call minmaxi(pol,nr,i1,i2)
-      write(4,'("Di-electron pol.pot.: gamma =",F9.5,", r0 =",F9.5)') 
+      if (nodeid.eq.1)
+     >write(4,'("Di-electron pol.pot.: gamma =",F9.5,", r0 =",F9.5)') 
      >     gamma, r0
-      write(4,'("i1 =",I5,", i2 =",I5,", pol(i2)=",E12.6)') 
+      if (nodeid.eq.1)
+     >write(4,'("i1 =",I5,", i2 =",I5,", pol(i2)=",E12.6)') 
      >     i1, i2, pol(i2)
 c      write(*,'("Di-electron pol.pot.: gamma =",F9.5,", r0 =",F9.5)') 
 c     >     gamma, r0
