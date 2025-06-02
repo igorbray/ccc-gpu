@@ -101,7 +101,7 @@ c$$$!$omp do schedule(dynamic)
 #ifdef GPU_OMP
 !$omp end target teams distribute parallel do
 #endif
-         if (ifirst.eq.1) then !for photons nsmax=0
+         if (ifirst.eq.1) then
 #ifdef GPU_ACC                 
 !$acc loop independent collapse(2)
 #endif

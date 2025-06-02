@@ -48,6 +48,7 @@ c DPI of Lithium
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
       if(nznuc.eq.1)GS  =1.05544 !H-   ion GS energy in Ry
       if(nznuc.eq.4) GS = 2.0236 !BeIII-BeI   energy in Ry Radzig, Smirnov
+      if(nznuc.eq.5) GS = 4.6366 !BIV-BII  energy in Ry Radzig, Smirnov 4.539 !Ry 
       if(nznuc.eq.12)GS = 1.6670 !MgIII-MgI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.20)GS = 1.3218 !CaIII-CaI   energy in Ry Radzig, Smirnov
 !      if(nznuc.eq.10)GS = 4.596  !NeIII-NeI   energy in Ry Radzig, Smirnov
@@ -61,9 +62,17 @@ c$$$      if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+
       if(nznuc.eq.14 .and. Zasym.eq.13)GS =374.80 !Si^12+
 c$$$      if(nznuc.eq.14 .and. Zasym.eq.13)GS =376.28 !Si^12+ 
       if(nznuc.eq.5  .and. Zasym.eq.4) GS = 44.0574 !B^3+ 
-      if(nznuc.eq.6  .and. Zasym.eq.5) GS = 64.808  !C^4+ 
+
+      if(nznuc.eq.6  .and. Zasym.eq.5) GS = 64.808 !C^4+ 
 c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
 c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
+      if(nznuc.eq.2 .and. ntype.lt.0)
+     >               GS  =  3.77 !H2  molecule
+
+      if(lithium.eq.1) GS =  14.955 !Li  atom GS energy in Ry
+      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
+      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
+
       if(meta.eq.1) then
          if(iSpin.eq.0) then
             if(nznuc.eq.2)GS   =4.283  !He atom 1s2s ^1S energy in Ry
@@ -71,17 +80,14 @@ c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nav
             print*, 'Meta Singlet', GS
          else
             if(nznuc.eq.2)GS   =4.350 !He atom 1s2s ^3S energy in Ry
-            if(nznuc.eq.5)GS   =29.467!B3+ ion 1s2s ^1S energy in Ry
-            print*, 'Meta Triplet', GS
+            if(nznuc.eq.5)GS   =29.467!B3+ ion 1s2s ^3S energy in Ry
+            if(nznuc.eq.5 .and. Zasym.eq.2 ) GS = 4.2967 !B^1+ 2s2p ^3P ion
+            print*, 'Meta Triplet (Ry)', GS
          end if
+      else
+         print*,'Target ground state energy (Ry):',GS
       end if
       
-      if(nznuc.eq.2 .and. ntype.lt.0)
-     >               GS  =  3.77 !H2  molecule
-
-      if(lithium.eq.1) GS =  14.955 !Li  atom GS energy in Ry
-      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
-      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
 
       pi = acos(-1.0)                                       
       ci = cmplx(0.0, 1.0)
