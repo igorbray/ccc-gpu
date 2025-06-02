@@ -914,8 +914,8 @@ C  Read positronium information
 
       nzasym = nint(zasym)
       n = nznuc - nzasym
-      if (myid.le.0)
-     >     print*,"n, nznuc, nzasym:", n, nznuc, nzasym
+c$$$      if (myid.le.0)
+c$$$     >     print*,"n, nznuc, nzasym:", n, nznuc, nzasym
 c$$$      if (projectile.eq.'photon') n = n + 1
       target = ' ???? '
       if (nznuc.le.30) then
