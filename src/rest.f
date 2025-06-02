@@ -974,6 +974,9 @@ c$$$            print*,'energies for B IV'
                r0(l) = 0.98
             enddo
             r0(1) = 0.9
+         else if (nzasym.eq.1) then ! B II
+            enlevel = 202887.4 ! cm-1
+            enion =  25.15483 ! eV
          else if (nzasym.eq.2) then ! C III
             enlevel = 386241.0 ! cm-1
             enion = 47.8878 ! eV
