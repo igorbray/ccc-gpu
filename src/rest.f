@@ -3124,7 +3124,7 @@ c$$$     >              oldpj(nchp,nchip,0)+oldpj(nchp,nchip,1)
             diff = abs((partcsT - BornPCS(nchp,nchip))/(partcsT+1e-30))
             canstop = canstop.and.(diff.lt.small.or.
      >         abs(extrapcs-summedcs)/(summedcs+1e-30).lt.small)
-            write(42,'(a3,'' <-'',a3,1p,4e15.5,2e11.3)') chan(nchp),
+            write(42,'(a3,'' <-'',a3,1p,6e15.5)') chan(nchp),
      >         chan(nchip),summedcs, extrapcs, ovlp(nchp), asymcs,
      >         enchan(nchp),enchandiff(nchp)
 c$$$     >         ,(diff.lt.small.or.

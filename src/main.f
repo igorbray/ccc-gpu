@@ -4315,7 +4315,7 @@ c$$$     >         .and.it.lt.60)
      >                  print*,'Setting POSITION=ETOT/2(eV)',etot/2*ry
                      position = etot / 2.0
                   else 
-                     position = 0.0 !etot
+                     position = etot !0.0
                      if (myid.le.0)
      >                  print*,'Setting POSITION=ETOT(eV)',position*ry
                      if (natop(l).eq.-99) position = etot / 2.0

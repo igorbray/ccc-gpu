@@ -248,7 +248,7 @@ c$$$         open(43,file='cfile1')
 c$$$         open(44,file='dfile')
 c$$$         open(45,file='dfile1')
 c$$$      else
-      if (jstart.eq.0) then
+      if (jstart.le.1) then !for photoionization jstart=1
          open(42,file=adjustl(cnode//'cfile'//ench))
          open(43,file=adjustl(cnode//'cfile1'//ench))
          open(44,file=adjustl(cnode//'dfile'//ench))
@@ -291,7 +291,7 @@ c$$$                  endif
          close(43)
          close(44)
          close(45)
-      endif !jstart=0
+      endif !jstart<=1
       ip = 0
       
       nsp = nsmax + 1
