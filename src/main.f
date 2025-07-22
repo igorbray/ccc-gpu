@@ -5679,37 +5679,39 @@ c$$$  print*,'DGETRI completed:',infodgetri
       real*8, allocatable :: work(:)
  
       do nch = nchstart, nchstop
-         maxksize = npk(nch+1)-npk(nch)-1 
-         allocate(ipivgf(maxksize))
-         allocate(work(1))
-         call DSYTRF('L', maxksize, 
-     >      gf(2:npk(nch+1)-npk(nch),
-     >      2:npk(nch+1)-npk(nch),nch),
-     >      maxksize,ipivgf,work,-1,infodsytrf)
+         maxksize = npk(nch+1)-npk(nch)-1
+         if (maxksize.gt.0) then
+            allocate(ipivgf(maxksize))
+            allocate(work(1))
+            call DSYTRF('L', maxksize, 
+     >         gf(2:npk(nch+1)-npk(nch),
+     >         2:npk(nch+1)-npk(nch),nch),
+     >         maxksize,ipivgf,work,-1,infodsytrf)
 c$$$         print*,'DSYTRF completed:',infodgetrf
-         lworkopt = work(1)
+            lworkopt = work(1)
 c$$$         print*,'optimal lwork:',lworkopt
-         deallocate(work)
-         allocate(work(lworkopt))
-         call DSYTRF('L', maxksize, 
-     >      gf(2:npk(nch+1)-npk(nch),
-     >      2:npk(nch+1)-npk(nch),nch),
-     >      maxksize,ipivgf,work,lworkopt,infodsytrf)
+            deallocate(work)
+            allocate(work(lworkopt))
+            call DSYTRF('L', maxksize, 
+     >         gf(2:npk(nch+1)-npk(nch),
+     >         2:npk(nch+1)-npk(nch),nch),
+     >         maxksize,ipivgf,work,lworkopt,infodsytrf)
 c$$$         print*,'DSYTRF completed:',infodgetrf
-         call DSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
-     >      2:(npk(nch+1)-npk(nch)),nch),maxksize,
-     >      ipivgf,work,infodsytri)
+            call DSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >         2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >         ipivgf,work,infodsytri)
 c$$$         print*,'DSYTRI completed:',infodgetri
 c
 c   Reconstructing the upper triangular part of the matrix
 c
-         do kii = 2,npk(nch+1)-npk(nch)
-            do kjj = 2,kii
-               gf(kjj,kii,nch) = gf(kii,kjj,nch)
+            do kii = 2,npk(nch+1)-npk(nch)
+               do kjj = 2,kii
+                  gf(kjj,kii,nch) = gf(kii,kjj,nch)
+               enddo
             enddo
-         enddo
-         deallocate(work)
-         deallocate(ipivgf)
+            deallocate(work)
+            deallocate(ipivgf)
+         endif
       enddo
       end
 
@@ -5723,36 +5725,38 @@ c
  
       do nch = nchstart, nchstop
          maxksize = npk(nch+1)-npk(nch)-1 
-         allocate(ipivgf(maxksize))
-         allocate(work(1))
-         call SSYTRF('L', maxksize, 
-     >      gf(2:npk(nch+1)-npk(nch),
-     >      2:npk(nch+1)-npk(nch),nch),
-     >      maxksize,ipivgf,work,-1,infodsytrf)
+         if (maxksize.gt.0) then
+            allocate(ipivgf(maxksize))
+            allocate(work(1))
+            call SSYTRF('L', maxksize, 
+     >         gf(2:npk(nch+1)-npk(nch),
+     >         2:npk(nch+1)-npk(nch),nch),
+     >         maxksize,ipivgf,work,-1,infodsytrf)
+c$$$  print*,'DSYTRF completed:',infodgetrf
+            lworkopt = work(1)
+c$$$  print*,'optimal lwork:',lworkopt
+            deallocate(work)
+            allocate(work(lworkopt))
+            call SSYTRF('L', maxksize, 
+     >         gf(2:npk(nch+1)-npk(nch),
+     >         2:npk(nch+1)-npk(nch),nch),
+     >         maxksize,ipivgf,work,lworkopt,infodsytrf)
 c$$$         print*,'DSYTRF completed:',infodgetrf
-         lworkopt = work(1)
-c$$$         print*,'optimal lwork:',lworkopt
-         deallocate(work)
-         allocate(work(lworkopt))
-         call SSYTRF('L', maxksize, 
-     >      gf(2:npk(nch+1)-npk(nch),
-     >      2:npk(nch+1)-npk(nch),nch),
-     >      maxksize,ipivgf,work,lworkopt,infodsytrf)
-c$$$         print*,'DSYTRF completed:',infodgetrf
-         call SSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
-     >      2:(npk(nch+1)-npk(nch)),nch),maxksize,
-     >      ipivgf,work,infodsytri)
+            call SSYTRI('L', maxksize, gf(2:(npk(nch+1)-npk(nch)),
+     >         2:(npk(nch+1)-npk(nch)),nch),maxksize,
+     >         ipivgf,work,infodsytri)
 c$$$         print*,'DSYTRI completed:',infodgetri
 c
 c   Reconstructing the upper triangular part of the matrix
-c
-         do kii = 2,npk(nch+1)-npk(nch)
-            do kjj = 2,kii
-               gf(kjj,kii,nch) = gf(kii,kjj,nch)
+c     
+            do kii = 2,npk(nch+1)-npk(nch)
+               do kjj = 2,kii
+                  gf(kjj,kii,nch) = gf(kii,kjj,nch)
+               enddo
             enddo
-         enddo
-         deallocate(work)
-         deallocate(ipivgf)
+            deallocate(work)
+            deallocate(ipivgf)
+         endif
       enddo
       end
 
