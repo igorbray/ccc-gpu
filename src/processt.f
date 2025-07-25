@@ -1665,9 +1665,9 @@ C$OMP& SHARED(onshellk,bornsubin,chan,pi,unit,lpar)
 C$OMP& shared(ovlpn,jextrapor,ton,nonnew,nchfi,jstop,npar,non,vdon,nze)
 C$OMP& shared(nistart, nistop,nfstart, nfstop,xunit,ci)
 C$OMP& shared(nchimax,nchanmax,jstart,nsmax,enchan)
-C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep,lexit)
+C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep)
 C$OMP& shared(nunit,projectile,target,hlike,vdcore,minvdc,maxvdc)
-C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac,lentr,ntdcs,knm)
+C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac)
       do ni = nistart, nistop
 c$$$         nthr = omp_get_thread_num()
 c$$$         print*,'OMP NT,ni:',nthr,ni
