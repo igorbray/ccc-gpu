@@ -1221,7 +1221,7 @@ c$$$     >            ((sdcs(nt,n)+sdcs(nt, ninterp + 2 * ne2e + 1 - ne))
 c$$$     >            * ufac,  nt = 1, nttop(ip))
             enddo 
             write(47,*)
-            print*,'Summed and integrated TICS:',
+            if (ninterp.ne.0) print*,'Summed and integrated TICS:',
      >         (tics(0)+tics(1)) * units(nunit), ticsi/2.0
             do ne = 1, ne2e 
                do nt = 1, nttop(ip)
@@ -1659,15 +1659,15 @@ c$$$         call MPI_FINALIZE(ierr)
       endif
       print*,'OMP_NUM_THREADS:',omp_get_max_threads()
 C$OMP PARALLEL DO
-C$OMP& SCHEDULE(dynamic)
+C$OMP& SCHEDULE(static) !with dynamic on setonix all output goes to fort.10!
 C$OMP& DEFAULT(PRIVATE)
 C$OMP& SHARED(onshellk,bornsubin,chan,pi,unit,lpar)
 C$OMP& shared(ovlpn,jextrapor,ton,nonnew,nchfi,jstop,npar,non,vdon,nze)
 C$OMP& shared(nistart, nistop,nfstart, nfstop,xunit,ci)
 C$OMP& shared(nchimax,nchanmax,jstart,nsmax,enchan)
-C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep)
+C$OMP& shared(jlm,nomax,nopen,etot,sweight,nstep,lexit)
 C$OMP& shared(nunit,projectile,target,hlike,vdcore,minvdc,maxvdc)
-C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac)
+C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac,lentr,ntdcs,knm)
       do ni = nistart, nistop
 c$$$         nthr = omp_get_thread_num()
 c$$$         print*,'OMP NT,ni:',nthr,ni
@@ -2024,6 +2024,8 @@ C  subtraction for total spin = 3/2 if the transition involves singlet states.
             
             open(9+ni,file='amp.'
      >         //chan(nf)(ich:3)//'-'//chan(ni)(ich:3))
+
+!            print*,'Opened amp file:', 9+ni
             write(9+ni,"(a8,' - ',a6,'scattering:',1p,e13.6,'eV on ',a3,
      >         ' ->',a3,(2(e10.3,'eV'))/)") projectile,target,
      >         13.6058*(etot-enchan(ni)),chan(ni),chan(nf),
@@ -2141,9 +2143,12 @@ c$$$                        q = sqrt(qsq)
      >                     (ampt(nth,ns) * 0.0, ns = 0,nsmax)
                      enddo
                   endif
-               enddo
-            enddo 
+               enddo !mlf
+            enddo !mli
+            print*,'written file: amp.'//chan(nf)(ich:3)//'-'//
+     >         chan(ni)(ich:3)
             close(9+ni)
+!            print*,'Closed:',9+ni
             if (target .eq. 'H  I') then
                if (lia.eq.0.and.lfa.eq.1) then
                   pol = (sigm(0,0) - sigm(1,0)) /
@@ -2157,8 +2162,6 @@ c$$$                        q = sqrt(qsq)
      >               chan(nf), pol * 100.0
                endif 
             endif
-            print*,'written file: amp.'//chan(nf)(ich:3)//'-'//
-     >         chan(ni)(ich:3)
 
             summedcs = partcs(0) + partcs(1)
             asymcs = asym(partcs(0),partcs(1),fac)
@@ -2179,11 +2182,12 @@ c$$$            if (ni.eq.nf) then
 c$$$               crossint = sum
 c$$$               crossmt(:) = csmt(:)
 c$$$            endif 
- 10      continue               ! end nf loop
+ 10      continue ! end nf loop
          i = 1
          do while (tfile(i:i).ne.' ')
             i = i + 1
          enddo
+!         print*,'Opened DCS file:',9+ni
          open(9+ni,file=tfile(1:i-1)//'_dcs'//ch(ni))
          write(9+ni,"('# ',f8.3,' eV ',a8,' - ',a6,a3,
      >      '   scattering DCS in units of ',a8)")
@@ -2214,10 +2218,11 @@ c$$$            endif
             write(9+ni,'(f10.6,1p,1000e10.3)') dtheta,
      >         (dcs(nth,n),n=1,ndcs)
          enddo
+c$$$         do mli = -lia, lia
+c$$$            print*,'chan, m, TICS(m):', chan(ni), mli, ticsm(mli)
+c$$$         enddo
          close(9+ni)
-         do mli = -lia, lia
-            print*,'chan, m, TICS(m):', chan(ni), mli, ticsm(mli)
-         enddo
+!         print*,'Closed:',9+ni
       end do                    ! end ni loop
 C$OMP END PARALLEL DO
       go to 37 !another opportunity for NI, NF input
