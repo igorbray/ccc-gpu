@@ -3055,8 +3055,8 @@ c$$$     >      (chs(l),sigionl(nchip,l,0) + sigionl(nchip,l,1),l=0,ltop)
 c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
      >      asym(sigtope(nchip,0),sigtope(nchip,1),fac)
          write(42,'(79a)') ('-',i=1,79)
-         write(42,'(''transition  cross section  extrapolated'',
-     >      ''     overlap       spin asym    energy     energydiff'')')
+         write(42,'(''transition  cross section  extrapolated     '',
+     >   ''overlap       spin asym      energy         energydiff'')')
          write(43,'(" J   trans    cross section    extrap      PCS(V)",
      >   "       PCS(T) S=0   PCS(T) S=1   energy     ovlp  ip")')
          do l = 0, ltop
