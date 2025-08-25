@@ -4117,7 +4117,7 @@ c$$$      use psinc_module
      >   ps2(maxr,ncmax),psen2(ncmax),minps2(ncmax),maxps2(ncmax)
       real, allocatable :: psinc(:,:,:)
       dimension chi(maxr),vdcore(maxr),als(ncmax),vasymp(maxr),
-     >   ovlpnl(ncmax,0:lamax,nnmax), slowe(ncmax),
+     >   ovlpnl(ncmax,0:lamax,nnmax), slowe(ncmax),temp(maxr),
      >   vnucl(maxr),ovlp(ncmax,0:lamax),ovlpp(ncmax,ncmax),nsum(10)
       character opcl*10,chin*1,sumfile*4
       complex phasen(ncmax,0:lamax),phase,sigc,ovlpnl
@@ -4658,9 +4658,32 @@ C statement below to use in tmatcco.f
                enddo 
                phasen(n,l) = phase*sigc
             else
+               if (en.lt.1e-5) then
+                  ener = 0.0
+                  call hlikechi(nznuc,zasym,ener,l,chi,phasen(n,l),
+     >               jstart,jstop,meshr,rmesh,expcut,regcut,corep,r0)
+                  tmp = 0.0
+                  do i = jstart, istoppsinb(n,l)
+                     tmp = tmp + chi(i) * psinb(i,n,l) * rmesh(i,3)
+                  enddo
+                  print '("For energy=0.0, ovlps/sqrt(k_n):",2f10.4)',
+     >               tmp,sqrt(4.0/(psen2(min(n-l+1,ntop))-psen2(n-l-1)))
+               endif
                call hlikechi(nznuc,zasym,en,l,chi,phasen(n,l),jstart,
      >            jstop,meshr,rmesh,expcut,regcut,corep,r0)
-c$$$               print*,'phasen(n,l)',phasen(n,l)
+c$$$  print*,'phasen(n,l)',phasen(n,l)
+c$$$               if (ener.ne.0.0) SETA = -SQRT(1.0/ener)
+c$$$               pi = 355.0/113.0
+c$$$               write(50+n,*) '# ',ener
+c$$$               do i = 1,meshr,10
+c$$$                  write(50+n,'(1p,4e15.5)') rmesh(i,1),chi(i),
+c$$$     >               coulrho(l,seta,ener,rmesh(i,1),acc),
+c$$$     >               sqrt(2d0*pi)*rmesh(i,1)*sqrt(sqrt(ener))
+c$$$c$$$     >               sqrt(-2d0*pi*seta/(exp(2d0*pi*seta)-1d0))
+c$$$c$$$     >               *sqrt(ener)*rmesh(i,1)
+c$$$c$$$     >               sqrt(2*355.0/113.0)*rmesh(i,1)
+c$$$                  enddo
+c$$$c$$$               endif
             endif 
             j = jstart
             do while (j.lt.jstop.and.chi(j+1)/chi(j).gt.1.0)
