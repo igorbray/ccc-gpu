@@ -825,7 +825,9 @@ c$$$            print*,'No convergence;l,n,termp,termn',l,n,termp,termn
          endif 
          sum = sum + term
          converged = abs(term/sum).lt.delta.and.abs(A(n,l)).gt.0d0
-c$$$         print*,'l,n,rho,termp,termn,sum:',l,n,rho,termp,termn,sum
+c$$$         if (n.le.2.and.ecmn.lt.0.1)
+c$$$     >      print*,'l,n,rho,termp,termn,sum:',l,n,rho,termp,termn,sum,
+c$$$     >      sum/sqrt(sqrt(ecmn))
          n = n + 1
          A(n+1,l) = (2d0*eta*A(n,l)-s*A(n-1,l))/(n-l)/(n+1+l)
       enddo
@@ -1336,7 +1338,11 @@ c$$$      zeff = nze * (zasym + 1.0)
 C  As ZASYM is the asymptotic Z of the atom, and here we need to find
 C  the coulomb wave of the single electron moving in the potential of
 C  the bare nucleus, the effective Z is - (ZASYM + 1.0)
-      ETA = ZEFF * SQRT(RMAS/ECMIN)
+      if (ecmin.ne.0.0) then
+         ETA = ZEFF * SQRT(RMAS/ECMIN)
+      else
+         ETA = ZEFF
+      endif
       ECM = ECMIN * RMAS
 
 c$$$      if (eta-10.0.lt.0.0) then
