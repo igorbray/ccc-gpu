@@ -3050,10 +3050,17 @@ C     with the Green's Function.
                call vmatfromgf(gf,kmaxgf,npk,vmat01,
      >            ni,nf,ni,nf+1,nchistart(nodeid),nchistop(nodeid),
      >            nchtop,wk)
+               do nch=1,nchtop ! ensure gf=1/wk on all nch. Necessary for lplots.
+                  do k = npk(nch)+1,npk(nch+1)-1
+                     kn = k - npk(nch) + 1
+c$$$                  print*,'nch,kn',nch,kn,gf(kn,kn,nch),real(1.0/wk(k))
+                     gf(kn,kn,nch) = real(1.0/wk(k))
+                  enddo
+               enddo
             else
                inquire (file='sprint',exist=exists)
                if (exists) then
-                  print*,'CAUTION: splot will be correct, but not T'
+                  print*,'CAUTION: sprint exists, T will be WRONG'
                else
                   call vmatfromgf(gf,kmaxgf,npk,vmat,
      >             1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)

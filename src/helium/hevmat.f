@@ -97,6 +97,7 @@ c$$$!$omp  parallel do default(private)shared(nam,na,lof,Nf,Ni,lambot1,
 c$$$!$omp& lamtop1,Cf,Ci,tmp_hat,tmp_const,fli,flf,minfi,minff,maxfi,maxff,
 c$$$!$omp& nr,diag_ME,formout,minform,maxform,upot,loi,ortint,
 c$$$!$omp& ltmin,lthuge,rlli,rllf,lt1,lt2)collapse(2),schedule(static)
+c$$$      print*,'NI,NF,NAM(NI),NAM(NF):',NI,NF,NAM(NI),NAM(NF)
       do 68 jnf1=1,nam(Nf)
          do 67 jni1=1,nam(Ni)
          nf1 = na(jnf1,Nf)
@@ -215,7 +216,7 @@ c     momentum loops
 c$$$            print*,'lf,llf,li,lli,lt1,lt2,ctemp:',
 c$$$     >         lf,llf,li,lli,lt1,lt2,ctemp
             tail(:,:) = 0.0
-            if (itail.ne.0.and.ltmin.le.2)
+            if (itail.ne.0.and.ltmin.le.2.and.ctemp.ne.0.0)
      >         call maketail(itail,ctemp,chil(1,npki(nchi),ichildim),
      >         minchil(npki(nchi),ichildim),gki,phasei,li,nqmi,
      >         chil(1,npkf(nchf),ichildim),minchil(npkf(nchf),ichildim),

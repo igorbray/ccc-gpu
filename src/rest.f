@@ -112,7 +112,7 @@ c$$$     >      (pi * gk(1,nch))
       if (iSpin.eq.1) nsmin = 1
       do ns = nsmin, nsmax
          call date_and_time(date,time,zone,valuesin)
-         print '("GETTMAT entered at:",a10)',time
+c$$$         print '("GETTMAT entered at:",a10)',time
 C  The following caused a bug for helium when two spins are used, but hopefully fixed with above
          if (sames.and.ns.eq.1) then
             do nchi = 1, nchtop
@@ -128,11 +128,11 @@ C  The following caused a bug for helium when two spins are used, but hopefully 
      >      projectile,slowery(1),det,rcond(ns),vmatp(1,ns),packed,
      >         phaseq,scalapack,chil)
          endif 
-         call date_and_time(date,time,zone,valuesout)
-         print '("GETTMAT exited at:",a10," diff (secs):",i5)',
-     >      time,idiff(valuesin,valuesout)
-         valuesin=valuesout
-         call update(6)
+c$$$         call date_and_time(date,time,zone,valuesout)
+c$$$         print '("GETTMAT exited at:",a10," diff (secs):",i5)',
+c$$$     >      time,idiff(valuesin,valuesout)
+c$$$         valuesin=valuesout
+c$$$         call update(6)
          r = float((-1)**ns * min(1,iex))
          do ne = 1, abs(ne2e)
             do nchi = 1, 1
@@ -265,11 +265,11 @@ c$$$!         include 'gees.f'
       call zgees('n','n',select,nchtop,smat,nchan,ndim,eigv,vs,ldvs,
      >   cwork,lwork,rwork,bwork,info)
 #endif
-         call date_and_time(date,time,zone,valuesout)
-         print '("?GEES exited at:  ",a10,", diff (secs):",i5)',
-     >      time, idiff(valuesin,valuesout)
-         valuesin = valuesout
-         call update(6)
+c$$$         call date_and_time(date,time,zone,valuesout)
+c$$$         print '("?GEES exited at:  ",a10,", diff (secs):",i5)',
+c$$$     >      time, idiff(valuesin,valuesout)
+c$$$         valuesin = valuesout
+c$$$         call update(6)
 
 c$$$  call zgees('n','n',select,nchtop,smat,nchan,ndim,eigv,vs,ldvs,
 c$$$     >      cwork,lwork,rwork,bwork,info)
@@ -291,7 +291,7 @@ c$$$     >            atan2(aimag(eigv(nch)),real(eigv(nch))) / 2.0
             endif
          enddo
          esum(ns) = esum2
-         print*,'phasesum:',ns,esum(ns)
+c$$$         print*,'phasesum:',ns,esum(ns)
          nchi = 0
          nchip = 0
          incount = 1
@@ -400,8 +400,8 @@ c$$$               stop 'NO and NOPEN are not equal'
             endif
          end do !while loop
          call date_and_time(date,time,zone,valuesout)
-         print '("cross sections defined at:",a10," diff (secs):",i5)',
-     >      time,idiff(valuesin,valuesout)
+c$$$         print '("cross sections defined at:",a10," diff (secs):",i5)',
+c$$$     >      time,idiff(valuesin,valuesout)
          valuesin=valuesout
          call update(6)
 
@@ -495,9 +495,9 @@ C  Print out the results
          else
             exact = 0.0
          endif 
-         print'(i3,2f10.3,f10.5,
-     >     '' J, target polarization, exact, Imag(T)/Re(T)'')',
-     >      j, polfac, exact, elimagt/(elrealt+1e-30)
+c$$$         print'(i3,2f10.3,f10.5,
+c$$$     >     '' J, target polarization, exact, Imag(T)/Re(T)'')',
+c$$$     >      j, polfac, exact, elimagt/(elrealt+1e-30)
          do nchf = 1, nymax     !min(nymax,50)
             call getchinfo(nychan(nchf),nchp,
      >         lg,temp,maxpsi,ef,lfa,nfa,lf)

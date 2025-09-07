@@ -72,7 +72,7 @@ c$$$!$omp do schedule(dynamic)
 #ifdef GPU_ACC
 !!!$acc parallel if(nqmi>100)
 !$acc kernels if(nqmi>100)         
-!$acc loop independent collapse(2)
+!$acc loop independent collapse(1) !was collapse(2), but gfortran complained
 #endif
 #ifdef GPU_OMP
 !$omp target teams distribute parallel do collapse(2) if(nqmi>100)

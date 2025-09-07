@@ -494,14 +494,15 @@ C  Born case. The units are Rydbergs.
             dwpot(i,nchi) = temp3(i,nchf) * 2.0
          enddo
       endif
-      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.
-     >   (li.gt.latop.or.lf.gt.latop)) then
-         call maketail(itail,ctemp(nchf),chil(1,npk(nchi),ichildim),
+c$$$      if (itail.ne.0.and.ctemp(nchf).ne.0.0.and.
+c$$$  >   (li.gt.latop.or.lf.gt.latop)) then
+      if (itail.ne.0.and.ltmin(nchf).le.2.and.ctemp(nchf).ne.0.0)
+     >   call maketail(itail,ctemp(nchf),chil(1,npk(nchi),ichildim),
      >      minchil(npk(nchi),ichildim),gk(1,nchi),phasei,li,nqmi,
      >      chil(1,npk(nchf),ichildim),minchil(npk(nchf),ichildim),
      >      gk(1,nchf),phasef,
      >      lf,nqmf,nchf,nchi,ltmin(nchf),nqmfmax,vmatt(1,1,nchf,0))
-      endif
+c$$$      endif
 C  As both CHII and CHIF contain the integration weights, we divide TEMP by   
 C  them.
       do i = mini, maxi

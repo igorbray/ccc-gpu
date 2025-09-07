@@ -854,7 +854,7 @@ c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),
      >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi))
 !     >        ,  real(wk(npk(nchf)))
 c$$$     >         ,ovlpn(nchf), ovlpn(nchi)
-C  The order is k, K(k), V(k), V(k) * K(k) / (E - En - k**2/2)
+C  The order is k, K(k), V(k), 1.0 / (E - En - k**2/2)
             do n = npk(nchf) + 1, npk(nchf+1) - 1
                kn = n - npk(nchf) + 1
                divk = gk(1,nchi) * gk(kn,nchf)
@@ -867,21 +867,24 @@ c$$$                  write(nchi*100+nchf*10+ns,*) gk(kn,nchf),
                      write(52,"(1p,5e16.5)") gk(kn,nchf),
 c$$$     >                  v(n,nchi,1) / divk /
 c$$$     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
-!     >                  vgf / divk,
+     >                  vgf / divk, ! same as the line below
 !     >                  v(n,nchi,1) / divk * gf(kn,kn,nchf),
-     >                  vgf / divk,
      >                  v(n,nchi,2) / divk
-     >                  ,gf(kn,kn,nchf)
+     >                  ,1.0/gf(kn,kn,nchf)
                   else 
                      boxnorm = 1.0
                      if (nbox.eq.1) boxnorm = sqrt(2.0/rmesh(meshr,1))
                      write(52,"(1p,5e16.5)") gk(kn,nchf),
 c$$$     >                  v(n,nchi,1) / divk / boxnorm
 c$$$     >                  * gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf) 
-     >                  vgf / divk / boxnorm
+     >                  vgf / divk / boxnorm !same as the line below
+!     >                  v(n,nchi,1) / divk * gf(kn,kn,nchf)
 !     >                  /  real(wk(n)) !* sqrt(abs(wk(n)))
      >                  ,v(n,nchi,2) /divk /boxnorm!/ sqrt(abs(wk(n)))
-     >                  ,gf(kn,kn,nchf)
+     >                  ,1.0/gf(kn,kn,nchf)
+c$$$                     print*,'nchf,nchi,n,gf:',nchf,nchi,n,
+c$$$     >                  gf(kn,kn,nchf),v(n,nchi,1)/divk*gf(kn,kn,nchf),
+c$$$     >                  vgf / divk / boxnorm
 c$$$                  write(52,*) gk(kn,nchf),
 c$$$     >               v(n-nchf,nchi,1) / divk /
 c$$$     >               real(wk(n)) * sqrt(abs(wk(n))),
@@ -973,27 +976,40 @@ c$$$     >         nchi,nchf,gk(k1+1,nchf),offshellk2
      >   "Nonsymmetric (to 1%) K elements:",i5," out of",i6,i3,"%")', 
      >   nbad, max(nds,1),nbad*100/max(nds,1)
       
-      if (sprint) then
+      if (lprint) then
       open (42,file='pwkmat'//ch(ns))
-      write(42,'(''# K-matrix elements for J ='',i3)') lg
-      do nchi = 1, nchtop
-         call getchinfo (nchi,nchip,lg,temp,maxpsi, ei, lai, ni, li)
-         if (etot.gt.enchan(nchip)) then
-         write(42,'(''#nchf Lf  lf  nf <-nchi  Li  li  ni Re(K-mat)'',
-     >      ''        ef       ovlp'')')
-            do nchf = 1, nchtop !nchi, nchtop
-               call getchinfo (nchf,nchfp,lg,temp,maxpsf,ef,laf,nf,lf)
-               if (etot.gt.enchan(nchfp)) write
-     >            (42,'(4i4,'' <-'',4i4,1p,e12.4,0p,f12.5,f10.5)') 
-     >            nchf,lf,laf,nf,nchi,li,lai,ni, real(ton(nchf,nchi))
-     >            /gk(1,nchi)/gk(1,nchf),ef,enchandiff(nchfp)!ovlpn(nchfp)
-c$$$               if (ei.gt.etot/2.0.or.ef.gt.etot/2.0) then
-c$$$                  ton(nchf,nchi) = 0.0
-c$$$                  ton(nchi,nchf) = 0.0
-c$$$               endif 
-            enddo
-         endif 
+      write(42,'(''# K-matrix elements for J, S ='',2i3)') lg,ns
+      write(42,'("# Non-symmetric to 1%:",i3,
+     >   "; for surface plot: splot pwkmat? matrix rowheaders")') nbad
+      nchopen = nchtop
+      do while(real(ton(nchopen,1)).eq.0.0.and.nchopen.gt.1)
+         nchopen = nchopen - 1
+      end do
+! Can use gnuplot with "splot 'pwkmat0' matrix rowheaders", or plot individual columns
+      write(42,'("#",100a10)') (char(nchi+ichar('0')),nchi=1,nchopen)
+!      write(42,'("#",100i10)') (nchi,nchi=1,nchopen)
+      do nchf = 1, nchopen
+         write(42,'(i4,1p,100e10.2)') nchf,(
+     >      real(ton(nchf,nchi))/(gk(1,nchi)*gk(1,nchf)),nchi=1,nchopen)
       enddo
+c$$$      do nchi = 1, nchtop
+c$$$         call getchinfo (nchi,nchip,lg,temp,maxpsi, ei, lai, ni, li)
+c$$$         if (etot.gt.enchan(nchip)) then
+c$$$         write(42,'(''#nchf Lf  lf  nf <-nchi  Li  li  ni Re(K-mat)'',
+c$$$     >      ''        ef       ovlp'')')
+c$$$            do nchf = 1, nchtop !nchi, nchtop
+c$$$               call getchinfo (nchf,nchfp,lg,temp,maxpsf,ef,laf,nf,lf)
+c$$$               if (etot.gt.enchan(nchfp)) write
+c$$$     >            (42,'(4i4,'' <-'',4i4,1p,e12.4,0p,f12.5,f10.5)') 
+c$$$     >            nchf,lf,laf,nf,nchi,li,lai,ni, real(ton(nchf,nchi))
+c$$$     >            /gk(1,nchi)/gk(1,nchf),ef,enchandiff(nchfp)!ovlpn(nchfp)
+c$$$c$$$               if (ei.gt.etot/2.0.or.ef.gt.etot/2.0) then
+c$$$c$$$                  ton(nchf,nchi) = 0.0
+c$$$c$$$                  ton(nchi,nchf) = 0.0
+c$$$c$$$               endif 
+c$$$            enddo
+c$$$         endif 
+c$$$      enddo
       close(42)
       endif
 
@@ -1179,7 +1195,7 @@ c$$$         call update(6)
 c$$$      call memfree(ptrv)
 
       deallocate (v, stat=istat)
-      print*,'Deallocated V:', istat
+c$$$      print*,'Deallocated V:', istat
 
       do nchi = 1, 1
          do nchf = 1, nchtope2e
@@ -1275,8 +1291,8 @@ c$$$      enddo
 c$$$      if (sprint) close(42)
 c$$$      print'('' JS f i  abs(T)    arg(T)       K        K2nd   '
 c$$$  >   //'   real(V)   imag(V)     Ef(Ry)'')'
-      print'('' JS f i  real(T)    imag(T)     K        K2nd   '
-     >   //'   real(V)   imag(V)     Ef(Ry)'')'
+      print'(''  JS   f   i real(T)   imag(T)    K         K2nd    '
+     >   //'   real(V)   imag(V)      Ef(Ry)'')'
       return
       end
       
@@ -1860,7 +1876,7 @@ c$$$      print*,'Calling own version of CGESV'
 c$$$      print*,'Calling own version of ZGESV'
       call zgesv(n,nb,api,lda,kpvt,bhar,lda,info)
 #endif
-      print*,'Exiting ?GESV'
+c$$$      print*,'Exiting ?GESV'
 
 c$$$      call cgeco(api,lda,n,kpvt,rcond,wk)
 c$$$c$$$      call cgefa(api,lda,n,kpvt,info)
