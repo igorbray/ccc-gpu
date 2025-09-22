@@ -2169,10 +2169,8 @@ C     This routine reads array iorder_st(k,il,is,ip) from file Set.order_of_stat
  10   do il=0,lam
          do is=0,1
             do ip=1,2
-               if (nodeid.eq.1)
-     >write(4,*) il,is,ip
-               if (nodeid.eq.1)
-     >write(4,'(50I3)') (iorder_st(k,il,is,ip),
+               write(4,*) il,is,ip
+               write(4,'(50I3)') (iorder_st(k,il,is,ip),
      >            k=1,nstate(il,is,ip))
             end do
          end do
