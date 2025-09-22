@@ -643,7 +643,7 @@ ccc      pC = pnewC
 
       ovlp = 0.0
       ovlp1 = 0.0
-      if (nspm.eq.0) then
+      if (.true.) then !nspm.eq.0) then
 c$$$         do i = minchi, maxpsi
 c$$$            ovlp = ovlp + chi(i) * psi(i) * rmesh(i,3)
 c$$$         enddo
@@ -652,7 +652,7 @@ c$$$         print*,'ovlp1:',ovlp
      >      rmesh(minchi:maxpsi,3))
 c$$$         print*,'ovlp2:',ovlp
          ovlp = ovlp * ovlp
-      else
+      else !never below any more
 c$$$         do np = 1, nspm
 c$$$            if (lo(np).eq.L) then
 c$$$               if (inc.eq.0.or.np.eq.1.or.sa(np-1).eq.1) then

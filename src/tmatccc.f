@@ -798,7 +798,7 @@ c$$$      call date_and_time(date,time,zone,valuesin)
 
       do nchf = 1, nchtop
 c$$$         if (-lg.gt.latop) uba(nchf) = .true.
-C$OMP PARALLEL DO
+C$OMP PARALLEL DO Default(shared)private(divk,sum,n,nchi,tmp)
 C$OMP& SCHEDULE(dynamic)
          do nchi = 1, nchtop
 c$$$            if (nds.eq.0) then
@@ -808,6 +808,18 @@ c$$$c$$$               print*,'Calling sdot',nds,v(1,nchf,2),v(1,nchi,1)
 c$$$               sum = sdot(nds,v(1,nchf,2),1,v(1,nchi,1),1)
 c$$$c$$$               print*,'Exiting sdot', sum
 c$$$            endif 
+            if (lprint) then
+               open(52+nchi,file="aplot."//ch(nchf)//ch(nchi)//'_'//
+     >            ch(mod(lg,10))//ch(ns)//ch(ipar))
+               divk = gk(1,nchi) * gk(1,nchf)
+               sum = ton(nchf,nchi)/divk
+               do n = 1,nds
+                  tmp = v(n,nchf,2)*v(n,nchi,1)/divk
+                  sum = sum + tmp
+                  write(53,*) n,tmp,sum
+               enddo
+               close(52+nchi)
+            endif
             ton(nchf,nchi) = ton(nchf,nchi) + 
      >         dot_product(v(1:nds,nchf,2),v(1:nds,nchi,1))
 c$$$            print*,nchf,nchi,sum/gk(1,nchi)/gk(1,nchf),

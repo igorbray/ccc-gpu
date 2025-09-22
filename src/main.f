@@ -2626,7 +2626,7 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
                print*,'Nodeid, reading: ',nodeid,nodetfile
  34            read(42,*,end=35,err=36) 
      >            lgold(ipar),iparold,nodeidold,ntimeold,n1, n2
-               if (ntimeold.lt.9) go to 36 !time too short to bother
+               if (ntimeold.lt.10*nodes) go to 36 !time too short to bother
                if (nodeidold.le.nodes) then !allocations above are for NODES
                   nchistartold(nodeidold,ipar) = n1
                   nchistopold(nodeidold,ipar) = n2
@@ -2883,7 +2883,7 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
          call clock(s1)
          valuesin = valuesout
          firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw 
-         if (firstrun) then !.and.projectile.ne.'photon') then
+         if (firstrun) then !.and.projectile.ne.'photon') then !need 1st run to define DWPOT
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
      >         vdon)!,vmat,vmatp)
@@ -2984,8 +2984,9 @@ C  Calculate the D matrix for photoionization on all nodes and use MPI to bring 
      >            dv(nqm,nchistart(nodeid):nchistop(nodeid)),
      >            dx(nqm,nchistart(nodeid):nchistop(nodeid)))
             endif
-            if(ntype.eq.0)  call xSATEL(nchtop,lg)
-            if(ntype.eq.1)  call mSATEL(nchtop,lg)
+! Below caused a crash on Gadi for ntype=1 and Li target;commented out as not necessary
+c$$$            if(ntype.eq.0)  call xSATEL(nchtop,lg)
+c$$$            if(ntype.eq.1)  call mSATEL(nchtop,lg)
             if (lg.eq.1) call dMATR(gk,npk,minchil,chil,nchtop)
 !            if (mylstop.gt.1) then
 C (gamma,3e) by double shake-off
@@ -3053,8 +3054,8 @@ C     with the Green's Function.
                do nch=1,nchtop ! ensure gf=1/wk on all nch. Necessary for lplots.
                   do k = npk(nch)+1,npk(nch+1)-1
                      kn = k - npk(nch) + 1
-c$$$                  print*,'nch,kn',nch,kn,gf(kn,kn,nch),real(1.0/wk(k))
-                     gf(kn,kn,nch) = real(1.0/wk(k))
+c$$$                     print*,'nch,kn,k',nch,kn,gf(kn,kn,nch),real(wk(k))
+                     gf(kn,kn,nch) = 1.0/(real(wk(k))+1e-20) !avoid division by zero for bound states
                   enddo
                enddo
             else
@@ -3157,6 +3158,7 @@ c$$$     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,
             call clock(s2)
             t2nd = s2 - s1
          else
+           print*,'nodeid calling scattering:',nodeid,nchistart,nchistop
             call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,

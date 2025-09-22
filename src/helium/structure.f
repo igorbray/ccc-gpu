@@ -1283,7 +1283,7 @@ c-------------------------------------------------------------------
       subroutine printCcoef(Nmax,nspmW,C,E)
       use vmat_module, only: nodeid
       include 'par.f'
-      parameter (ic_20 = 20)
+      parameter (ic_20 = 30)
       double precision  C(Nmax+1,nspmW,nspmW),  E(KNM),
      >     ortint, tmp, tmp1, sum
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)

@@ -445,11 +445,20 @@ c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
      >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
-  
-      do la = labot, latop
-         theta(la) = thetain
-      enddo
-c$$$      if (int(thetain).eq.-1) then
+
+c$$$      if (thetain.ge.0.0) then !all channels
+         do la = labot, latop
+            theta(la) = thetain
+         enddo
+c$$$      else ! Does not work in any advantageous way
+c$$$         theta(labot:latop) = 0.0
+c$$$         if (gkf(1).gt.0.0.and.gki(1).gt.0.0) then ! open channels only
+c$$$            theta(lf) = thetain
+c$$$            theta(li) = thetain
+c$$$         endif
+c$$$      endif
+
+c$$$  if (int(thetain).eq.-1) then
 c$$$         do la = labot, latop
 c$$$            theta(la) = float(la+1) / 3.0
 c$$$         enddo
@@ -568,11 +577,13 @@ C  The following line is Andris's second guess to implement step function SDCS
 c$$$               if (nchi.eq.nchf.and.ei.gt.etot/2.0.and.ei.lt.etot)
 c$$$     >            etotnew = 0.0
                eterm = 0.5 * (eki + ekf - etotnew * (1.0 - theta(lia)))
+c$$$               eterm = eterm * thetain !testing only with theta(l)=0.0
 
                
                tmp = eterm * ovlpi * ovlpf(kf) - ovlpki * ovlpf(kf) -
      >            ovlpkf(kf) * ovlpi
 
+               
                if (nold.eq.0)
      >            tmp = (ei + ef - etot * (1.0 - theta(lfa))) / 2.0 *
      >            ovlpi * ovlpf(kf)    
@@ -1919,7 +1930,7 @@ c$$$         if (mod(nt,2).ne.0) stop 'expect nt to be even'
          nqk=nqk+nt
          nwf=2*nt
          niwf=2*nt
-         if (nt.ge.0) then
+         if (nt.gt.0) then
 C  Can use the following two lines here and in the i loop to make kgrid
 C  symmetric about E rather than sqrt(E). A suitable change must be made
 C  in the MAKEINTS routine.
