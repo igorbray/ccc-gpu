@@ -647,7 +647,7 @@ ccc      pC = pnewC
 c$$$         do i = minchi, maxpsi
 c$$$            ovlp = ovlp + chi(i) * psi(i) * rmesh(i,3)
 c$$$         enddo
-c$$$         print*,'ovlp1:',ovlp
+c$$$  print*,'ovlp1:',ovlp
          ovlp = sum(chi(minchi:maxpsi)*psi(minchi:maxpsi)*
      >      rmesh(minchi:maxpsi,3))
 c$$$         print*,'ovlp2:',ovlp
@@ -3944,7 +3944,7 @@ C multiplied by sqrt(2.0/pi).
                do i = maxps2(n) + 1, meshr
                   chil(i,kp,1) = 0.0
                enddo
-c$$$               if (nbnd(lg).ne.0) then
+c$$$  if (nbnd(lg).ne.0) then
                   call getprod(psi,maxpsi,1,ps2(1,n),l,rmesh,meshr,nt,
      >               tmp)
                   testb = testb + tmp
