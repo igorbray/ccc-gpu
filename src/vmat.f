@@ -151,6 +151,7 @@ c-----------------------------------------------------------
       type(state) states(knm)
       save first_time, states, nchpmax
 
+      maxpsi = 0
       if(i_sw_ng .eq. 1) then
 
          iparity = (-1)**(lg + ipar)
