@@ -20,8 +20,8 @@ C  File rest.f
       complex det(2),sigma(nchan),te2eH(-lamax:lamax,0:lamax),
      >   dphasee2e(nchane2e),ephasee2e(nchane2e),te2e(nchane2e),
      >   ve2e(nchane2e),phaseslow,sigc,ctmp,smat(nchan,nchan)
-      complex ton(nchan,nchan,0:1),von(nchan,nchan),t2nd(nchan,nchan)
-      complex wton(nchan,nchan), wvon(nchan,nchan), wt2nd(nchan,nchan),
+      complex ton(nchan,nchan,0:1),von(nchan,nchan),kon(nchan,nchan)
+      complex wton(nchan,nchan), wvon(nchan,nchan), wkon(nchan,nchan),
      >   wvdon(nchan,nchan), phasel(kmax,nchan), tdist(nchan)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
@@ -49,6 +49,7 @@ C  File rest.f
      >   chan(knm)*3, target*6, tfile*80, csfile*80, projectile*8
       common /charchan/ chan
       common /chanen/ enchan(knm)
+      common /bignc/bign !only used for DW matching at zero energy, typically 1e9
       save sames
       data spin/'+','-'/
       logical exists, select
@@ -79,20 +80,23 @@ c$$$         si = aimag(sigma(nch))
             if (nch.eq.1)
      >         print*,'As J > 20 reset IM(phase) to 0 from:',ai
             ai = 0.0
-         endif 
-         tdist(nch) = - phasel(1,nch) * ai * sigma(nch) ** 2 /
-     >      (pi * gk(1,nch)+1e-10)
+         endif
+         if (gk(1,nch).eq.0.0) then !bign is large only at zero energy DW
+            tdist(nch) = - phasel(1,nch)*sigma(nch) ** 2 * ai * bign /
+     >         pi
+         else
+            tdist(nch) = - (phasel(1,nch) * ai * sigma(nch) ** 2) /
+     >         (pi * gk(1,nch))
+         endif
          phasel(1,nch) = phasel(1,nch) * sigma(nch)
-c$$$         tdist(nch) = - (phasel(1,nch) * ai - sigma(nch) * si) /
-c$$$     >      (pi * gk(1,nch))
          jlm(nch) = 0
          do la = 1, 2*lamax+1
             non(nch,la) = 0
          enddo 
+         if (nch.eq.1) print'("NCH, TDIST, PHASE:",i4,1p,4e12.3)',
+     >      nch,tdist(nch),phasel(1,nch)
       enddo
 
-      
-      if (abs(tdist(1)).ne.0.0) print*,'TDIST:',tdist(1)
       
       same = .true.
       sames = .false.
@@ -122,7 +126,7 @@ C  The following caused a bug for helium when two spins are used, but hopefully 
             enddo
          else 
             call gettmat(lg,ns,nchtop,iex,npk,vmat,wk,gk,phasel,sigma,
-     >      bb(1,1,1,ns),tdist,von,etot,t2nd,ton(1,1,ns),err,vmatop,
+     >      bb(1,1,1,ns),tdist,von,etot,kon,ton(1,1,ns),err,vmatop,
      >      nchopt,nsmax,ve2ed,ve2ee,dphasee2e,ephasee2e,nchtope2e,
      >      nchmaxe2e,ve2e,te2e,nds,second,uba,ovlpn,theta,ichi,csfile,
      >      projectile,slowery(1),det,rcond(ns),vmatp(1,ns),packed,
@@ -303,7 +307,9 @@ c$$$         do nchi = 1, lent
             do n = 1, nent
                instates = instates.or.(instate(n).eq.nchip)
             enddo 
-            
+            dgki = gk(1,nchi)
+            if (gk(1,nchi).eq.0.0) dgki = 1.0
+
             if (instates) then
                call getspinw(chan(nchip)(1:1),ns,nze,spinw,si)               
                lent = nchi
@@ -315,13 +321,19 @@ c$$$         do nchi = 1, lent
                do nchf = 1, nchtop
                   call getchinfo (nchf,nchp,lg,temp,maxpsi,ef,lfa,nfa,
      >               lf)
+                  dgkf = gk(1,nchf)
+                  if (gk(1,nchf).eq.0.0) dgkf = 1.0
                   if (gk(1,nchi).eq.0.0) then
                      ratio = 1.0
-                     if (li.gt.0) ratio = 0.0 ! plane waves have rho**(l+1)
+c$$$                     if (li.gt.0) ratio = 0.0 ! plane waves have rho**(l+1)
                   else
-                     ratio = gk(1,nchf) / gk(1,nchi)
-                     if (gk(1,nchf).eq.0.0.and.zasym.ne.0.0)
-     >                  ratio = 1.0/gk(1,nchi) ! needs checking at thresholds
+                     if (zasym.eq.0.0) then
+                        ratio = gk(1,nchf)/gk(1,nchi)
+                     else 
+                        ratio = dgkf / gk(1,nchi)
+                     endif 
+!                     if (gk(1,nchf).eq.0.0)!.and.zasym.ne.0.0)
+!     >                  ratio = 1.0/gk(1,nchi) ! needs checking at thresholds
                   endif 
                   const = spinw * (2.0 * pi) ** 4 / (4.0 * pi) *
      >               (2.0 * lg + 1.0) * ratio /
@@ -341,15 +353,15 @@ c$$$                     lfp = lfa
                      jlm(no) = lt - lb + 1
                      non(no,lf-lb+1) = nymax
 c$$$               non(nchp,lf-lb+1) = nymax
-                     gkfac = gk(1,nchi) * gk(1,nchf)
-                     if (gkfac.eq.0.0) gkfac = 1.0
+                     gkfac = dgki * dgkf !gk(1,nchi) * gk(1,nchf)
+!                     if (gkfac.eq.0.0) gkfac = 1.0
                      if (isecond.eq.-3) ton(nchf,nchi,ns) =
-     >                  cmplx(real(t2nd(nchf,nchi)),0.0)
+     >                  cmplx(real(kon(nchf,nchi)),0.0)
 c$$$                     if (nqm.eq.1) then
                      if (ntype.eq.-1) then
 C  Born approximation
                         von(nchf,nchi) = vdon(nchf,nchi,ns)/gkfac
-                        t2nd(nchf,nchi) = von(nchf,nchi)
+                        kon(nchf,nchi) = von(nchf,nchi)
                         ton(nchf,nchi,ns) =
      >                     vdon(nchf,nchi,ns)/gkfac
                      elseif (ntype.eq.-2) then
@@ -366,7 +378,7 @@ c$$$                     if (ef.gt.0.0) then
 c$$$                        wton(nymax,nchi) = wton(nymax,nchi) *
 c$$$     >                     ovlpn(nchp) / sqrt(ef)
 c$$$                     endif 
-                     wt2nd(nymax,nchi)=t2nd(nchf,nchi)/sqrt(abs(gkfac)) !yields same kon as in lplot files
+                     wkon(nymax,nchi)=kon(nchf,nchi)!/gkfac !sqrt(abs(gkfac)) !yields same kon as in lplot files
                      wvon(nymax,nchi) = von(nchf,nchi)
                   end if
                   if (gk(1,nchf).ge.0.0) then
@@ -374,7 +386,6 @@ c$$$                     endif
                      ab2 = abs(vdon(nchf,nchi,ns)/gkfac)**2
                      partcs(nchp,nchip,ns) = partcs(nchp,nchip,ns) +
      >                  at2 * const
-
 C  The Born partial cross section is infact independent of spin. We use
 C  the spin weights to sum up to one, for convenience.
                      BornPCS(nchp,nchip) = BornPCS(nchp,nchip) +
@@ -386,10 +397,18 @@ C  This is no big deal, as its partcs = 0.0
 C  Define the total cross section from the imaginary part of the elastic
 C  T matrix. Division by sigma**2 is necessary for charged targets.
                   if (nchp.eq.nchip.and.nchi.eq.nchf) then
-                     sigtop(nchip,ns) = sigtop(nchip,ns) - const *
-     >                  aimag(ton(nchi,nchi,ns)/sigma(nchi)**2) /
-     >                  (pi * gk(1,nchf)+1e-10)
-                  endif 
+                     if (gk(1,nchi).eq.0.0) then
+                        print*,'Redefined sigtop to be sigt'
+                        sigtop(nchip,ns) = const * at2 !imag part of T should be close to zero
+c$$$                        sigtop(nchip,ns) = sigtop(nchip,ns) - const *
+c$$$     >                     bign*aimag(ton(nchi,nchi,ns)/sigma(nchi)**2)/
+c$$$     >                     (pi)
+                     else 
+                        sigtop(nchip,ns) = sigtop(nchip,ns) - const *
+     >                     aimag(ton(nchi,nchi,ns)/sigma(nchi)**2) /
+     >                     (pi * gk(1,nchf))
+                     endif
+                  endif
 C  End of the "do nchf = 1, nchtop" loop
                end do
 C  End of the "if (nchip.le.nent) then" statement
@@ -479,7 +498,7 @@ C  Print out the results
          elrealt = real(wton(1,1))
          elimagt = aimag(wton(1,1))
          polfac = - elrealt * (2*j+3) * (2*j+1) * (2*j-1) /
-     >      gk(1,1)
+     >      (gk(1,1)+1e-20)
          if (target .eq. 'H  I') then
             exact = 4.5
          else if (target .eq. 'He I') then
@@ -522,10 +541,11 @@ c$$$               rdel = atan2(aimag(eigv(nchf)),real(eigv(nchf))) / 2.0
                if (ef.le.etot)
 c$$$     >            print '(i2,a,i3,i2,1p,e10.3,0p,f9.5,2x,
 c$$$     >            1p,2(2(e10.3),1x),0p,f9.4)',
-     >            print '(i3,a,2i4,1p,3(2(e10.3),1x),0p,f9.4)',
+     >            print '(i3,a,2i4,1p,4e11.3,0p,2f11.6)',
      >            lg,spin(ns),nychan(nchf),nchi,
-c$$$     >         tabs,targ,wt2nd(nchf,nchi), wvon(nchf,nchi),ef
-     >         wton(nchf,nchi),wt2nd(nchf,nchi), wvon(nchf,nchi),ef
+c$$$     >         tabs,targ,wkon(nchf,nchi), wvon(nchf,nchi),ef
+     >            wton(nchf,nchi),real(wkon(nchf,nchi)),
+     >            real(wvon(nchf,nchi)),ef,etot-ef
 c$$$     >         rdel, nmpow(aimag(ctmp))
 c$$$     >         abs(wton(nchf,nchi))
                same = same.and.abs((wvon(nchf,nchi)-wton(nchf,nchi))/
@@ -547,13 +567,13 @@ c$$$     >                  coulphase(dble(-(zasym+1.0)/sqrt(ef)),lfa)
                endif 
             end do 
          end do
-         if (noprint(2).eqv..false..or.isecond.lt.0) then
+         if (isecond.lt.0) then !(noprint(2).eqv..false..or.isecond.lt.0) then
             if (abs((sigt-sigtop(1,ns))/(sigtop(1,ns)+1e-30))
      >         .gt.1e-4) then
                print*,'Warning: optical theorem is only satisfied to',
      >            abs((sigt-sigtop(1,ns))/(sigtop(1,ns)+1e-30))
-               print*,'Setting SIGTOP to SIGT'
-               sigtop(1,ns) = sigt
+c$$$               print*,'Setting SIGTOP to SIGT'
+c$$$               sigtop(1,ns) = sigt
             endif 
          endif
 c$$$         eigmod = esum1
@@ -568,7 +588,7 @@ c$$$            eigmod = eigmod - pi / 2.0
 c$$$         enddo 
 
 c$$$         esum(ns) = eigmod
-         do nchi = 1, 1 !lent
+         do nchi = 1, lent
             print '(''N='',i6,'' Rcond:'',1p,e9.2, '', Eigphase sums:'',
      >         0p,2f9.4,i3,'' test:'',10i2)',
      >         nds,rcond(ns),eigmod,esum(ns),n,(nmpow(err(nchf,nchi)),
@@ -946,6 +966,9 @@ c$$$      if (projectile.eq.'photon') n = n + 1
 c$$$            print*,'energies for B IV'
             enlevel = 2091972.0
             enion = 259.3715
+         elseif  (nzasym.eq.4) then !C V
+            enlevel = 3 162 423.60
+            enion = enlevel / 8 065.73
          elseif (nzasym.eq.8) then ! Ne IX
             enlevel = 9644957  ! cm-1
             enion = 1195.822   ! eV
@@ -1969,14 +1992,14 @@ C The following stops overflows in single precision
          do while (rpow2(istartrp(lna),lna).gt.1.0/expcut)
             istartrp(lna)=istartrp(lna)+1
          end do
-         if (exists) then
-            write(stringtemp,'(i2,"_rpow")') lna              
-            open(42,FILE=adjustl(stringtemp))
-            do i = istartrp(lna), istoprp(lna)
-               write(42,*) rmesh(i,1), rpow1(i,lna), rpow2(i,lna)
-            enddo
-            close(42)
-         endif
+c$$$         if (exists) then
+c$$$            write(stringtemp,'(i3,"_rpow")') lna              
+c$$$            open(42,FILE=adjustl(stringtemp))
+c$$$            do i = istartrp(lna), istoprp(lna)
+c$$$               write(42,*) rmesh(i,1), rpow1(i,lna), rpow2(i,lna)
+c$$$            enddo
+c$$$            close(42)
+c$$$         endif
       end do 
       end if
       end
@@ -2317,7 +2340,7 @@ C     npoints, endk, npoints2, endk2, nendk, endp, midnp, width
       dimension sk(0:10), nk(10)
       nmin(npoints) = min(npoints/2,4)
       
-      if (midnp.lt.0) then
+      if (midnp.lt.0.or.rk.eq.0.0) then
          if (rk.gt.endk2) stop 'On shell point in third interval'
          nk(1) = np
          sk(1) = endk
@@ -3409,6 +3432,8 @@ c$$$     >      test,dk,startk,stopk,nmin
       err = 1d-12
 #endif
       stopkold = -1.0
+      stopkorig = stopk
+      it = 0
       do while (abs(test).gt.err.and.stopkold.ne.stopk)!.and.dk/stopk.gt.err)
          stopkold = stopk
          if (test.gt.0.0) then
@@ -3430,8 +3455,14 @@ c$$$     >      test,dk,startk,stopk,nmin
          do n = 1, nt
             test = 2.0 * ww(n)/(e - xx(n)**2) + test
          enddo
-c$$$         print*,'stopk,test:',stopk,test
+         if (abs(stopk/stopkorig-1.0).gt.0.5) then
+            print"('RK too small? RK, STOPK, IT:',2f10.5,i10)",
+     >         rk,stopk,it
+            stop 'Could not determine STOPK. Is RK too small?'
+         endif 
+c$$$         print*,'rk,stopk,test,dk,it:',rk,stopk,test,dk,it
          if (test*testold.lt.0.0) dk = dk / 2.0
+         it = it + 1
       enddo 
       return
       end
@@ -3511,6 +3542,8 @@ c$$$      dimension chil(meshr,npk(nchtop+1)-1,2),minchil(npk(nchtop+1)-1,2)
       common /chanen/ enchan(knm)
       common /debye/dbyexists, dblp, rmudeb, zdby
       logical::dbyexists,exists
+      common /bignc/bign !only used for DW matching at zero energy, typically 1e9
+
 C     cray compiler bug workaround
       character ch2      
 C     Added by Alex
@@ -3541,12 +3574,13 @@ c$$$      if (analytic) then
 c$$$         open(42,file = "analytic")
 c$$$         read(42,*) nbox
 c$$$         close(42)
-         kmaxgf = 0
-         do nch = 1, nchtop
-            if (npk(nch+1)-npk(nch).gt.kmaxgf)kmaxgf=npk(nch+1)-npk(nch)
-         enddo
-         if (allocated(c)) deallocate(c)
-         allocate(c(maxr,kmaxgf))    ! Form routine expects maxr
+
+      kmaxgf = 0
+      do nch = 1, nchtop
+         if (npk(nch+1)-npk(nch).gt.kmaxgf)kmaxgf=npk(nch+1)-npk(nch)
+      enddo
+      if (allocated(c)) deallocate(c)
+      allocate(c(maxr,kmaxgf))  ! Form routine expects maxr
 c$$$      endif 
       if (allocated(gf)) deallocate(gf)
       allocate(gf(kmaxgf,kmaxgf,nchtop))
@@ -3591,6 +3625,8 @@ c$$$            print*,'Added VDCORE to DWPOT:',utemp(1)*rmesh(1,1)
          psib(:,l)%min = 1
          psib(:,l)%max = 0
          if (nbnd(l).gt.0) then
+            if (nodeid.eq.1)
+     >         print'(/,"Projectile bound states: DWPOT=0 for L:",i3)',l
             do n = l+1, nbnd(l)+l !min(nnbtop,nnbm)
                psib(n,l)%radial(1:maxr) = 0.0
                call rnl(nz,n,l,psib(n,l)%radial,psib(n,l)%en,
@@ -3605,10 +3641,10 @@ c$$$            print*,'Added VDCORE to DWPOT:',utemp(1)*rmesh(1,1)
             enddo
             if (l.gt.ldw.and.npsbndin.lt.0) then
                psibd(:,l) = psib(:,l) ! use exact eigenstates
-               nps = - npsbndin 
+               nps = -npsbndin - l
             else 
-               nps = abs(npsbndin) !-l
-               alpha = abnd(l)
+               nps = abs(npsbndin) - l
+               alpha = abs(abnd(l))
                if (nbnd(l).gt.nps) then
                   print*,'CAUTION:l,nbnd(l),nps:',
      >               l,nbnd(l),nps
@@ -3620,9 +3656,13 @@ c$$$                  alpha = max(abnd(l),alpha*1.1)
 c$$$               endif
                torf = .false.
 !               if (alpha.lt.10.0*(zasym+1)) then !.or.zasym.eq.-1.0) then
-               niter = 50
+               if (abnd(l).gt.0.0) then
+                  niter = 0
+               else
+                  niter = 50
+               endif
                scale = 1.0
-               if (alpha.gt.0.0) then
+               if (alpha.lt.10.0) then
                   if (nodeid.eq.1)
      >            print'("Projectile diagonalisation: L, N, al",2i4,
      >            f10.5)', l,nps,alpha
@@ -3722,7 +3762,7 @@ c$$$            print*,   'n,l,end        ',n,l,psibd(n,l)%en
       enddo
       trat = 1.0
       if (itail.lt.0) then
-         trat = rmesh(meshr,1)/(1-itail) !gk(1,1)/qcut*rmesh(meshr,1)
+         trat = -rmesh(meshr,1)/itail !gk(1,1)/qcut*rmesh(meshr,1)
          if (nodeid.eq.1) print'("Rtail, max ktail:",2f6.1)',
      >      rmesh(meshr,1)*rmesh(meshr,1)/trat,qcut*trat/rmesh(meshr,1)
       endif 
@@ -3965,7 +4005,7 @@ C  Having defined the bound states we now define the distorted waves
 C$OMP parallel do default(private)
 C$OMP& shared(npk,nbndm,nch,zeff,gk,meshr,rmesh,u,cntfug,l,ldw,jdouble,
 C$OMP& id,regcut,expcut,pi,etot,wk,ea,nze,zasym,vdcore,ui,nt,phasel,ll,
-C$OMP& minchil,chil,rphase,nqm,sigma,summax,itail,trat,qcut,psi,
+C$OMP& minchil,chil,rphase,nqm,sigma,summax,itail,trat,qcut,psi,bign,
 C$OMP& maxpsi)reduction(+:testc)
          do k = 1, npk(nch+1) - npk(nch) - nbndm
             kp = npk(nch) + k - 1
@@ -4025,12 +4065,20 @@ c$$$                  enddo
 c$$$                     write(66,'(5e12.4)') rmesh(i,1),tmp,temp(i),
 c$$$     >                  chitemp(i),utemp(i)
                   enddo
-                  test = -aimag(phasel(k,nch)) * sqrt(en) / 2.0 / tmp
 c$$$                  print*,'SIG, SIGC:',sig,sigc
 c$$$                  print*,'phase,phasel:',phase,phasel(k,nch)
-c$$$                  print'("NCH, l, En, test and T dist:",
-c$$$     >               i4,i3,f7.3,f7.4,1p,2e13.4)', nch, l, en, test,
-c$$$     >               tmp*2.0/pi/en*phasel(k,nch)*sig**2
+                  if (en.eq.0.0) then !bign is large only at zero energy (for neutrals)
+                     dive = 1.0
+                     test = -aimag(phasel(k,nch)) * bign / 2.0 / tmp
+                  else
+                     dive = en
+                     test = -aimag(phasel(k,nch)) * sqrt(en) / 2.0 / tmp
+                  endif
+!                  if (nch.eq.1)
+                  print'("NCH, l, gk, TDIST, ratio:",
+     >               i4,i3,f7.4,1p,4e13.4)', nch, l, sqrt(en),
+     >               tmp*2.0/pi*phasel(k,nch)*sig**2/dive,
+     >               test*tmp*2.0/pi*phasel(k,nch)*sig**2/dive
                   if (abs(test-1.0).gt.0.1.and.nodeid.eq.1) 
      >               print*,'Caution distorted waves are inaccurate',
      >               tmp,-aimag(phasel(k,nch)) * sqrt(en) / 2.0
@@ -4221,8 +4269,8 @@ c$$$                  do i = minchil(kp,2), meshr
 c$$$                     chil(i,kp,2) = fac*(real(phasel(k,nch))*temp(i) +
 c$$$     >                  imag(phasel(k,nch))*tempi(i)) * rmesh(i,3)
 c$$$                  enddo
-                  if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
-     >               chil(minchil(kp,2):meshr,kp,2)*rmesh(meshr,1)/trat
+c$$$                  if (en.eq.0.0) chil(minchil(kp,2):meshr,kp,2) =
+c$$$     >               chil(minchil(kp,2):meshr,kp,2)*rmesh(meshr,1)/trat
 c$$$                  if (k.eq.1)
 c$$$     >               print'("K,ENTAIL,TRAT,MINCHIL:",1p,3e10.2,i7,a4)',
 c$$$     >               gk(k,nch),entail,trat,minchil(kp,2),chan(nt)
@@ -4530,7 +4578,18 @@ c$$$     >               chil(i,kp,1)/rmesh(i,3),kp=2,npk(nch+1)-npk(nch),10)
 c$$$               enddo 
             close(42)
             if (nodeid.eq.1) print*,'Written:',stringtemp
-         endif 
+         endif
+
+C  Divide the projectile waves by sqrt(gk), except when gk = 0
+c$$$         if (npk(nch+1)-npk(nch).gt.0) then !this is for the second call to makechil only
+c$$$            do k = npk(nch), npk(nch+1)-1
+c$$$               if (gk(k-npk(nch)+1,nch).gt.0.0) then
+c$$$                  do i = minchil(k,1), meshr
+c$$$                     chil(i,k,1)=chil(i,k,1)/sqrt(gk(k-npk(nch)+1,nch))
+c$$$                  enddo
+c$$$               endif
+c$$$            enddo
+c$$$         endif 
 ! As a check, plot 'chil.out' u 1:n, 'chiltail.out' u 1:n
 ! chiltail should start after chil ends
       inquire(file='waves',exist=exists)
@@ -4541,7 +4600,12 @@ C        cray compiler bug workaround
 !         write(stringtemp,'(i3,"_chil_",a)') lg,ch(nch)
          write(stringtemp,'(i3,"_chil_",a)') l,ch2              
          open(42,FILE=adjustl(stringtemp)) !'chil'//ch(lg)//'_'//ch(nch))
-         write(42,'("#",13x,1000F7.3)')
+         if (zasym.eq.0.0) then
+            write(42,'("# For en=k^2>0, scales with 1/k**(L+1)")')
+         else
+            write(42,'("# For en=k^2>0, scales with 1/sqrt(k)")') !no L-dependence
+         endif
+         write(42,'("# phases ->   ",1000F7.3)')
      >      (phasel(k,nch),k=1,npk(nch+1)-npk(nch))
          write(42,'("# en(Ry) ->   ",1p,1000E14.4)')
      >      (gk(k,nch)*abs(gk(k,nch)),k=1,npk(nch+1)-npk(nch))

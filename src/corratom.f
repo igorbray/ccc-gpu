@@ -10,7 +10,7 @@ C          grid   - r-grid to calculate wavefunctions on it.
       include 'par.f'
       include 'paratom.f'
       PARAMETER (Ncf = 20)
-      REAL*8 XN
+      REAL*8 XN, zero
       
       common/meshrr/ meshr,rmesh(maxr,3)
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
@@ -109,7 +109,7 @@ c  Initialize CI variables
        do l = 0, Nc
           do n = 1, Nc
              do n1 = 1, Nc
-                CI(l, n, n1) = 0
+                CI(l, n, n1) = 0.0
              end do
           end do
        end do
@@ -158,8 +158,8 @@ C Lithium 2s/2p
 
 
        
-       if (nodeid.eq.1) write(6, 11) 'Total', S
- 11    FORMAT(A4, E20.4)
+       if (nodeid.eq.1) write(6, 11) 'Tot:', S
+ 11    FORMAT(A4, 1p, E20.4)
 ! 11    FORMAT(A4, E20.7)       
                           
       OPEN(2,FILE=filnam,FORM='UNFORMATTED',STATUS='OLD')
@@ -193,6 +193,8 @@ c$$$         CALL TAPE(R5,XN,ZERO,IZCH,NE,IN,2)
 !            write(100+10*l+n,'(F9.4,E12.4)') r7(i),r2(i)
             wa(i, l, n) = r2(i)
          end do
+
+!         print*,'nodeid,j, l, n, wa(1,l,n):',nodeid,j, l, n, wa(1,l,n)
 
 C Significant number of radial points
 

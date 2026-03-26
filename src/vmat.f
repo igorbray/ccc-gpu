@@ -433,24 +433,32 @@ c$$$     >              states(n-1)%energy,states(n)%la,states(n)%energy
      >   nsmax,nchtop)
       include 'par.f'
       common/meshrr/ meshr,rmesh(maxr,3)
-      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax)
-      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax)
-      dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
-     >          npk(nchan+1)
-!      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
-      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax),ve2e(nf,ni), 
-     >   temp(maxr), ovlpf(kmax),ovlpkf(kmax), theta(0:lamax)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       common /psinbc/ enpsinb(nnmax,0:lnabmax),
      >   psinb(maxr,nnmax,0:lnabmax),maxpsinb(nnmax,0:lnabmax)
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
+      dimension chii(meshr,nqmi),minchii(nqmi),gki(kmax)
+      dimension chif(meshr,nqmf),minchif(nqmf),gkf(kmax)
+      dimension psii(maxr), psif(maxr), uf(maxr,nchan), ui(maxr), 
+     >          npk(nchan+1)
+!      real vmatt(kmax,kmax,0:1,nchtop),ve2e(nf,ni), temp(maxr),
+      real vmatt(nqmfmax,nqmfmax,nchi:nchtop,0:nsmax),ve2e(nf,ni), 
+     >   temp(maxr), ovlpf(kmax),ovlpkf(kmax)!, theta(1:natop(0))
+      logical exists
 
+      thetaterm = thetain
+
+c$$$      print*,'ni,nf,thetaterm:',ni,nf,thetaterm
+
+c$$$      do na = nabot(0),natop(0)
+c$$$         print*,'n,theta:',na,thetaterm
+c$$$      enddo
 c$$$      if (thetain.ge.0.0) then !all channels
-         do la = labot, latop
-            theta(la) = thetain
-         enddo
+c$$$         do la = labot, latop
+c$$$            theta(la) = thetain
+c$$$         enddo
 c$$$      else ! Does not work in any advantageous way
 c$$$         theta(labot:latop) = 0.0
 c$$$         if (gkf(1).gt.0.0.and.gki(1).gt.0.0) then ! open channels only
@@ -464,16 +472,16 @@ c$$$         do la = labot, latop
 c$$$            theta(la) = float(la+1) / 3.0
 c$$$         enddo
 c$$$      endif 
-      if(li.eq.lf.and.lia.eq.lfa.and.li.le.latop.and.thetain.ne.0.0)then
-         ovlp = 0.0
-         do i = 1, min(maxpsif,maxpsii)
-           ovlp = ovlp + psii(i) * psif(i) * rmesh(i,3)
-         enddo
-         tmp = - ovlp * const * etot * theta(li) / 2.0
+      if (nchf.eq.nchi.and.li.le.latop.and.thetain.ne.0.0) then
+c$$$      if(li.eq.lf.and.lia.eq.lfa.and.li.le.latop.and.thetain.ne.0.0)then
+c$$$         ovlp = 0.0
+c$$$         do i = 1, min(maxpsif,maxpsii)
+c$$$           ovlp = ovlp + psii(i) * psif(i) * rmesh(i,3)
+c$$$         enddo
+c$$$         tmp = - ovlp * const * thetaterm * 0.5 ! * etot !per Thomas Gomez with etot for B&S
+         tmp = - const * thetaterm * 0.5 ! * etot !per Thomas Gomez with etot for B&S
          do n = nabot(li), natop(li)
             ep = enpsinb(n,li)
-C  The following form isn't coded correctly, but can be made to work
-cCCC  tmp = ovlp * const * (ei + ep - etot) / 2.0 * theta(lfa)
             do kf = 1, nqmf
                ovlpf(kf) = 0.0
                do i = 1, maxpsinb(n,li)
@@ -486,6 +494,10 @@ cCCC  tmp = ovlp * const * (ei + ep - etot) / 2.0 * theta(lfa)
                do i = 1, maxpsinb(n,li)
                   ovlpi = ovlpi + psinb(i,n,li) * chii(i,ki)
                enddo
+c$$$C$OMP critical
+c$$$               write(nchi*10+n,'(1p,2e12.3)') gki(ki),
+c$$$     >            tmp*ovlpi*ovlpf(ki)
+c$$$C$OMP end critical               
                do 5 kf = 1, nqmf
 
 cCCC                  tmp = ovlp * const * (abs(gkf(kf)) * gkf(kf) + ep
@@ -577,16 +589,18 @@ c$$$     >            etotnew = 0.0
 C  The following line is Andris's second guess to implement step function SDCS
 c$$$               if (nchi.eq.nchf.and.ei.gt.etot/2.0.and.ei.lt.etot)
 c$$$     >            etotnew = 0.0
-               eterm = 0.5 * (eki + ekf - etotnew * (1.0 - theta(lia)))
-c$$$               eterm = eterm * thetain !testing only with theta(l)=0.0
+c$$$  eterm = 0.5 * (eki + ekf - etotnew * (1.0 - theta(lia)))
 
+               eterm = 0.5 * (thetaterm + eki + ekf - etotnew ) !per Thomas Gomez
+c$$$               eterm = eterm * thetain !testing only with theta(l)=0.0
                
                tmp = eterm * ovlpi * ovlpf(kf) - ovlpki * ovlpf(kf) -
      >            ovlpkf(kf) * ovlpi
-
+!               tmp = 0.0 !test for Thomas Gomez
                
                if (nold.eq.0)
-     >            tmp = (ei + ef - etot * (1.0 - theta(lfa))) / 2.0 *
+c$$$     >            tmp = (ei + ef - etot * (1.0 - theta(lfa))) / 2.0 * !per Bray and Stelbovics
+     >            tmp = (ei + ef - etot + thetaterm) / 2.0 * !per Thomas Gomez
      >            ovlpi * ovlpf(kf)    
 cCCC     >            tmp = 0.5 * (ei + ef - etot) * ovlpi *
 cCCC     >            ovlpf(kf) * (1.0 - theta(lfa))
@@ -1516,7 +1530,7 @@ c$$$         close(42)
          do ki = 1, nqmi
             rk1 = gki(ki)
 C  Have not got the following t work for rk1=0.0
-            if (rk1.lt.0.0) cycle
+            if (rk1.le.0.0) cycle
 c$$$            if (rk1.gt.0.0.and.abs(aimag(phasei(ki))).le.small) then
 c$$$               n1 = rk1*rmesh(meshr,1)/2d0/pi
 c$$$               d =  rk1*rmesh(meshr,1) - 2d0*n1*pi 
@@ -1532,7 +1546,7 @@ c$$$     >         sin(rk1*rmesh(meshr,1)+d),chii(meshr,ki)/rmesh(meshr,3)
                n = meshr - mini + 1
                rk2 = gkf(kf)
 C  Have not got the following t work for rk2=0.0
-               if (rk2.lt.0.0) cycle
+               if (rk2.le.0.0) cycle
 c$$$                  if(rk2.gt.0.0.and.abs(aimag(phasef(kf))).le.small)then
 c$$$               it = it + 1
                ztormax = 0.0
@@ -1758,11 +1772,13 @@ C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
       call getchinfo (nch, ntmp, lg, psi, maxpsi, ea, la, na, li)
       if (nch.eq.0) stop 'NCH = 0 in KGRID'
 C  The following is a loop of the form REPEAT ... UNTIL(condition)
- 10   e = etot - ea ! Ry
+ 10   e = etot - ea             ! Ry
+      if (abs(e).lt.1e-15) e = 0.0
       EeV = e * 13.6058
       posfac = 1.0
       if (positron(na,la,npos)) posfac = 2.0
       e = e * posfac
+c$$$      print*,'kgrid e,etot:',e,etot
       if (e.ge.0.0) then
          rk = sqrt(e)
       else
@@ -1775,12 +1791,12 @@ c$$$      if (analytic.and.EeV.ge.0.0.and.EeV.lt.1e-3) then !+ve energies for ex
 C analytic tail integrals have not been implemented for zero energy
 c$$$      if (analytic.and.abs(EeV).lt.1e-4*(2.0*li+1.0).and.itail.ge.0)then
 c$$$      if (analytic.and.abs(EeV).lt.1e-3*(2.0*li+1.0).and.ea.lt.0.0) then !.and.nch.gt.1)then         
-      if (analytic.and.ea.lt.0.0.and.-e/ea.lt.1e-4) then !.and.nch.gt.1)then    
-         print'("CAUTION: for NCH =",i3," L =",i2,
-     >   " setting on-shell E (eV) to zero:",1p,e10.2)',nch,li,EeV
-         rk = 0d0
-         e = 0d0
-      endif 
+c$$$      if (ea.lt.0.0.and.abs(e).lt.1e-5) then !.and.nch.gt.1)then    
+c$$$         print'("CAUTION: for NCH =",i3," L =",i2,
+c$$$     >   " setting on-shell E (eV) to zero:",1p,e10.2)',nch,li,EeV
+c$$$         rk = 0d0
+c$$$         e = 0d0
+c$$$      endif 
       if (analytic) print*,'Analytical GF used for channel:',nch
       nqk = 0
       lset = li
@@ -1858,7 +1874,7 @@ c$$$      if (.not.analytic) call makeints(mint,sk,nk,rk,npoints,width,
       call makeints(mint,sk,nk,rk,npoints,width,
      >   midnp,enk,nendk,endp,npoints2,endk2)
 c$$$      if (.not.analytic) then
-      if (midnp.lt.0) then
+      if (midnp.lt.0.and.rk.gt.0.0) then
          dstop = 0d0
          do j=1,mint-1
             nt=nk(j)
@@ -2159,8 +2175,8 @@ c$$$      close(60+nch)
       if (ispeed.eq.2) go to 40
 C  Check that the integration rule will handle the principle value singularity
       j=1
-      if (e.gt.0.0) then
-         if (nqk.gt.0) then
+      if (e.ge.0.0) then
+         if (nqk.gt.0.and.rk.gt.0.0) then
             sum=0.0
             nt=0
             do while (sk(j).lt.rk-0.01.and.j.lt.mint)
@@ -2300,6 +2316,7 @@ c$$$                        wk(kp) = - e * sum - cmplx(0.0, pi * rk)
 C     The T(kf,ki) matrix has been divided by KF and KI
             if (abs(rk-gridk(i-1)).gt.1e-5) then
                wk(kp) = 2.0 * weightk(i-1)/(e - ek) ! * posfac
+!               wk(kp) = wk(kp) * gk(i,nch) ! divided projectile waves by sqrt(gk)
             else
                wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
                print*,'Dropped GF for rk/k:',rk/gridk(i-1)

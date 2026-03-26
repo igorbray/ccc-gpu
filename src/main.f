@@ -82,6 +82,7 @@ c$$$      COMMON/dipole1/ dr1(kmax,nchan),dv1(kmax,nchan),dx1(kmax,nchan)
       integer lmatch(0:lamax), nopen(0:1), instate(1000)
       common /radpot/ ucentr(maxr)
       common /double/id,jdouble(22)
+      common /bignc/bign         !only used for DW matching at zero energy, typically 1e9
       common/powers/ rpow1(maxr,0:ltmax),rpow2(maxr,0:ltmax),
      >   minrp(0:ltmax),maxrp(0:ltmax),cntfug(maxr,0:lmax)
       dimension chi(maxr), nchns(0:1,nchan,nchan),
@@ -370,6 +371,8 @@ C
       write(ench,'(1p,"_",e10.4)') energy
       if (myid.le.0) print*, 'nomp, nodes:',
      >   nomporig,nodes!,myid,nodeid
+      bign = 1.0
+      if (ldw.ge.0) bign = 1e9 ! only used for DW matching at zero energy (for neutrals)
 
 c
       call date_and_time(date,time,zone,valuesin)
@@ -511,18 +514,39 @@ c$$$      print*,'maxpot:',maxpot
          else 
             if (nodeid.eq.1) print*,'Will be using an MCHF ground state'
          endif
-         if(NZNUC.eq.3.and.ZASYM.eq.1.0) then
+         lithium = 0
+         if (NZNUC-nint(ZASYM).eq.2) then
             lithium = 1
-            if (nodeid.eq.1) print'(A)', 'DPI of lithium'
-         else if (NZNUC.eq.5.and.ZASYM.eq.3.0) then
-            lithium = 1
-            if (nodeid.eq.1) print'(A)', 'DPI of B++'
-         else if (NZNUC.eq.10.and.ZASYM.eq.8.0) then
-            lithium = 1
-            if (nodeid.eq.1) print'(A)', 'DPI of Ne7+'
-         else
-            lithium = 0
-         end if         
+            if (nodeid.eq.1) then
+               select case (nznuc)
+               case (3)
+                  print'(A)', 'DPI of lithium'
+               case (5)
+                  print'(A)', 'DPI of B++'
+               case (6)
+                  print'(A)', 'DPI of C3+'
+               case (7)
+                  print'(A)', 'DPI of N4+'
+               case (10)
+                  print'(A)', 'DPI of Ne7+'
+               case default
+                  print*,'unknown case, stopping'
+                  stop 'unknown target'
+               end select
+            endif
+         endif
+c$$$         if(NZNUC.eq.3) 
+c$$$            lithium = 1
+c$$$            
+c$$$         else if (NZNUC.eq.5.and.ZASYM.eq.3.0) then
+c$$$            lithium = 1
+c$$$            if (nodeid.eq.1) print'(A)', 'DPI of B++'
+c$$$         else if (NZNUC.eq.10.and.ZASYM.eq.8.0) then
+c$$$            lithium = 1
+c$$$            if (nodeid.eq.1) print'(A)', 'DPI of Ne7+'
+c$$$         else
+c$$$            lithium = 0
+c$$$         end if         
 c$$$         call     ATOM(rmax, meshr, rmesh)
 c$$$         if (ntype.eq.-3) then
 c$$$            call corrATOM(rmax, meshr, rmesh)
@@ -592,9 +616,9 @@ C MYID=0 writes the core states to disk, and the rest read.
                call MPI_SEND(myid, 1, MPI_INTEGER, nmpi, 
      >            0, MPI_COMM_WORLD, ierr )
             enddo
-            print*,'nodeid completed makecorepsi:',nodeid
+c$$$            print*,'nodeid completed makecorepsi:',nodeid
          else
-            print*,'nodeid read          corepsi:',nodeid
+c$$$            print*,'nodeid read          corepsi:',nodeid
          endif
 
 C  Get the direct core potential.
@@ -1172,13 +1196,13 @@ c$$$         if (nze.eq.1) stop 'set OVLPNL properly'
             nptop(:) = 0        ! no Ps states when calling He-like structure
 c$$$            print*,'calling mainhe with enion,enlevel:',enion,enlevel
             call mainhe(nmaxhe,namax,pnewC,ery,etot,
-     >           lastop,abs(nnbtop),ovlp,phasen,regcut,expcut,ry,
-     >           enion,enlevel,enionry,nchanmax,
-     >           ovlpnl,slowe,abs(ne2e),vdcore_st)
+     >         lastop,abs(nnbtop),ovlp,phasen,regcut,expcut,ry,
+     >         enion,enlevel,enionry,nchanmax,
+     >         ovlpnl,slowe,abs(ne2e),vdcore_st)
+            energy = ery*ry     ! for zero thresholds there is a minor energy reset
             nptop(0:lptop) = nptopin(0:lptop)
          endif
          nstmax = nmaxhe
-
       endif 
 c$$$      if (projectile.eq.'photon'.and.nabot(1).eq.3) then
 c$$$         nabot(1)=2             !anatoli
@@ -1311,7 +1335,7 @@ c$$$               if (-nptop(lp).eq.npsp(lp)) energystop = 0.0
             if (myid.le.0)
      >         print*,' l Np N      e(Ry)     e(eV)     ovlp      proj'
             do npos = npbot(lp), npsp(lp)!nptop(lp)
-               if (psen2(npos-lp).lt.etot) then
+               if (psen2(npos-lp).le.etot) then
                   opcl = 'open'
                else
                   opcl = 'closed'
@@ -1492,15 +1516,15 @@ C  UI contains that part of the distorting potential which will be subtracted
 C  off in calculating the first order matrix elements. U contains the 
 C  asymptotic, core, polarization, and ui potentials. It is used in
 C  defining the distorted waves.
-         if (npot.ge.0) then
+         if (npot.gt.0) then
             call potent(hlike,npot,lpot,nznuc,-1,ui)
          else
-            call potent(hlike,ninc,linc,nznuc,-1,ui)
-            alp = npot / 10.0 + 0.1
-            print*,'ALPHA:',alp
-            do i = 1, meshr
-               ui(i) = ui(i) * exp(alp*rmesh(i,1))
-            enddo
+c$$$            call potent(hlike,ninc,linc,nznuc,-1,ui)
+c$$$            alp = npot / 10.0 + 0.1
+c$$$            print*,'ALPHA:',alp
+c$$$            do i = 1, meshr
+c$$$               ui(i) = ui(i) * exp(alp*rmesh(i,1))
+c$$$            enddo
          endif 
 C  for helium, VASYMP and VDCORE should be zero
          do i = 1, meshr
@@ -1522,7 +1546,7 @@ c$$$            u(i) = vasymp(i) - nze *(ui(i) + 2.0 * vdcore(i,0))
 
       if (myid.le.0)
      >   print'(''Total energy of the collision system:'',
-     >   f13.4,'' eV ('',f11.4,'' Ryd )'')', ry * etot, etot
+     >   f14.5,'' eV ('',f12.5,'' Ryd )'')', ry * etot, etot
 C  Define continuum grid
 c$$$      if (natop(linc).gt.abs(nnbtop).and.ntstop.eq.2.and.nold.eq.0) then
 c$$$         if (abs(nnbtop)+ncstates.gt.ncmax) stop 'Need to INCREASE NCMAX'
@@ -1578,15 +1602,16 @@ c$$$      endif
       do while(n.ne.0)
          call getchinfo (n,nchp,0,temp,maxpsi,enpsi,la,na,lp)
          if (n.ne.0) then
+c$$$            if (abs(etot-enpsi).lt.1e-5) etot = enpsi
             if (myid.le.0)
-     >         print'(a8,'' scattering on '',a6,i3,a4,'' at'',f11.4,
-     >         '' eV ('',f11.4,'' Ryd )'')', projectile,target,
+     >         print'(a8,'' scattering on '',a6,i3,a4,'' at'',f12.5,
+     >         '' eV ('',f12.5,'' Ryd )'')', projectile,target,
      >         n,chan(n),ry * (etot - enpsi), etot - enpsi
-            if (etot.gt.enpsi) then
+            if (etot.ge.enpsi) then
                bothpar = bothpar .or. la .ge. 1
             endif 
             if (chan(n)(1:1).eq.' '.or.chan(n)(1:1).eq.'t') nsmax = 1
-            if (nentin.le.0.and.enpsi.lt.etot) then
+            if (nentin.le.0.and.enpsi.le.etot) then
                nent = n
             else if (n.eq.nentin) then
                n = 0
@@ -1641,10 +1666,10 @@ c$$$      endif
          print'("The two outgoing electron energies (eV) are:",2f10.4)',
      >   slowe(n), (etot - slowery(n)) * ry
       end do 
-      do icenergy=1,inoenergy
-         if (de.eq.0.0) energy=erange(icenergy) ! energy defined above for MPI
-         ery=energy/ry
-         etot = ery + enpsinb(ninc,linc)
+c$$$      do icenergy=1,inoenergy
+c$$$         if (de.eq.0.0) energy=erange(icenergy) ! energy defined above for MPI
+c$$$         ery=energy/ry
+c$$$         etot = ery + enpsinb(ninc,linc)
          write(ench,'(1p,"_",e10.4)') energy
 c$$$         if (myid.eq.-1) then
             tfile = 'potl'//ch(lstart)//ench
@@ -1669,12 +1694,11 @@ c$$$         endif
             stop 'bornstop found'
          endif
          call date_and_time(date,time,zone,valuesout)
-         print '(/,i4,": nodeid BornICS completed at: ",a10,
-     >      ", diff (secs):",i5)',nodeid,time,
+         print '(/,"Target states and BornICS completed at: ",a10,
+     >      ", diff (secs):",i5)',time,
      >      idiff(valuesin,valuesout)
          endif ! myid.le.0
-
-      enddo
+c$$$      enddo
       if (dbyexists) then       !for shielded H-like ions
          ui(1:meshr) = ui(1:meshr) + 2.0 * vdcore(1:meshr,0)
          vdcore(:,:) = 0.0
@@ -1917,7 +1941,9 @@ c$$$               print '("Partial wave LG:",i4," started at:",a10)',
 c$$$     >            LG,time
             endif
             if (mod(myid,nomp).eq.0) then
-               nodeid = myid/nomp + 1
+c$$$               print*,'1:MYID,NODEID,NOMP:',MYID,NODEID,NOMP
+c$$$               nodeid = myid/nomp + 1
+c$$$               print*,'2:MYID,NODEID,NOMP:',MYID,NODEID,NOMP
          nchtope2e = 0
          nchmaxe2e=1
          ne2e0 = 0
@@ -2019,16 +2045,16 @@ c
 c
 c$$$         do 775 icenergy=1,inoenergy
 c$$$            if (de.eq.0.0) energy=erange(icenergy)
-         energy = erange(1)
+c$$$         energy = erange(1)
 c
 c     calling the clock, to get an initial time for the energy loop
 c     and redefining the ery (energy in rydbergs) and the total
 c     energy.
 c
             call clock(timeenergy1)
-            ery=energy/ry
-            etot = ery + enpsinb(ninc,linc)
-
+c$$$            ery=energy/ry
+c$$$            etot = ery + enpsinb(ninc,linc)
+c$$$
             
             
 c$$$            if (lg.eq.lstart) then
@@ -2078,7 +2104,8 @@ c$$$     >      nodeid,time
          if (nchtop.gt.nchan) then
             print*,'increase NCHAN to at least NCHTOP:',nchan, nchtop
             stop 'increase NCHAN to at least NCHTOP'
-         endif 
+         endif
+         
          call date_and_time(date,time,zone,valuesout)
 c$$$         print '(/,i4,": nodeid exited KGRID at: ",a10,
 c$$$     >   ", diff (secs):",i5)',nodeid,time,
@@ -2366,7 +2393,8 @@ C  Define 1st Born matrix elements for subtraction in the cross program
                enddo
             enddo 
          enddo
-         
+c$$$         call nonuniqueness(hlike,nsmax,nchtop,lg)
+
          rmv = float((npk(nchtop+1)-1)) * (npk(nchtop+1)) ! * 4
          
          rmchi =  float(meshr) * (npk(nchtop+1)-1) ! * 4
@@ -2626,7 +2654,7 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
                print*,'Nodeid, reading: ',nodeid,nodetfile
  34            read(42,*,end=35,err=36) 
      >            lgold(ipar),iparold,nodeidold,ntimeold,n1, n2
-               if (ntimeold.lt.10*nodes) go to 36 !time too short to bother
+               if (ntimeold.lt.10) go to 36 !time too short to bother
                if (nodeidold.le.nodes) then !allocations above are for NODES
                   nchistartold(nodeidold,ipar) = n1
                   nchistopold(nodeidold,ipar) = n2
@@ -2882,7 +2910,8 @@ c$$$         if (ptrchi.eq.0) stop 'Not enough memory for CHI'
                      
          call clock(s1)
          valuesin = valuesout
-         firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw 
+         firstrun = zasym.ne.0.0.or.max(0,lg-latop).le.ldw
+         if (projectile.eq.'photon'.and.ldw.lt.0) firstrun=.false.
          if (firstrun) then !.and.projectile.ne.'photon') then !need 1st run to define DWPOT
             if (nabot(labot).gt.1) call core(0,nznuc,lg,etot,chil,
      >         minchil,nchtop,uplane,-1,vdcore_pr,minvdc,maxvdc,npkb,
@@ -3061,7 +3090,7 @@ c$$$                     print*,'nch,kn,k',nch,kn,gf(kn,kn,nch),real(wk(k))
             else
                inquire (file='sprint',exist=exists)
                if (exists) then
-                  print*,'CAUTION: sprint exists, T will be WRONG'
+                  print*,"CAUTION: sprint exists, T will be WRONG"
                else
                   call vmatfromgf(gf,kmaxgf,npk,vmat,
      >             1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
@@ -3158,7 +3187,6 @@ c$$$     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,
             call clock(s2)
             t2nd = s2 - s1
          else
-           print*,'nodeid calling scattering:',nodeid,nchistart,nchistop
             call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
      >         nze,td,te1,te2,t2nd,vdondum,
@@ -3857,7 +3885,7 @@ C Check if the radial grid is already on disk, and stop if changed
       common/smallr/ formcut,regcut,expcut,fast, match
       logical fast, match
       dimension chi(maxr),ovlpnl(ncmax,0:lamax,nnmax)
-      character opcl*10
+      character opcl*10, ench1*11,ench2*11
       complex phase,ovlpnl
       common /there1Cowan/ there1
       logical there1
@@ -4025,6 +4053,7 @@ C  Here for Hg-like targets
       if (l.eq.linc.and.ninc.lt.nstart) nstart = ninc
       dppoltot = 0.0
       dppoltotm = 0.0
+      if (nold.eq.0.and.natop(l).eq.0) natop(l)=min(abs(nnbtop), nnmax)
       do n = nstart, min(abs(nnbtop), nnmax)
          if (nznuc-nint(zasym).eq.1) then
 C  We are here for hydrogen like ions as well as hydrogen
@@ -4045,7 +4074,16 @@ c$$$         end if
          ovlpnl(n,l,n) = tsum
          elevel = (enpsinb(n,l) * ry + enion) * 
      >      enlevel / enion
-         if (ery+enpsinb(ninc,linc)-enpsinb(n,l).gt.0.0)
+c$$$         write(ench1,'(1p,"_",e10.4)') ery*ry
+c$$$         write(ench2,'(1p,"_",e10.4)')
+c$$$     >      (-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+c$$$         print*,ench1,ench2,ery*ry,(-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+c$$$         if (ench1.eq.ench2) then
+c$$$            print*,'Changing incident energy from, to:',ery*ry,
+c$$$     >         (-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+c$$$            ery = -enpsinb(ninc,linc)+enpsinb(n,l)
+c$$$         endif
+         if (ery+enpsinb(ninc,linc)-enpsinb(n,l).ge.0.0)
      >      then
             opcl = 'open'
          else
@@ -4128,7 +4166,7 @@ c$$$      use psinc_module
       dimension chi(maxr),vdcore(maxr),als(ncmax),vasymp(maxr),
      >   ovlpnl(ncmax,0:lamax,nnmax), slowe(ncmax),temp(maxr),
      >   vnucl(maxr),ovlp(ncmax,0:lamax),ovlpp(ncmax,ncmax),nsum(10)
-      character opcl*10,chin*1,sumfile*4
+      character opcl*10,chin*1,sumfile*4,ench1*12,ench2*12
       complex phasen(ncmax,0:lamax),phase,sigc,ovlpnl
       save etot
       common /relcorsetup/ iih_local_pot
@@ -4538,7 +4576,7 @@ C  Define the projections of the pseudostate onto the discrete eigenstates
          ovlp(n,l) = 0.0
          ovlpnl(n,l,:) = 0.0
          ovlpnl(n,l,nabot(l)) = 1.0
-         do ne = nabot(l), max(nabot(l),abs(nnbtop))
+         do ne = nabot(l), max(nabot(l),abs(nnbtop)) ! n,n for direct overlaps only
             sum = 0.0
             do i = 1, min(istoppsinb(ne,l),maxps2(n-l))
                sum = sum + psinb(i,ne,l) * ps2(i,n-l) * rmesh(i,3)
@@ -4745,7 +4783,22 @@ c$$$            endif
          endif 
          elevel = (enpsinb(n,l) * ry + enion) * 
      >      enlevel / enion
-         if (ery+enpsinb(ninc,linc)-enpsinb(n,l).gt.0.0) then
+         write(ench1,'(1p,"_",e11.5)') ery*ry
+         write(ench2,'(1p,"_",e11.5)')
+     >      (-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+!         print*,ench1,ench2,ery*ry,(-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+         if (ench1.eq.ench2) then
+            etot = enpsinb(n,l)
+            ery = etot - enpsinb(ninc,linc)
+!            ery = -enpsinb(ninc,linc)+enpsinb(n,l)
+            energy = ery * ry
+            print*,'Changing incident and total energies (eV) to:',
+     >         energy,etot*ry
+c$$$     >         (-enpsinb(ninc,linc)+enpsinb(n,l))*ry,
+c$$$     >         enpsinb(n,l)*ry
+         endif
+
+         if (ery+enpsinb(ninc,linc)-enpsinb(n,l).ge.0.0) then
             opcl = 'open'
          else
             opcl = 'closed'
@@ -4814,10 +4867,10 @@ C  is used in case all channels are open, but input latop < 0.
       inquire(file='waves',exist=exists)
       if (exists) then
          open(42,file=char(l+ichar('0')))
-         write(42,'("#",7x,100f12.5)')
+         write(42,'("#       r / e(eV)",100f18.6)')
      >      (ry*enpsinb(n,l),n=nabot(l),natop(l)) !nsmall+l,nsmall+l)
-         do i = 1,istoppsinb(natop(l),l),10
-            write(42,'(i5,1p,100e12.4)') i, rmesh(i,1),
+         do i = 1,istoppsinb(natop(l),l),1
+            write(42,'(i5,1p,100e18.10)') i, rmesh(i,1),
      >         (psinb(i,n,l),n=nabot(l),natop(l)) !nsmall+l,nsmall+l)
          enddo
          close(42)
@@ -5879,3 +5932,110 @@ c$$$         if (nodeid.eq.1) print*,'ntm:',ntm,nodet(ntm)
       endif
       return
       end
+
+      subroutine nonuniqueness(hlike,nsmax,nchtop,lg)
+      include 'par.f'
+c$$$      common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
+c$$$     >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
+c$$$     >   npbot(0:lamax),nptop(0:lamax),itail,iborn
+      logical hlike
+      common/meshrr/ meshr,rmesh(maxr,3)
+      dimension psi_t(maxr,nchtop),temp1(maxr),temp2(maxr)
+      dimension maxpsi_t(nchtop),la_t(nchtop),e_t(nchtop),
+     >   na_t(nchtop),l_t(nchtop),npos_t(nchtop),nt_t(nchtop)
+
+      CHARACTER          JOBU, JOBVT
+      INTEGER            INFO, LDA, LDU, LDVT, LWORK, M, N
+*     ..
+*     .. Array Arguments ..
+      dimension A( nchtop*nchtop, nchtop*nchtop ), S( nchtop*nchtop ), 
+     >   U(nchtop*nchtop,nchtop*nchtop),VT(nchtop*nchtop,nchtop*nchtop),
+     >   WORK(5*nchtop*nchtop)
+
+      jobu = 'N'
+      jobvt = 'S'
+      if (hlike) then
+!$omp parallel do private(nch,nt) schedule(dynamic)
+!$omp& shared(nchtop,lg,psi_t,maxpsi_t,e_t,la_t,na_t,l_t)
+         do nch = 1, nchtop
+            call getchinfo(nch,nt_t(nch),lg,psi_t(1,nch),maxpsi_t(nch), 
+     >         e_t(nch), la_t(nch), na_t(nch),l_t(nch))
+            npos_t(nch)=0
+!            pos(nch)=positron(na_t(nch),la_t(nch),npos_t(nch)) 
+         end do
+!$omp end parallel do
+
+!         print*,'nchtop,lg,ns:',nchtop,lg,nsmax
+         do ns = 0, nsmax
+            print*,'S:',ns
+            print*,'Matrix A:'
+            ni = 0
+            do nchi1 = 1, nchtop
+               temp1(1:maxpsi_t(nchi1)) = psi_t(1:maxpsi_t(nchi1),
+     >            nchi1) * rmesh(1:maxpsi_t(nchi1),3)
+               do nchi2 = 1, nchtop
+                  temp2(1:maxpsi_t(nchi2)) = psi_t(1:maxpsi_t(nchi2),
+     >               nchi2) * rmesh(1:maxpsi_t(nchi2),3)
+                  ni = ni + 1
+                  nf = 0
+                  do nchf1 = 1, nchtop
+                     do nchf2 = 1, nchtop                        
+! Direct
+                        nf = nf + 1
+                        max1 = min(maxpsi_t(nchf1),maxpsi_t(nchi1))
+                        sum1 = dot_product(psi_t(1:max1,nchf1),
+     >                     temp1(1:max1))
+                        max2 = min(maxpsi_t(nchf2),maxpsi_t(nchi2))
+                        sum2 = dot_product(psi_t(1:max2,nchf2),
+     >                     temp2(1:max2))
+!                        print*,'sum1,sum2:',sum1,sum2
+! Exchange
+                        max3 = min(maxpsi_t(nchf1),maxpsi_t(nchi2))
+                        sum3 = dot_product(psi_t(1:max3,nchf1),
+     >                     temp2(1:max3))
+                        max4 = min(maxpsi_t(nchf2),maxpsi_t(nchi1))
+                        sum4 = dot_product(psi_t(1:max4,nchf2),
+     >                     temp1(1:max4))
+!                        print*,'sum3,sum4:',sum3,sum4
+!                        print*,'nchf2,nchf1,nchi2,nchi1,A:',nchf2,nchf1,
+!     >                     nchi2,nchi1,sum1*sum2+(-1)**ns*sum3*sum4
+                        a(nf,ni) = sum1*sum2 + (-1)**ns*sum3*sum4 !nf*10+ni
+                        print ('(i3,$)'),nint(a(nf,ni))
+                     enddo
+                  enddo
+                  print*
+               enddo
+            enddo
+#ifdef _single
+            call SGESVD(jobu,jobvt,nchtop*nchtop,nchtop*nchtop,a,
+     >         nchtop*nchtop,s,u,nchtop*nchtop,vt,nchtop*nchtop,
+     >         work,5*nchtop*nchtop,info)
+#elif defined _double
+            call DGESVD(jobu,jobvt,nchtop*nchtop,nchtop*nchtop,a,
+     >         nchtop*nchtop,s,u,nchtop*nchtop,vt,nchtop*nchtop,
+     >         work,5*nchtop*nchtop,info)
+#endif
+            print*,'DGESVD, S:',(S(nch),nch=1,nchtop*nchtop)
+            a(:,:) = 0.0
+            do nf = 1, nchtop*nchtop
+               do ni = 1, nchtop*nchtop
+                  do nch = 1, nchtop*nchtop
+                     if (abs(S(nch)).gt.1e-10) cycle
+                     a(nf,ni) = a(nf,ni) + vt(nch,nf)*vt(nch,ni)
+                  enddo
+               enddo
+            enddo 
+            do nf = 1, nchtop*nchtop
+               print ('(i3,$)'),(nint(a(nf,ni)*2.0),ni=1,nchtop*nchtop)
+!               do ni = 1, nchtop*nchtop
+!                  print*,'nf,ni,Xi:',nf,ni,nint(a(nf,ni)*2.0)
+!               enddo
+               print*
+            enddo 
+            print*
+         enddo                  !ns
+      else
+      endif
+      return
+      end
+      

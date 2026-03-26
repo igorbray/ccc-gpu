@@ -920,6 +920,7 @@ c     do 25 ni1=1,nspmi
 c     
 c     remove instabilities in the frozen core model 
                   cth = 1.0
+                  theta1 = 0.0
                   if(theta .ne. 0.0 
      >                 .and. abs(theta) .lt. 100.0 ) then
 c     Conditions for ni1 and ni2:
@@ -957,10 +958,12 @@ c                     if(ni2 .ne. 1 .and. nf1 .gt. nicm) then
 c
 
                      if(nuinc) then 
-                        cth = 1.0 - theta ! FC model 
+                        cth = 1.0 - theta ! FC model
+                        theta1 = theta
                      endif
                   elseif( abs(theta) .ge. 100.0) then
                      cth =  1.0 - mod(theta,100.0) ! full CI model
+                     theta1 = mod(theta,100.0)
                   else
 c     No attempts to fix nonuniqueness but, do a little thing:
 c     remove nl-nl-nl components, due to the orthogonality of the ionic core
@@ -980,8 +983,8 @@ c$$$  if (lsi.eq.1.and.nf1.eq.1) cth = 1.0
                      ange0 = ange0 .and. Ang(kf) .eq. 0.0
                      if (Li.eq.lf1) then
                         Ang2(kf) = Ang2(kf) + Ang1*(R0 *
-     >                     (Etot * cth -
-     >                     gridk(kf,nchf)*abs(gridk(kf,nchf))/2.)-
+     >                     (Etot - theta1 !* cth 
+     >                     -gridk(kf,nchf)*abs(gridk(kf,nchf))/2.)-
      >                     flchil(kff,ni1))*ortint(nf2,ni2)
                      endif 
                   enddo 
@@ -1062,7 +1065,7 @@ C     the orthogonal one-electron basis. Can be used with full CI AND inc=0
 c     method 1
       if (nchi.eq.nchf.and.Li.le.loimax  .and. theta.ne.0.0 
      >     .and. abs(theta).ge.100.0) then
-         const = mod(theta,100.0) * Etot * pnorm * ze
+         const = mod(theta,100.0) * pnorm * ze ! * Etot
          do ni1 = 1, nicm
 c     do ni1 = 1, nspmi
             nf1 = ni1
@@ -1099,9 +1102,9 @@ c     Tipical errors:
       elseif (Li.eq.Lf.and.lli.eq.llf.and.lsi.eq.lsf.
      >   and.Li.le.loimax .and. theta.ne.0.0 
      >     .and. abs(theta).lt.100.0) then
-         const = theta * Etot * pnorm * ze
+         const = theta * pnorm * ze !* Etot
          const2 = 0.0
-         if (lsf.eq.1) const2 = theta * Etot * pnorm * ze
+         if (lsf.eq.1) const2 = theta * pnorm * ze !* Etot
          do jni2 = 1,nam(Ni)
             ni2 = na(jni2,Ni)
 C    Has been modified for general non-uniqueness

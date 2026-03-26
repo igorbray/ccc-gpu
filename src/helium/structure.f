@@ -1161,6 +1161,8 @@ c-------------------------------------------------------------------
       common /major_config/ l1orb(KNM),l2orb(KNM),n1orb(KNM),
      >   n2orb(KNM),config_maj(KNM)
       common /corearray/ nicm, ncore(nspmCI)
+      character chan(knm)*3
+      common /charchan/ chan
       integer num(0:lomax,nspmCI)
       real  c_big(nspmCI), big(0:lomax)
       integer  l_big(nspmCI)
@@ -1262,7 +1264,7 @@ c     In all other code it is other way around.
 c                     
                      
                      if (nodeid.eq.1)
-     >write(10,'("major config.:",5I5,F10.5)') N,
+     >write(10,'("major config.:",I5,1x,a3,4I5,F10.5)') N,chan(N),
      >                    l1orb(N), n1orb(N), l2orb(N), n2orb(N), f_big
                      config_maj(N) = f_big
                      if(f_big .eq. 0.0) then

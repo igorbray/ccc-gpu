@@ -54,7 +54,8 @@ c$$$      complex cv(nchan,ichi), cv2(ichi,nchtop)
      >   kon(nchan,nchan), ckern(nchan,nchan), cwork(nchan)
       complex phasel(kmax,nchan), tdist(nchan), sigma(nchan),
      >   phaseq(knm)
-      dimension det(2), gk(kmax,nchan), temp(maxr),err(nchan,nchan)
+      dimension det(2), gk(kmax,nchan), temp(maxr),err(nchan,nchan),
+     >   dgk(nchan)
       character ud(0:1), date*8,time*10,zone*5
 !    fix for cray compiler
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -80,6 +81,11 @@ c$$$      real, allocatable :: kernel(:,:)
       logical :: box
 C     End added by Alex
 
+      do nch = 1, nchtop
+         dgk(nch) = gk(1,nch)   !used for k_f=0.0 cases
+!         dgk(nch) = sqrt(gk(1,nch))   !used for k_f=0.0 cases
+         if (gk(1,nch).eq.0.0) dgk(nch) = 1.0
+      enddo 
       call date_and_time(date,time,zone,valuesin)
       sprint = .false.
       inquire (file='sprint',exist=sprint)
@@ -224,11 +230,17 @@ c$$$      enddo
       epsil = 1e-4
 C  Define the on-shell V, used for printing out only
       do nchi = 1, nchtop
+c$$$         dgki = gk(1,nchi)
+c$$$         if (gk(1,nchi).eq.0.0) dgki = 1.0
          do nchf = 1, nchtop
-            von(nchf,nchi) = ton(nchf,nchi) * phasel(1,nchf) *
-     >         phasel(1,nchi) / (gk(1,nchi)+1e-10) / (gk(1,nchf)+1e-10)
+c$$$            dgkf = gk(1,nchf)
+c$$$            if (gk(1,nchf).eq.0.0) dgkf = 1.0
+c$$$            divk = dgki * dgkf
+            divk = dgk(nchf)*dgk(nchi)
+            von(nchf,nchi) = ton(nchf,nchi) / divk
+!     >             * phasel(1,nchf) * phasel(1,nchi) 
          end do 
-      end do 
+      end do
 
       if (converged) then
          do nchi = 1, nchtop
@@ -535,7 +547,7 @@ c$$$               end do
                      do nchf = 1, min(9,nchtop)
                      open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
             write(42,
-     >         '("#   rkf       rki          vmat       kff kii")')
+     >         '("#   rkf       rki          vmat        kff  kii")')
                      do ki = npk(nchi)+1, npk(nchi+1) - 1
                         kii = ki - npk(nchi) + 1
                         rki = gk(kii,nchi)
@@ -543,7 +555,7 @@ c$$$               end do
                            kff = kf - npk(nchf) + 1
                            rkf = gk(kff,nchf)
                            d = 1.0 ! rkf * rki
-                           write(42,'(2f10.6,1p,e15.4,2i4)')
+                           write(42,'(2f10.6,1p,e15.4,2i5)')
      >                        rkf,rki,vmat(kf,ki)/d,kff,kii
                         enddo
                         write(42,*)
@@ -808,18 +820,18 @@ c$$$c$$$               print*,'Calling sdot',nds,v(1,nchf,2),v(1,nchi,1)
 c$$$               sum = sdot(nds,v(1,nchf,2),1,v(1,nchi,1),1)
 c$$$c$$$               print*,'Exiting sdot', sum
 c$$$            endif 
-            if (lprint) then
-               open(52+nchi,file="aplot."//ch(nchf)//ch(nchi)//'_'//
-     >            ch(mod(lg,10))//ch(ns)//ch(ipar))
-               divk = gk(1,nchi) * gk(1,nchf)
-               sum = ton(nchf,nchi)/divk
-               do n = 1,nds
-                  tmp = v(n,nchf,2)*v(n,nchi,1)/divk
-                  sum = sum + tmp
-                  write(53,*) n,tmp,sum
-               enddo
-               close(52+nchi)
-            endif
+c$$$            if (lprint) then
+c$$$               open(52+nchi,file="aplot."//ch(nchf)//ch(nchi)//'_'//
+c$$$     >            ch(mod(lg,10))//ch(ns)//ch(ipar))
+c$$$               divk = gk(1,nchi) * gk(1,nchf)
+c$$$               sum = ton(nchf,nchi)/divk
+c$$$               do n = 1,nds
+c$$$                  tmp = v(n,nchf,2)*v(n,nchi,1)/divk
+c$$$                  sum = sum + tmp
+c$$$                  write(53,*) n,tmp,sum
+c$$$               enddo
+c$$$               close(52+nchi)
+c$$$            endif
             ton(nchf,nchi) = ton(nchf,nchi) + 
      >         dot_product(v(1:nds,nchf,2),v(1:nds,nchi,1))
 c$$$            print*,nchf,nchi,sum/gk(1,nchi)/gk(1,nchf),
@@ -847,7 +859,9 @@ c$$$            print*,nchf,nchi,y1,y2,
 c$$$     >         cubint(x1,y1,x2,y2,x3,y3,x4,y4,gk(1,nchf)),y3,y4
          enddo !nchi
 C$OMP END PARALLEL DO
-
+c$$$         dgkf = gk(1,nchf)
+c$$$         if (gk(1,nchf).eq.0.0) dgkf = 1.0
+         dgkf = dgk(nchf)
          if (lprint.and.nchf.le.74) then !74 corresponds to z
             if (nchf.lt.nfstart.or.nchf.gt.nfstop) cycle
             do nchi = 1, min(nchtop,74) !nchf
@@ -855,21 +869,29 @@ C$OMP END PARALLEL DO
 C               write(lfile,'"lplot.",2i2) nchf,nchi
                open(52,file="lplot."//ch(nchf)//ch(nchi)//'_'//
      >            ch(mod(lg,10))//ch(ns)//ch(ipar))
-            divk = gk(1,nchi) * gk(1,nchf)
-            if (divk.eq.0.0) divk = 1.0
+c$$$               dgki = gk(1,nchi)
+c$$$               if (gk(1,nchi).eq.0.0) dgki = 1.0
+               dgki = dgk(nchi)
+               divk = dgki * dgkf
+c$$$            if (gk(1,nchf).eq.0.0) divk = gk(1,nchi)
+c$$$            if (divk.eq.0.0) divk = 1.0
+c$$$            print*,'nchf,nchi,kf,ki,divk:',nchf,nchi,gk(1,nchf),
+c$$$     >         gk(1,nchi),divk
 c$$$            write(nchi*100+nchf*10+ns,*) gk(1,nchf),
             write(52,'("# ",a3," <- ",a3,i4," <-",i3)') 
      >           chan(nchf), chan(nchi), nchf, nchi
             write(52,'("#    k               K(k,ki)         V(k,ki)")') 
-            write(52,"(1p,5e16.5)") gk(1,nchf),             
+            write(52,'(1p,3e16.5," on-shell")') gk(1,nchf),             
      >         real(ton(nchf,nchi))/divk,
-     >         real(von(nchf,nchi)/phasel(1,nchf)/phasel(1,nchi))
+     >         real(von(nchf,nchi)) !/phasel(1,nchf)/phasel(1,nchi))
 !     >        ,  real(wk(npk(nchf)))
-c$$$     >         ,ovlpn(nchf), ovlpn(nchi)
+c$$$  >         ,ovlpn(nchf), ovlpn(nchi)
 C  The order is k, K(k), V(k), 1.0 / (E - En - k**2/2)
             do n = npk(nchf) + 1, npk(nchf+1) - 1
                kn = n - npk(nchf) + 1
-               divk = gk(1,nchi) * gk(kn,nchf)
+               divk = dgk(nchi) * gk(kn,nchf)
+               if (zasym.ne.0.0.and.gk(1,nchf).eq.0) !ionic target at excitation threshold
+     >            divk = dgk(nchi)*sqrt(abs(gk(kn,nchf))) !gk(1,nchi) * gk(kn,nchf)
                vgf = dot_product(v(npk(nchf)+1:npk(nchf+1)-1,nchi,1),
      >            gf(2:npk(nchf+1)-npk(nchf),kn,nchf))
                if (divk.eq.0.0) divk = 1.0
@@ -882,7 +904,7 @@ c$$$     >                  gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf),!real(wk(n)),
      >                  vgf / divk, ! same as the line below
 !     >                  v(n,nchi,1) / divk * gf(kn,kn,nchf),
      >                  v(n,nchi,2) / divk
-     >                  ,1.0/gf(kn,kn,nchf)
+!     >                  ,1.0/gf(kn,kn,nchf)
                   else 
                      boxnorm = 1.0
                      if (nbox.eq.1) boxnorm = sqrt(2.0/rmesh(meshr,1))
@@ -893,7 +915,7 @@ c$$$     >                  * gf(kn-npk(nchf)+1,kn-npk(nchf)+1,nchf)
 !     >                  v(n,nchi,1) / divk * gf(kn,kn,nchf)
 !     >                  /  real(wk(n)) !* sqrt(abs(wk(n)))
      >                  ,v(n,nchi,2) /divk /boxnorm!/ sqrt(abs(wk(n)))
-     >                  ,1.0/gf(kn,kn,nchf)
+!     >                  ,1.0/gf(kn,kn,nchf)
 c$$$                     print*,'nchf,nchi,n,gf:',nchf,nchi,n,
 c$$$     >                  gf(kn,kn,nchf),v(n,nchi,1)/divk*gf(kn,kn,nchf),
 c$$$     >                  vgf / divk / boxnorm
@@ -903,7 +925,7 @@ c$$$     >               real(wk(n)) * sqrt(abs(wk(n))),
 c$$$     >               v(n-nchf,nchi,2) / sqrt(abs(wk(n))) / divk
                   endif 
                else
-                  divk = gk(1,nchi)
+                  divk = dgk(nchi)!gk(1,nchi)
 c$$$                  write(nchi*100+nchf*10+ns,*) gk(kn,nchf),
                   write(52,*) gk(kn,nchf),
      >               v(n,nchi,1) / divk,
@@ -1000,10 +1022,13 @@ c$$$     >         nchi,nchf,gk(k1+1,nchf),offshellk2
 ! Can use gnuplot with "splot 'pwkmat0' matrix rowheaders", or plot individual columns
       write(42,'("#",100a10)') (char(nchi+ichar('0')),nchi=1,nchopen)
 !      write(42,'("#",100i10)') (nchi,nchi=1,nchopen)
+! Below fails for gk=0
       do nchf = 1, nchopen
          write(42,'(i4,1p,100e10.2)') nchf,(
-     >      real(ton(nchf,nchi))/(gk(1,nchi)*gk(1,nchf)),nchi=1,nchopen)
+     >      real(ton(nchf,nchi))/(dgk(nchi)*dgk(nchf)),nchi=1,nchopen)
+!     >      real(ton(nchf,nchi))/(gk(1,nchi)*gk(1,nchf)),nchi=1,nchopen)
       enddo
+
 c$$$      do nchi = 1, nchtop
 c$$$         call getchinfo (nchi,nchip,lg,temp,maxpsi, ei, lai, ni, li)
 c$$$         if (etot.gt.enchan(nchip)) then
@@ -1066,35 +1091,48 @@ c$$$            ton(nchf,nchi) = c * kon(nchf,nchi)
 c$$$         end do 
 c$$$      end do
 
+C Define T matrix from K matrix. In the case of gk=0, dgk=1, and the returned K is K/gk for neutral targets,
+C and K/sqrt(gk) for charged targets. The variable gkfac manages these different limits.
       ckern(:,:) = (0.0,0.0)
-      if (gk(1,1).eq.0.0) then
-         kon(1,1) = ton(1,1)
-      else 
+c$$$      if (gk(1,1).eq.0.0) then !zero incident energy on neutral targets
+c$$$         kon(1,1) = ton(1,1)
+c$$$      else 
          do nchi = 1, nchtop
-            gki = 1.0
-            if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
+c$$$            gki = 1.0
+c$$$            if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
+!     gki = sqrt(dgk(nchi))
+            if (zasym.eq.0.0) then
+               gkfac = gk(1,nchi)
+            else
+               gkfac = dgk(nchi) !same as above except for gk=0, as then dgk=1.
+            endif 
             do nchf = 1, nchtop
+!               gkf = sqrt(dgk(nchf))
 c$$$            print"('ns,nchi,nchf,gki,gkf,Kon:',3i2,2f10.6,e12.4)", 
 c$$$     >        ns,nchi,nchf,gk(1,nchi),gk(1,nchf),real(ton(nchf,nchi))
-               if (gk(1,nchf).lt.0.0.or.gk(1,nchi).lt.0.0) then
+               if (gk(1,nchf).lt.0.0.or.gk(1,nchi).lt.0.0) then !closed channel
                   kon(nchf,nchi) = 0.0
                else
-                  gkf = 1.0
-                  if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
-                  kon(nchf,nchi) = ton(nchf,nchi)/gki/gkf
+c$$$                  gkf = 1.0
+c$$$                  if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
+                  kon(nchf,nchi) = ton(nchf,nchi)/dgk(nchi)/dgk(nchf)!/gki/gkf
                endif
 C  The variable KON is the K matrix K(f,i). To get the T matrix we use
 C  Sum_i T_fi(X_f,X_i) * conjg(phi(X_f)) * conjg(phi(X_i)) *
-C                 (I(i,i') + i * pi X_i * K_ii'(X_i,X_i')) = K_fi'(X_f,X_i').
+C                 (I(i,i') + ci * pi * X_i * K_ii'(X_i,X_i')) = K_fi'(X_f,X_i').
 C  As I, K and T are all symmetric we write this as (f <-> i')
-C  Sum_i (I(f,i) + i * pi X_i * K_fi(X_f,X_i)) *
+C  Sum_i (I(f,i) + ci * pi * X_i * K_fi(X_f,X_i)) *
 C   * T_ii'(X_i,X_i') * conjg(phi(X_i')) * conjg(phi(X_i)) = K_fi'(X_f,X_i'),
-               ckern(nchf,nchi) = kon(nchf,nchi) * cmplx(0.0, pi) 
-c$$$     >            * gk(1,nchi)/(gk(1,nchi)+1e-10)
+               ckern(nchf,nchi) = kon(nchf,nchi) * cmplx(0.0, pi)
+     >            * gkfac !dgk(nchi) !gk(1,nchi) 
                ton(nchf,nchi) = kon(nchf,nchi)
             end do 
          end do
-      endif 
+c$$$      endif
+c$$$         do nchi = 1, nchtop
+c$$$            print'(1p,2i2,10e10.2)',ns,nchi,
+c$$$     >         (imag(ckern(nchf,nchi)),nchf=1,nchtop)
+c$$$         enddo
       do nch = 1, nchtop
          ckern(nch,nch) = ckern(nch,nch) + (1.0,0.0)
       end do
@@ -1121,8 +1159,9 @@ c$$$         if (ptrcv2.eq.0) stop 'Not enough memory for CV2'
          do nchf = 1, nchtop
             c = 1.0
             if (gk(1,nchf).lt.0.0) c = 0.0
-            gkf = 1.0
-            if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
+c$$$            gkf = 1.0
+c$$$            if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
+            gkf = dgk(nchf)
             do nchi = 1, nchtop
                cv(nchf,npk(nchi)) = ton(nchf,nchi)
                nn = 1
@@ -1130,7 +1169,7 @@ c$$$         if (ptrcv2.eq.0) stop 'Not enough memory for CV2'
                   do n = npk(nchi)+1, npk(nchi+1)-1
                      nn = nn + 1
 c$$$                  cv(nchf,n) = v(n-nchi,nchf,1)/gk(nn,nchi)/gk(1,nchf)/
-                     cv(nchf,n) = c * v(n,nchf,1)/sqrt(abs(gk(1,nchf)))
+                     cv(nchf,n) = c * v(n,nchf,1)/gkf !sqrt(abs(gk(1,nchf)))
      >                  /real(wk(n))
                   enddo
                else 
@@ -1148,16 +1187,18 @@ c$$$                     cv(nchf,n) = c * v(n,nchf,1)/gk(nn,nchi)/gk(1,nchf)
          nd = nchtop
          call matinv2(ckern,nchan,nd,cv,nv,cwork,erfp,epsil)
          do nchi = 1, nchtop
-            gki = 1.0
-            if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
+c$$$            gki = 1.0
+c$$$            if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
+            gki = dgk(nchi)
             do nchf = 1, nchtop
-               gkf = 1.0
-               if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
-               ton(nchf,nchi)=cv(nchf,npk(nchi))!*gk(1,nchi)*gk(1,nchf)
+c$$$               gkf = 1.0
+c$$$               if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
+               gkf = dgk(nchf)
+               ton(nchf,nchi)=cv(nchf,npk(nchi)) !*gk(1,nchi)*gk(1,nchf)
                nn = 0
                do n = npk(nchf), npk(nchf+1) - 1
                   nn = nn + 1
-                  divk = sqrt(abs(gk(1,nchi)))
+!                  divk = sqrt(abs(gk(1,nchi)))
                   cv2(n,nchi) = cv(nchi,n) * gki !divk
                enddo
                cv2(npk(nchf),nchi)=cv2(npk(nchf),nchi)*gkf
@@ -1195,7 +1236,7 @@ c$$$         call memfree(ptrcv2)
          print '("Photo exited at:  ",a10,", diff (secs):",i5)',
      >      time, idiff(valuesin,valuesout)
          call update(6)
-      else
+      else ! not photon scattering
          nv = nchtop
          nd = nchtop
          call matinv2(ckern,nchan,nd,ton,nv,cwork,erfp,epsil)
@@ -1222,13 +1263,13 @@ c$$$      print*,'Deallocated V:', istat
       enddo
  
       do nchi = 1, nchtop
-         gki = 1.0
-         if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
+!         gki = 1.0
+!         if (gk(1,nchi).gt.0.0) gki = sqrt(gk(1,nchi))
          do nchf = 1, nchtop
-            gkf = 1.0
-            if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
+!            gkf = 1.0
+!            if (gk(1,nchf).gt.0.0) gkf = sqrt(gk(1,nchf))
             ton(nchf,nchi) = ton(nchf,nchi) * phasel(1,nchf) *
-     >         phasel(1,nchi)/gki/gkf
+     >         phasel(1,nchi)!/gki/gkf
 c$$$            print"('ns,nchi,nchf,gki,gkf,Ton:',3i2,2f10.6,2e12.4)", 
 c$$$     >        ns,nchi,nchf,gk(1,nchi),gk(1,nchf),ton(nchf,nchi)
          enddo
@@ -1237,7 +1278,7 @@ C
          if (abs(von(nchi,nchi)).gt.0.0 .or. ns.eq.0) then
 c$$$            print*,'TON,TDIST:',ton(nchi,nchi), tdist(nchi)
             ton(nchi,nchi) = ton(nchi,nchi) + tdist(nchi)
-            von(nchi,nchi) = von(nchi,nchi) + tdist(nchi)
+            von(nchi,nchi) = von(nchi,nchi)! + tdist(nchi)
          endif 
       enddo
 c$$$      if (abs(slowery*2.0-etot).lt.1e-2)
@@ -1303,8 +1344,8 @@ c$$$      enddo
 c$$$      if (sprint) close(42)
 c$$$      print'('' JS f i  abs(T)    arg(T)       K        K2nd   '
 c$$$  >   //'   real(V)   imag(V)     Ef(Ry)'')'
-      print'(''  JS   f   i real(T)   imag(T)    K         K2nd    '
-     >   //'   real(V)   imag(V)      Ef(Ry)'')'
+      print'("  JS   f   i  real(T)    imag(T)    K          '
+     >   //'V           Ea(Ry)     Ek(Ry)")'
       return
       end
       
@@ -1840,16 +1881,22 @@ c$$$         enddo
          endif 
          call date_and_time(date,time,zone,valuesin)
          print '("XGESV entered at: ",a10)',time
-
-#ifdef _single
-      
+c$$$         allocate (afi(n*n))
+#ifdef _single      
+c$$$         call ssysvx('N',ud,N,m,kernel,LDA,AFI,N,ipvt,v(1,1,2),LDA,
+c$$$     >      v,LDA,rcond,ferr,berr,work,lwork,iwork,info)
+c$$$         print*,'Info,Rcond from SSYSVX:',info,rcond
          call sgesv(N,m,kernel,LDA,ipvt,v,lda,info)
 
 #elif defined _double
 
+c$$$         call dsysvx('N',ud,N,m,kernel,LDA,AFI,N,ipvt,v(1,1,2),LDA,
+c$$$     >      v,LDA,rcond,ferr,berr,work,lwork,iwork,info)
+c$$$         print*,'Info,Rcond from SSYSVX:',info,rcond
          call dgesv(N,m,kernel,LDA,ipvt,v,lda,info)
 
 #endif
+c$$$         deallocate(afi)
 
          call date_and_time(date,time,zone,valuesin)
          print '("XGESV exited at:  ",a10)',time
@@ -2078,7 +2125,7 @@ c$$$      end
          do nchf = nchi, min(nchtop,maxnch)
             open(42,file='splot.'//ch(nchf)//ch(nchi)//ch(ns))
             write(42,
-     >         '("#   rkf       rki          vmat       kff kii")')
+     >         '("#   rkf       rki          vmat        kff  kii")')
             do ki = npk(nchi) + 1, npk(nchi+1) - 1
                kii = ki - npk(nchi) + 1
                rki = gk(kii,nchi)
@@ -2088,18 +2135,18 @@ c$$$      end
                   d = rkf * rki
                   if (ns.eq.0) then
                      if (kf.ge.ki) then
-                        write(42,'(2f10.6,1p,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(kf,ki)/d,kff,kii
                      else
-                        write(42,'(2f10.6,1p,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(ki,kf)/d,kff,kii
                      endif
                   else 
                      if (kf.ge.ki) then
-                        write(42,'(2f10.6,1p,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(ki,kf+1)/d,kff,kii
                      else
-                        write(42,'(2f10.6,1p,e15.4,2i4)')
+                        write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(kf,ki+1)/d,kff,kii
                      endif
                   endif

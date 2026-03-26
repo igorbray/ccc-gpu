@@ -3,6 +3,7 @@
      >   jstart,ipstart,jstop,projectile,target,nsmax,
      >   nchimax,nchanmax,npar,hlike,NTunit,vdcore,minvdc,maxvdc,ne2e,
      >   slowery,iborn,bornICS,tfile,nnbtop,ovlpnl,ovlpnn)
+      use CI_MODULE
       implicit real (a-h,o-z)
       include 'par.f'
       parameter (ntype=2*(lamax+1),npoints=ncmax+10,ntdcs=250)
@@ -62,6 +63,14 @@ c$$$      pointer (ptrt, ton)
 c$$$      pointer (ptrte2e, te2e)
       data pi,chunit/3.1415927,' a0^2   ',' pi a0^2',' cm^2  '/
       data units/1.0,0.3183099,28.002e-18/
+      istat = 0
+      if (.not.allocated(C)) allocate (C(1,1,1),stat=istat)
+      if (istat.ne.0) then
+         print*,'Allocation problems, Getbornamp ISTAT:', istat
+c$$$         stop 'Allocation problems for C in Getbornamp'
+      endif 
+      
+
       if (ne2e*2.gt.npoints) stop 'INCREASE NPOINTS IN PWRITE'
 
       nunit = max(1,NTunit)
@@ -138,7 +147,8 @@ c$$$      pointer (ptrte2e, te2e)
          nchpp = 0
          call getchinfo (nch, nchp, ipar, temp, maxpsi, ea, la, na, l)
          nopen(ipar) = 0
- 10      continue 
+ 10      continue
+!         print*,'energy,enchan:',energy,echan
          echan = (enpsinb(na,la)-enpsinb(ninc,linc)) * ry
          if (energy.ge.echan) then
 c$$$         if ((energy.ge.echan.and.ea.lt.0.0).or.
@@ -155,9 +165,11 @@ C  nch and nchp
             if (ipar.eq.0) then
 c$$$               if (mod(nchfi(nchp,ipar),4).ne.0) then
                if (mod(nchp,4).ne.0) then
-                  print '(i3,a4,"*",f10.3," eV,",$)',nch,chan(nch),ea*ry
+                  print '(i3,a4,"*",1p,e12.5," eV,",$)',
+     >               nch,chan(nch),echan !ea*ry
                else
-                  print '(i3,a4,"*",f10.3," eV")',nch, chan(nch),ea*ry
+                  print '(i3,a4,"*",1p,e12.5," eV")',
+     >               nch, chan(nch),echan !ea*ry
                endif
                posfac = 1.0
                if (positron(na,la,npos)) posfac = 2.0
@@ -169,9 +181,9 @@ C  The following change was done for the unnatural parity
          else
             if (ipar.eq.0) then
                if (mod(nchp,4).ne.0) then
-                  print '(i3,a4,f11.3," eV,",$)',nch,chan(nch),ea*ry
+                  print '(i3,a4,1p,e13.5," eV,",$)',nch,chan(nch),echan !ea*ry
                else
-                  print '(i3,a4,f11.3," eV")',nch, chan(nch),ea*ry
+                  print '(i3,a4,1p,e13.5," eV")',nch, chan(nch),echan !ea*ry
                endif
                onshellk(nch) = - sqrt(-(energy - echan)/ry)
 C  The following change was done for unnatural parity
@@ -346,7 +358,7 @@ c     open(88,file=tfile)
          read(88,*,err=20,end=20) ! At 20 will append to potl
          read(88,*,err=20,end=20) enold, zasymold,nold
          print*,'enold,energy:', enold,energy
-         if (abs(enold-energy)/energy.gt.1e-4) then
+         if (abs(enold-energy)/(energy+1e-10).gt.1e-4) then
 c$$$            print*,'Stopping: incident energy is not same in potl'
 c$$$            call update(6)
 c$$$            call mpi_finalize(ierr)
@@ -604,15 +616,25 @@ c$$$  jlm(nchfi(nchp,ipar),ipar,j) = jltmp
                   if (nchpi.ne.nchp) stop 'nchpi.ne.nchp'
                   lia = latom(nchpi)
                   if (lia.ne.la) stop 'lia.ne.la'
-                  if (onshellk(nchpi).gt.0.0) then
-                     deta = nze * zasym / onshellk(nchpi)
+                  if (onshellk(nchpi).ge.0.0) then
+                     if (onshellk(nchpi).gt.0.0) then
+                        deta = nze * zasym / onshellk(nchpi)
+                     else
+                        deta = 0.0
+                     endif
                      phase = coulphase(deta,l)
                      call getspinw(chan(nchpi)(1:1),ns,nze,spinw(ns),si)  
                      const = spinw(ns) * (2.0 * pi) ** 4 / (4.0 * pi) *
      >                  (2.0 * j + 1.0) / (2.0 * lia + 1.0)
-                     sigtop(nchpi,ns) = sigtop(nchpi,ns) - const *
-     >                  aimag(ton(nchi,nchi,ns,np,j)/phase**2) / 
-     >                  (pi * onshellk(nchpi))
+                     if (onshellk(nchpi).eq.0.0) then
+                        sigtop(nchpi,ns) = sigtop(nchpi,ns) - const *
+     >                     aimag(ton(nchi,nchi,ns,np,j)/phase**2) / 
+     >                     (pi)
+                     else
+                        sigtop(nchpi,ns) = sigtop(nchpi,ns) - const *
+     >                     aimag(ton(nchi,nchi,ns,np,j)/phase**2) / 
+     >                     (pi * onshellk(nchpi))
+                     endif
 c$$$                     print*,'Caution T=T/phase**2 for Sonja',phase
 c$$$                     ton(nchi,nchi,ns,np,j) = ton(nchi,nchi,ns,np,j) /
 c$$$     >                  phase**2
@@ -620,7 +642,7 @@ c$$$     >                  phase**2
                      nchpiprev = nchpi
                      do nchf = 1, nchtop
                         nchpf = nfich(nchf)
-                        if (onshellk(nchpf).gt.0.0) then
+                        if (onshellk(nchpf).ge.0.0) then
                            if (nchpf.eq.nchpi) then
                               call getchinfo (nchf, nchp, j, temp, 
      >                           maxpsi, ef, la, na, lf)
@@ -633,10 +655,16 @@ c$$$                              write(100+nchpi,'(1p,6e11.3,3i3,2i2)')
 c$$$     >                        ton(nchf,nchi,ns,np,j),coulphase(deta,l),
 c$$$     >                           coulphase(deta,lf),j,l,lf,np,ns
                            endif 
-                        lfa = latom(nchpf)
-                        const = spinw(ns) * (2.0 * pi) ** 4 / 
-     >                     (4.0 * pi)*onshellk(nchpf)/onshellk(nchpi) *
-     >                     (2.0 * j + 1.0) / (2.0 * lia + 1.0)
+                           lfa = latom(nchpf)
+                           if (onshellk(nchpi).eq.0.0) then
+                              const = spinw(ns) * (2.0 * pi) ** 4 / 
+     >                           (4.0 * pi) *
+     >                           (2.0 * j + 1.0) / (2.0 * lia + 1.0)
+                           else
+                              const = spinw(ns) * (2.0 * pi)**4/(4.0*pi)
+     >                           *onshellk(nchpf)/onshellk(nchpi)
+     >                           *(2.0 * j + 1.0) / (2.0 * lia + 1.0)
+                           endif
 C  The following statement aims to get good extrapolation for positronium
 C  channels after say J=20, even though these cross sections are set to zero
 C  for J > 8. Note that this affects the accuracy of the TCS test using the
@@ -1145,8 +1173,10 @@ C  equal energy-sharing e-H ionization. It tested just fine!
          elrealt = real(ton(1,1,0,0,j))
          elimagt = aimag(ton(1,1,0,0,j))
 c$$$         if (abs(elimagt/(elrealt+1e-30)).lt.0.5) then
-            polfac = - elrealt * (2*j+3) * (2*j+1) * (2*j-1) /
-     >         onshellk(1)
+         polfac = 0.0
+         if (onshellk(1).gt.0.0)
+     >      polfac = - elrealt * (2*j+3) * (2*j+1) * (2*j-1) /
+     >      onshellk(1)
             if (target .eq. 'H  I') then
                exact = 4.5
             else if (target .eq. 'He I') then
@@ -1275,7 +1305,7 @@ c$$$     >            (sdcs(nt,ne)+sdcs(nt,ne+ne2e), nt = 1, nttop(ip))
             enddo
             close(47)
             close(48)
-            if (iborn.gt.0) then
+            if (iborn.gt.0.and.onshellk(1).ne.0.0) then
                bornsub = 1.0
             else
                bornsub = 0.0
@@ -1371,17 +1401,24 @@ C$OMP& PRIVATE(const,Bornamp,mi,mf,res,res2,err1,err2,qmin,qmax,si)
      >            laf,naf,lf)
                rlf = laf
                posf = positron(naf,laf,nposf)
-               if (onshellk(ni).gt.0.0.and.onshellk(nf).gt.0.0) then
+               if (onshellk(ni).ge.0.0.and.onshellk(nf).ge.0.0) then
                   call getspinw(chan(ni)(1:1),0,nze,spinw(0),si)
                   call getspinw(chan(nf)(1:1),0,nze,spinw(0),sf)
-                  const = (2.0 * pi) ** 4 * unit *
-     >               onshellk(nf)/onshellk(ni) / (2.0 * lai + 1.0)
+                  if (onshellk(ni).eq.0.0) then
+                     const = (2.0 * pi) ** 4 * unit
+     >                  / (2.0 * lai + 1.0)
+                     if (li.gt.0) const = 0.0
+                  else
+                     const = (2.0 * pi) ** 4 * unit *
+     >                  onshellk(nf)/onshellk(ni) / (2.0 * lai + 1.0)
+                  endif
                   nn = nnset(1)
                   thfac = 0.0
                   thfac = 1.0
 c$$$                  print*,'Enter THFAC'
 c$$$                  read*,thfac
                   bornICS(nf,ni) = 0.0
+                  if (onshellk(nf).eq.0.0.or.onshellk(ni).eq.0.0) cycle
                   if (si.eq.sf.and.posf.eqv.posi) then
                      call getBornamp(nf,laf,psif,maxpsif,onshellk(nf),
      >                  ni,lai,psii,maxpsii,onshellk(ni),hlike,nze,
@@ -1671,7 +1708,7 @@ C$OMP& shared(phaseq,ne2e,slowery,tfile,ich,fac)
       do ni = nistart, nistop
 c$$$         nthr = omp_get_thread_num()
 c$$$         print*,'OMP NT,ni:',nthr,ni
-         if (onshellk(ni).le.0.0) cycle
+         if (onshellk(ni).lt.0.0) cycle
          ndcs = 0
          ticsm(:) = 0.0
          do 10 nf = nfstart, nfstop
@@ -1694,7 +1731,7 @@ c$$$     >         chan(nf)(1:1).eq.'p').or.ni.eq.nf) then
                dcs(nth,ndcs) = 0.0
             enddo
             rkf = onshellk(nf)
-            if (onshellk(nf).le.0.0) then
+            if (onshellk(nf).lt.0.0) then
                print*,'One of NI or NF channels is closed',ni,nf
                go to 10
             endif 
@@ -1718,7 +1755,11 @@ c$$$     >         chan(nf)(1:1).eq.'p').or.ni.eq.nf) then
             enddo
 
             jch = 0
-            c1 = onshellk(nf)/onshellk(ni) * (2.0 * pi) ** 4 * unit 
+            if (onshellk(ni).eq.0.0) then
+               c1 = (2.0 * pi) ** 4 * unit
+            else
+               c1 = onshellk(nf)/onshellk(ni) * (2.0 * pi) ** 4 * unit
+            endif
             call getchinfo (ni,nchip,jch,psii,maxpsii,ei,lia,nia,li)
             if (lia.gt.lentr) stop 'increase LENTR in PROCESST'
             rlia = lia
@@ -1755,7 +1796,8 @@ c$$$            jextrap = jstop
      >            (2*jstop+1) * (2*jstop+3)
                beta = aimag(ton(nchf,nchi,0,0,jstop)) * (2*jstop-1) *
      >            (2*jstop+1) * (2*jstop+3) * (2*jstop+5) * (2*jstop+7)
-               print*,'nchf,nchi,ALPHA, BETA:',nchf,nchi,
+               if (rki.gt.0.0)
+     >            print*,'nchf,nchi,ALPHA, BETA:',nchf,nchi,
      >            -alpha/rki, -beta/rki
                do j = jstop+1, jextrap
                   c2 = sqrt((2.0*j+1.0)) / sqrt(pi * 4.0)
@@ -2276,14 +2318,6 @@ C  and phi angles
 c      common /dynamical_C/ Nmax, namax,pnewC
 c      integer pnewC
 
-
-      istat = 0
-      if (.not.allocated(C)) allocate (C(1,1,1),stat=istat)
-      if (istat.ne.0) then
-         print*,'Allocation problems, Getbornamp ISTAT:', istat
-c$$$         stop 'Allocation problems for C in Getbornamp'
-      endif 
-      
       Nmax = SIZE(C,1)
       namax = SIZE(C,2)
 
@@ -2327,7 +2361,7 @@ c$$$         stop 'Allocation problems for C in Getbornamp'
 
       qmin = abs(dkf - dki)
       qmax = dkf + dki
-
+      if (qmax.eq.qmin) return
       do nth = 0, ntdcs, nstep
          dtheta = dfloat(nth)
          if (nth.gt.180) dtheta = 4.0*(nth - 180) /
@@ -2748,7 +2782,8 @@ c     account of additional atom polarazability:
       endif 
       rmusq = rmudeb * rmudeb
       do nth = 0, ntdcs, nstep
-         ff(nth) = ff(nth) * 2.0 / (q(nth) * q(nth) + rmusq + 1e-20)
+         if (q(nth).ne.0.0)
+     >      ff(nth) = ff(nth) * 2.0 / (q(nth) * q(nth) + rmusq)
       enddo
 
       if (q(0).le.0.0) then  !elastic scattering only
@@ -3027,7 +3062,9 @@ c$$$         print*,'sum,corr:',sum,corr
      >         (ntdcs-180+1.0)/1.1**(ntdcs-nth) !21.0
             thrad = theta * pi / 180.0 
 C     Q = Ki - Kf  (as vectors)               
-            qsq = rkf * rki * (dble(rkf/rki) + dble(rki/rkf) -
+            qsq = 0.0
+            if (rki.gt.0.0)
+     >         qsq = rkf * rki * (dble(rkf/rki) + dble(rki/rkf) -
      >         dble(2.0 * cos(dble(thrad))))
             q = sqrt(qsq)
             if (nth.eq.0) then

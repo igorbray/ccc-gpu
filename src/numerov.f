@@ -23,22 +23,25 @@ C  Note that UCENTR(X) = V(X)/X and CNTFUG(X) = LN(LN+1)/X/X
       character file*10
       common /debye/dbyexists, dblp, rmudeb, zdby
       logical::dbyexists,localmatch
+      data smalle/1e-7/
 
 c$$$      if (eta.gt.0.0) stop  'routine REGULAR not set up for +ve ETA'
       s1 = 0.0 !reg(jstart-1)
       wnn=sqrt(abs(ecmn))
       phase = (1.0,0.0)
       sigc = coulphase(dble(eta),ln)
-
+      jstart = nx
+      jstop = nx
       do j = 1, nx
          reg(j) = 0.0
       enddo
+      if (ecmn.eq.0.0.and.ln.gt.0.and.eta.eq.0.0) return !For e=0 neutrals only l=0 contributes
 
 !      s3=appf1(ln,ecmn,gridx(1),acc)
 !      s4 = coulrho(ln,0.0,ecmn,gridx(1),acc)
 !      print*,'ecmn,s3,s4',ecmn,s3,s4
-
-      if (ecmn.le.0.0.or.ln.gt.3.or.ucentr(1).ne.0.0) then
+      if (ecmn.le.0.0.or.ln.gt.3.or.ucentr(1).ne.0.0.or.match) then
+c$$$         if (ecmn.eq.0.0) ecmn = smalle 
          jstart = jfirst1(ln,ecmn,gridx,nx,jdouble,njdouble,regcut)
          if (jstart.ge.nx) return
 
@@ -119,7 +122,11 @@ C  make sure that we are not near a point where DX doubles
                if (abs(jstart-jdouble(jd)).lt.3) jstart=jdouble(jd)-3
             end do
             jstart = max(jstart,1)
-            s1 = reg(jstart-1)
+            if (jstart.gt.1) then
+               s1 = reg(jstart-1)
+            else
+               s1 = 0.0
+            endif
          endif 
 
 c$$$         if (jstart.eq.1) then
@@ -136,6 +143,7 @@ c$$$c$$$               stop "STOP: cannot have S1=0.0 in numerov.f"
 c$$$c$$$            endif
 c$$$         end if 
          s2=appf1(ln,ecmn,gridx(jstart),acc)
+c$$$         if (ecmn.eq.0.0.and.ucentr(1).ne.0.0) s2 = s2*20.0
 c$$$         print*,'plane wave j,S1,S2,acc:',jstart,s1,s2,acc
          if (eta.ne.0.0) s2=coulrho(ln,eta,ecmn,gridx(jstart),acc)
 c$$$         print*,'Coulomb wave j,S1,S2,acc:',jstart,s1,s2,acc
@@ -241,10 +249,10 @@ c$$$     >         'ECMN,jmatch,tmp:',ecmn,jmatch,tmp
 C Check that the CHIL is sinusoidal at large r for wnn not too small or too big
          j = jstop
          localmatch = .false.
-         if (ln.gt.ldw.and.cntfug(j)/ecmn.lt.1e-3.and.
+         if (ln.gt.ldw.and.cntfug(j)/(ecmn+1e-20).lt.1e-3.and.
      >      abs(ucentr(j)).lt.1e-3) then
             if (reg(j-1).lt.reg(j)) then
-               do while(reg(j-1).lt.reg(j))
+               do while(reg(j-1).lt.reg(j).and.j.gt.jstart+1)
                   j = j - 1
                enddo
                if (j.gt.jstart) then
@@ -272,13 +280,13 @@ c$$$                     reg(i) = reg(i)/div
 c$$$                  enddo
                endif
             endif
-            if (localmatch.and.nodeid.eq.1) print'(
-     >         "CAUTION: ln,ldw,j,jstop,reg(j-1),reg(j),wnn,eta,test:",
-     >        4i8,4f8.3,1p,e15.5)',ln,ldw,j,jstop,reg(j-1),
-     >         reg(j),wnn,eta,cntfug(j)/ecmn
+c$$$            if (localmatch.and.nodeid.eq.1) print'(
+c$$$     >         "CAUTION: ln,ldw,j,jstop,reg(j-1),reg(j),wnn,eta,test:",
+c$$$     >        4i8,4f8.3,1p,e15.5)',ln,ldw,j,jstop,reg(j-1),
+c$$$     >         reg(j),wnn,eta,cntfug(j)/(ecmn+1e-20)
          endif
 c$$$         print*,'match,ln,ldw:',match,ln,ldw
-         if (match.or.ln.le.ldw) then !.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
+         if (match.or.ln.le.ldw) then !.or.ecmn.eq.0.0) then !.or.localmatch) then !.or.ucentr(1).ne.0.0) then !.or.ecmn.lt.0.0) then
 c$$$            print*,'JMATCH, RMATCH,U',jmatch,gridx(jmatch),
 c$$$     >         ucentr(jmatch)
             if (abs(ecmn-34.527).lt.-1e-2) then
@@ -294,13 +302,14 @@ c$$$     >         ucentr(jmatch)
             else
                call matchcc(ln,eta,ecmn,jstart,jstop,gridx,jmatch,
      >            reg,phase,sigc,j1,j2)
-c$$$         print*,sqrt(ecmn),jmatch,phase,reg(jstart),reg(jstart+1)
-               diff = abs(sigc-coulphase(dble(eta),ln))
-               if (diff.gt.1e-5) then
-                  print*,'Coulphase difference:',sigc,
-     >               coulphase(dble(eta),ln)
-c$$$                  stop 'Coulphase difference > 1e-5'
-               endif 
+               if (ecmn.ne.0.0) then
+                  diff = abs(sigc-coulphase(dble(eta),ln))
+                  if (diff.gt.1e-5) then
+                     print*,'Coulphase difference:',sigc,
+     >                  coulphase(dble(eta),ln)
+c$$$  stop 'Coulphase difference > 1e-5'
+                  endif
+               endif
 c$$$               if (ln.gt.ldw.and..not.dbyexists) then
 c$$$                  diff = abs(real(phase)-1.0)
 c$$$                  if (diff.gt.1e-5) then
@@ -326,7 +335,8 @@ c$$$                     close(57)
 c$$$                  endif 
 c$$$               endif 
             endif                
-            if (eta.eq.0.0.and.ln.le.3.and.ucentr(1).ne.0.0) then
+            if (eta.eq.0.0.and.ln.le.3.and.ucentr(1).ne.0.0
+     >         .and.wnn.gt.0.0) then
                call ricbessel(wnn,ln,gridx,jstop,jstart,f)
                call ricbessel(wnn,-ln-1,gridx,jstop,jstart,g)
                rph = real(phase)
@@ -349,8 +359,8 @@ c$$$               endif
             if (jstart.gt.jstop) return
          end do
 
-C The following is disabled using "-ln"         
-         if (match.and.-ln.gt.ldw) then
+C The following is disabled using "false"         
+         if (match.and.ln.gt.ldw.and..false.) then
 c$$$         if (match.and.ln.gt.ldw.and.eta.ne.0.0) then
             if (abs(aimag(phase)).gt.1e-5)
      >         print*,'Old phase (NOT reset to 1) for L, ecmn:',
@@ -405,7 +415,7 @@ c$$$      if (abs(reg(jstart)/regcut).gt.1e+4.and.jstart.gt.1) then
 c$$$         print*,'JSTART should be smaller. JSTART, REG(JSTART), LN,'
 c$$$     >      //' ETA, ECMN, JSTOP',jstart,reg(jstart),ln,eta,ecmn,jstop
 c$$$      end if 
-      else
+      else ! top if statement
          phase = (1.0,0.0)
          sigc  = (1.0,0.0)
          jstart = 1
@@ -734,8 +744,8 @@ c$$$               print*,ln,en,j,test/s3!,f3,t3
 c$$$c$$$               s3 = test
 c$$$            endif 
             reg(j)=s3
-c$$$            if (j.le.10) print*,'j,reg(j),appf:',j,reg(j),
-c$$$     >         coulrho(ln,eta,ecmn,gridx(j),acc)!appf1(ln,ecmn,gridx(j),acc)
+c$$$            if (j.le.100.and.ecmn.eq.0.0) print*,'j,reg(j),appf:',j,
+c$$$     >         reg(j),coulrho(ln,eta,ecmn,gridx(j),acc)!appf1(ln,ecmn,gridx(j),acc)
 c$$$            if (ln.eq.4.and.abs(ecmn-1e-2).lt.4e-5) print*,
 c$$$     >         j,gridx(j),reg(j),appf1(ln,en,gridx(j),acc)
 
@@ -1068,7 +1078,7 @@ C  JDOUBLE(ISTART) points to the last doubling of DX that happens before JSTART
 C  This routine matches the input REG solution to the apropriate
 C  boundary conditions. It matches at two points of REG to the coulomb
 C  functions F and H = G+iF. The two points are chosen where REG is not
-C  too small.
+C  too small. In the end, REG(j)=real(phase)*F(j)+imag(phase)*G(j)
       subroutine matchcc(l,eta,ecmn,jstart,jstop,gridx,jm,reg,
      >   phase,sigc,j1,j2)
       dimension reg(jstop),gridx(jstop)
@@ -1076,7 +1086,8 @@ C  too small.
       complex phase,sigc
       complex*16 xx,eta1,zlmin,cfc(9),cgc(9),cfcp(9),cgcp(9),sig(9),ci,
      >   f1,f2,f3,h1,h2,h3
-      data pi,ci/3.1415927,(0d0,1d0)/
+      common /bignc/bign !only used for DW matching at zero energy, typically 1e9
+      data pi,ci/3.14159265359,(0d0,1d0)/
       if (jstart.eq.jstop) then
          phase = (1.0,0.0)
          sigc = (1.0,0.0)
@@ -1101,7 +1112,7 @@ c$$$      endif
       zlmin=cmplx(dble(l),0d0)
       nl=3
       wnn=sqrt(abs(ecmn))
-      if (wnn.lt.1e-15) wnn=1.0
+      if (wnn.eq.0.0) wnn=1.0
       dx=5.0*pi/4.0/wnn
 
 c$$$      j=min(jm+40,jstop)
@@ -1114,6 +1125,7 @@ c$$$C  Find the previous largest value of REG
 c$$$      do while (abs(reg(j)).lt.abs(reg(j-1)).and.jm-j.lt.40)
 c$$$         j=j-1
 c$$$      end do
+
       j = jm
       j1 = jm
       j2 = jm
@@ -1131,7 +1143,6 @@ c$$$      end do
          endif
       enddo
       if (j1.eq.j2) j1 = j2 - 2
-c$$$      print*,'JM, J1, J2:', jm,j1,j2
 C  First matching point
       if (j1.lt.jstart) j1=min(jstart+1,jstop)
       ifai=0
@@ -1162,16 +1173,26 @@ c$$$      print*,'|CGC-(GC+iFC)|:',abs(cgc(1)-cmplx(gc(l),fc(l)))
          enddo 
          return
       end if 
-      if (abs(ecmn).gt.1e-30) then
+      if (abs(ecmn).gt.0.0) then
          f1=cfc(1)
          h1=cgc(1)
+c$$$         if (ecmn.lt.1e-4)
+c$$$     >      print'("e,j1:",1p,e10.2,i5,/,"f1: ",2e10.2,/,"h1: ",2e10.2,/
+c$$$     >      ,"reg: ",e10.2)',ecmn,j1,f1,h1,reg(j1)
+c$$$     >      print*,'e,j1,f1,h1,reg:',ecmn,j1,f1/wnn,h1/wnn,reg(j1)/wnn
 c$$$         print*,j1,cgc(1) * cfcp(1) - cgcp(1) * cfc(1)
       else if (eta.ne.0.0) then
-         f1=cfc(1)*sqrt(gridx(j1))*pi
-         h1=cgc(1)*sqrt(gridx(j1))*pi
+         f1=cfc(1)*sqrt(gridx(j1)*pi)
+         h1=cgc(1)*sqrt(gridx(j1)*pi)
+         h1 = cmplx(-real(h1),aimag(h1))
+c$$$         print*,'f1:',f1
+c$$$         print*,'h1:',h1
       else
          f1=appf1(l,0.0,gridx(j1),acc)  
-         h1=cmplx(gridx(j1)**(-l),real(f1))
+!         h1=cmplx(gridx(j1)**(-l),real(f1))
+         h1=cmplx(bign,real(f1))
+c$$$         print'("e,j1:",1p,e10.2,i5,/,"f1: ",2e10.2,/,"h1 :",2e10.2,/,
+c$$$     >      "reg: ",e10.2)',ecmn,j1,f1,h1,reg(j1)
       end if 
 
 c$$$C  Choose the other matching point
@@ -1216,11 +1237,16 @@ C  Here to evaluate the Coulomb G.F. at zero energy
          h2=cgc(1)
 c$$$         print*,j2,cgc(1) * cfcp(1) - cgcp(1) * cfc(1)
       else if (eta.ne.0.0) then
-         f2=cfc(1)*sqrt(gridx(j2))*pi
-         h2=cgc(1)*sqrt(gridx(j2))*pi
+         f2=cfc(1)*sqrt(gridx(j2)*pi)
+         h2=cgc(1)*sqrt(gridx(j2)*pi)
+         h2 = cmplx(-real(h2),aimag(h2))
+c$$$         print*,'f2:',f2
+c$$$         print*,'h2:',h2
       else
          f2=appf1(l,0.0,gridx(j2),acc)
-         h2=cmplx(gridx(j2)**(-l),real(f2))
+!         h2=cmplx(gridx(j2)**(-l),real(f2))
+         h2=cmplx(bign,real(f2))
+c$$$         print*,'j2,f2,h2,reg:',j2,f2,h2,reg(j2)
       end if 
       
 C  Find real and imaginary parts of the phase
@@ -1233,6 +1259,9 @@ C  Find real and imaginary parts of the phase
          phase=(f1*h2-f2*h1)/(reg(j1)*h2-reg(j2)*h1)
          const=abs(phase)
          phase=phase/const
+c$$$         if (ecmn.lt.1e-4)
+c$$$     >      print'("ecmn,const,phase:",1p,8e10.2,/)',ecmn,const,phase
+c$$$     >      ,(f1*h2-f2*h1),(reg(j1)*h2-reg(j2)*h1)
       endif 
 c$$$      if (abs(phase+(1.0,0.0)).lt.1e-3) then
 c$$$         phase = - phase
@@ -1246,13 +1275,21 @@ c$$$      endif
       do j=jstart,jstop
          reg(j)=reg(j)*const
       end do
+c$$$      if (ecmn.eq.0.0) then
+c$$$         do j = jstart, jstart+5
+c$$$            print*,j,ecmn,reg(j),coulrho(l,eta,ecmn,gridx(j),acc),const
+c$$$         enddo
+c$$$      endif
+c$$$      do j = jstop-10,jstop
+c$$$         print*,'j,reg(j):',j,reg(j)
+c$$$      enddo 
       
-      y =  (reg(j1)*f2-reg(j2)*f1) / (f2*h1-f1*h2)
+      y = (reg(j1)*f2-reg(j2)*f1) / (f2*h1-f1*h2)
 c$$$      tmp1 = (reg(j1)*real(f2)-reg(j2)*real(f1))
 c$$$      tmp2 = (real(f2)*real(h1)-real(f1)*real(h2))
 c$$$      y =  (reg(j1)*real(f2)-reg(j2)*real(f1)) /
 c$$$     >   (real(f2)*real(h1)-real(f1)*real(h2))
-      phase = cmplx(real(phase),y)
+c$$$      phase = cmplx(real(phase),y)
       if (abs((y-aimag(phase))/(abs(y)+1e-2)).gt.1e-2) then
          print*,'Warning different imaginary parts of phase',
      >      aimag(phase),y,(reg(j1)*f2-reg(j2)*f1) / (f2*h1-f1*h2),
@@ -1287,18 +1324,27 @@ C  Here to evaluate the Coulomb G.F. at zero energy
             h3=cgc(1)
 c$$$  print*,j3,cgc(1) * cfcp(1) - cgcp(1) * cfc(1)
          else if (eta.ne.0.0) then
-            f3=cfc(1)*sqrt(gridx(j3))*pi
-            h3=cgc(1)*sqrt(gridx(j3))*pi
+            f3=cfc(1)*sqrt(gridx(j3)*pi)
+            h3=cgc(1)*sqrt(gridx(j3)*pi)
+            h3 = cmplx(-real(h3),aimag(h3))
+c$$$            print*,'f3:',f3
+c$$$            print*,'h3:',h3
          else
             f3=appf1(l,0.0,gridx(j3),acc)
-            h3=cmplx(gridx(j3)**(-l),real(f3))
+!            h3=cmplx(gridx(j3)**(-l),real(f3))
+            h3=cmplx(bign,real(f3))
+c$$$            print*,'j3,f3,h3:',j3,f3,h3
+c$$$            print*,'reg(j3): ',reg(j3),real(phase)*f3+
+c$$$     >         real(h3)*aimag(phase)
          end if
          test = abs(phase-(f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1))
          if (test.gt.1e-2) then
-            print*,'Matching process has problems:',
+            print '("Matching inaccurate (increase qcut?):",1p,e10.2,/,
+     >        "l, ecmn, j1, j2, j3:",i3,e10.3,3i4,/,
+     >        "phases: ",12e10.2,/,"reg(j1),reg(j3): ",2e10.2)',
      >         test, l, ecmn,j1,j2,j3,phase,
      >         (f1*h3-f3*h1)/(reg(j1)*h3-reg(j3)*h1),
-     >        f1,h3,f3,h1,reg(j1),reg(j3)
+     >         f1,h3,f3,h1,reg(j1),reg(j3)
          endif 
       endif
       return

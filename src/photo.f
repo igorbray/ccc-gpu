@@ -42,7 +42,7 @@ c DPI of Lithium
             
       if(nznuc.eq.2)GS  =  5.807 !He  atom GS energy in Ry
 !      if(nznuc.eq.2)GS  =  21.17/Ry !He atom 2s2 ^1S energy in Ry
-      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
+!      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
       if(nznuc.eq.3 .and. zasym.eq.0)GS  = 6.01/Ry !Li-  ion GS energy in Ry
       if(nznuc.eq.11 .and. zasym.eq.0)GS  = 5.492/Ry !Na-  ion GS energy in Ry
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
@@ -69,10 +69,14 @@ c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nav
       if(nznuc.eq.2 .and. ntype.lt.0)
      >               GS  =  3.77 !H2  molecule
 
-      if(lithium.eq.1) GS =  14.955 !Li  atom GS energy in Ry
+      if(lithium.eq.1 .and. NZNUC.eq.3) GS =  14.955 !Li  atom GS energy in Ry (ion Li + ion Li+ + ion Li++)
       if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
+      if(lithium.eq.1 .and. NZNUC.eq.6) GS =  34.78596*2.0 !3.476679E+01*2.0 !C3+ in Ry (ion C3+ + ion C4+ + ion C5+)
+      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
       if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
 
+      if (lithium.eq.1) meta = 0
+      
       if(meta.eq.1) then
          if(iSpin.eq.0) then
             if(nznuc.eq.2)GS   =4.283  !He atom 1s2s ^1S energy in Ry
@@ -171,7 +175,7 @@ c$$$         open(47,file=file)
          if(lithium.eq.1) then
 !            if(nt.eq.1) E(nt) = -7.279 ! Yan
             EI=GS+E(nt)*2       !Li  patch
-            print'(A,F9.4)', 'E(nt)', E(nt)
+!            print'(A,F9.4)', 'E(nt)', E(nt)
          end if
          if (nchf.eq.1) then
             etot = ef + gk(1,nchf)**2
@@ -255,7 +259,9 @@ c$$$               end if
                   To= T
                   SU=1-2*pi*p*ci*To
                end if           
-
+               T1 = (0.0,0.0)
+               T2 = (0.0,0.0)
+               T3 = (0.0,0.0)
                if(k.eq.1.and.NCHI.eq.1)then   !electron-scattering ME
                   T1= T
                end if           
@@ -440,14 +446,14 @@ c$$$     >         ovlp * phase * TX
          enddo 
          write(41+ngauge,'(79a)') ('-',i=1,79)
          ticst = max(tcst - tnbcst,0.0)
-         write(41+ngauge,'(f10.4,"eV on",a3," TNBCS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3," TNBCS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), tnbcst, (chs(l),tnbcs(l,ngauge),l=0,ltop)
-         write(41+ngauge,'(f10.4,"eV on",a3,"  TICS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3,"  TICS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), max(0.0,tcst - tnbcst),
      >      (chs(l), max(0.0,tcs(l,ngauge)-tnbcs(l,ngauge)),l=0,ltop)
-         write(41+ngauge,'(f10.4,"eV on",a3,"   TCS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3,"   TCS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), tcst, (chs(l), tcs(l,ngauge),l=0,ltop)
       enddo 
@@ -463,13 +469,13 @@ c$$$     >         ovlp * phase * TX
       
       write(20,'(F7.2,3F11.4)') om*ry,sigma_l, sigma_v, sigma_x   
       write(21,'(F7.2,3F11.4)') om*ry,sigma1_l,sigma1_v, sigma1_x
-      write(22,'(''#ph energy  double L single     double V single'',
+      write(22,'(''#ph energy    double L single     double V single'',
      >   ''     double A single   el energy'')') 
-      write(22,'(F10.4,1x,1p,6E10.3,0p,f10.4)') om*ry, sigma_l-sigma1_l,
+      write(22,'(F10.5,1x,1p,6E10.3,0p,f10.5)') om*ry, sigma_l-sigma1_l,
      >   sigma1_l,sigma_v-sigma1_v,sigma1_v,sigma_x-sigma1_x,sigma1_x,
      >   ein
-      write(22,'(F10.4,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
-      write(23,'(F8.2,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
+      write(22,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
+      write(23,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
  30   format(
      >   /' k final',9x,'ReG',11x,'ImG',10x,'ReT',11x,'ImT'/)
  35       format(/'Initial',8x,'Length',19x,'Velocity',

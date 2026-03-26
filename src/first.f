@@ -85,7 +85,7 @@ C      allocatable :: chitemp(:,:)
       real*8, dimension (meshr) :: ubbb ! ANDREY
       real*8 xin(maxr),yin(maxr),xout(maxr),yout(maxr)
       logical, dimension (nchtop) :: pos
-
+      logical exists
       integer maxpsii,maxpsif
 
       integer ngpus,ntpg,nnt,gpunum
@@ -108,6 +108,7 @@ C     >     npk(nchistop(nodeid)+1)+1:npk(nchtop+1))
       hat(l)= sqrt(2.0 * l + 1.0)
 
 c$$$      if (npk(2)-npk(1).eq.1) return ! if 1st call
+
       ni=0
       nf=0
 c$$$      if (lg.lt.10) then
@@ -596,10 +597,10 @@ C Define exchange terms if IFIRST = 1
 c$$$            call clock(s3)
 c$$$            te1 = te1 + s3 - s2
 
-!$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf)
+!$omp parallel do private(nchf,nqmf,psif,maxpsif,ef,lfa,lf,nfa)
 !$omp& schedule(dynamic)
-!$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li)
-!$omp& shared(chil,minchil,npk,gk,etot,theta,ld,rnorm)
+!$omp& shared(ifirst,ispeed,nqmi,psii,maxpsii,ei,lia,li,nia)
+!$omp& shared(chil,minchil,npk,gk,etot,theta,ldw,rnorm)
 !$omp& shared(uf,ui,nchi,nchtop,nold,nznuc,ve2ee,nqmfmax,vmatt)
       do nchf = nchi, nchtop
          nqmf = npk(nchf+1) - npk(nchf)
@@ -608,13 +609,17 @@ c$$$            te1 = te1 + s3 - s2
          ef=e_t(nchf)
          lfa=la_t(nchf)
          lf=l_t(nchf)
+         nfa=na_t(nchf)
+
 
 C  Define energy dependent exchange terms
          call makev1e(nqmi,psii,maxpsii,ei,lia,
      >      li,chil(1,npk(nchi),1),minchil(npk(nchi),1),gk(1,nchi),
-     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
+     >      nia,etot,theta,0,nqmf,psif,maxpsif,
+!     >      npk(nchtop+1)-1,etot,theta,0,nqmf,psif,maxpsif,
      >      ef,lfa,lf,chil(1,npk(nchf),1),minchil(npk(nchf),1),
-     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,uf,ui,
+     >      gk(1,nchf),nfa,lg,rnorm,uf,ui,
+!     >      gk(1,nchf),npk(nchtop+1)-1,lg,rnorm,uf,ui,
      >      nchf,nchi,nold,nznuc,npk,ve2ee,nqmfmax,vmatt,nsmax,nchtop)
 c$$$         call clock(s4)
 c$$$         te2 = te2 + s4 - s3

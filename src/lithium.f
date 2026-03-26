@@ -83,6 +83,7 @@ C Initialization
       
 C MCHF loops
 
+      sum = 0.0
       do j=0,jmax
          do n=j+1, nmax(j)
             if(j.eq.0 .and. n.eq.2) CYCLE !Skip 2s in MCHF expansion
@@ -91,9 +92,9 @@ C MCHF loops
             ang =(-1)**j/hat(j) !(-1) / V(2j+1)
 
             CM = CJ(j,n,2)!*ang
-            if(CM.eq.0) CYCLE
+            if(CM.eq.0.0) CYCLE
 !            print'(I3,A,F9.4)', n,lh(j),  CM
-
+            sum = sum + CM*CM
             
 C Target states loops            
 
@@ -205,7 +206,10 @@ C EL-matrix
 
       enddo                     !MCHF loops
       enddo
-
+      if (abs(sum-1.0).gt.3e-5) then
+         print*,'FATAL: all mchf not used; sum sould be 1:',sum
+         stop 'Check that all mchf is used'
+      endif
       RETURN
       END
 

@@ -7,6 +7,8 @@ c*****************************************************************************
          call dataHe
       else  if(atom.eq.'LiII') then  
          call dataLiII
+      else  if(atom.eq.'CV') then
+         call dataCV
       else  if(atom.eq.'beryllium') then  
          call  dataBe
       else  if(atom.eq.'oxygenV') then  
@@ -856,6 +858,118 @@ c      gs_wave_number =  0.0     ! to print exciation energies
                do n=1,nmax
                   enLiII(n,l,is,lpar)=
      >               (enLiII(n,l,is,lpar)-gs_wave_number)/8065.7
+               end do
+            end do
+         end do
+      end do
+            
+
+
+      return
+      end
+c**************************************************************************
+      subroutine dataCV
+c     This is data for CV
+c     index 'ip' is not used here: it is assumed that lparity = (-1)**l
+      parameter (nmax=8,llmax=5)
+      common /enCV/ enCV(nmax,0:llmax,0:1,-1:1)
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enCV(n,l,is,lpar)= 1e10
+               end do
+            end do
+         end do
+      end do
+            
+c     sS
+      enCV(1,0,0,1)= 0.0
+      enCV(2,0,0,1)= 2455052.913
+      enCV(3,0,0,1)= 2851173.0
+      enCV(4,0,0,1)= 2988241.7
+      enCV(5,0,0,1)= 3051294.2
+      enCV(6,0,0,1)= 3085411.4
+      enCV(7,0,0,1)= 3105927.5
+      enCV(8,0,0,1)= 3119218.4
+c     sP
+      enCV(1,1,0,-1)= 2483400.8420
+      enCV(2,1,0,-1)= 2859389.2
+      enCV(3,1,0,-1)= 2991677.3
+      enCV(4,1,0,-1)= 3053045.1
+      enCV(5,1,0,-1)= 3086422.1
+      enCV(6,1,0,-1)= 3106563.2
+      enCV(7,1,0,-1)= 3119643.1
+c     sD
+      enCV(1,2,0,1)= 2857555.6
+      enCV(2,2,0,1)= 2990941.6
+      enCV(3,2,0,1)= 3052674.3
+      enCV(4,2,0,1)= 3086198.3
+      enCV(5,2,0,1)= 3106428.4
+      enCV(6,2,0,1)= 3119553.0
+c     sF
+      enCV(1,3,0,-1)= 2 990 947.7
+      enCV(2,3,0,-1)= 3 052 681.9
+      enCV(3,3,0,-1)= 3 086 214.0
+!      enCV(4,3,0,-1)= 
+!      enCV(5,3,0,-1)= 
+c     sG
+      enCV(1,4,0,1)= 3 052 686.9
+      enCV(2,4,0,1)= 3 086 217.0
+      enCV(3,4,0,1)= 3 106 435.2
+c     sH
+      enCV(1,5,0,-1)= 3 086 219.7
+      enCV(2,5,0,-1)= 3 106 437.2
+      enCV(3,5,0,-1)= 3 119 559.0
+
+c     tS
+      enCV(1,0,1,1)= 2411292.798
+      enCV(2,0,1,1)= 2839589.7
+      enCV(3,0,1,1)= 2983556.8
+      enCV(4,0,1,1)= 3048945.7
+      enCV(5,0,1,1)= 3084069.3
+      enCV(6,0,1,1)= 3105089.6
+      enCV(7,0,1,1)= 3118659.6
+c     tP
+      enCV(1,1,1,-1)= 2455191.5845
+      enCV(2,1,1,-1)= 2851425.7
+      enCV(3,1,1,-1)= 2988382.2
+      enCV(4,1,1,-1)= 3051374.0
+      enCV(5,1,1,-1)= 3085460.3
+      enCV(6,1,1,-1)= 3105959.7
+      enCV(7,1,1,-1)= 3119239.8
+c     tD
+      enCV(1,2,1,1)= 2857324.5
+      enCV(2,2,1,1)= 2990815.4
+      enCV(3,2,1,1)= 3052605.1
+      enCV(4,2,1,1)= 3086167.0
+      enCV(5,2,1,1)= 3106403.5
+      enCV(6,2,1,1)= 3119536.1
+c     tF 
+      enCV(1,3,1,-1)= 2 990 943.1
+      enCV(2,3,1,-1)= 3 052 681.0
+      enCV(3,3,1,-1)= 3 086 213.7
+!      enCV(4,3,1,-1)= 
+!      enCV(5,3,1,-1)= 
+c     tG
+      enCV(1,4,1,1)= 3 052 686.6
+      enCV(2,4,1,1)= 3 086 216.6
+      enCV(3,4,1,1)= 3 106 435.2
+c     tH
+      enCV(1,5,1,-1)= 3 086 219.3
+      enCV(2,5,1,-1)= 3 106 437.2
+      enCV(3,5,1,-1)= 3 119 559.0
+
+c     Convert to ionization energies (CV) in eV.
+c     Ground state ionization energy is 3162423.60 cm^{-1}
+      gs_wave_number = 3162423.60
+c      gs_wave_number =  0.0     ! to print exciation energies
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enCV(n,l,is,lpar)=
+     >               (enCV(n,l,is,lpar)-gs_wave_number)/8065.7
                end do
             end do
          end do
@@ -2388,6 +2502,7 @@ c**************************************************************************
       common /enBe/ enBe(nmax,0:llmax,0:1,-1:1)
       common /enHe/ enHe(nmax,0:llmax,0:1,-1:1)
       common /enLiII/ enLiII(nmax,0:llmax,0:1,-1:1)
+      common /enCV/ enCV(nmax,0:llmax,0:1,-1:1)
       common /enHe_th/ enci(nmax,0:llmax,0:1)
       common /Nsarray/ Ns(0:lomax,0:1,komax,2)
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)    
@@ -2439,6 +2554,8 @@ c     find  minimum energy of the states:
                            en_exp = enHe(n,il,is,ip) ! -(enci(n,il,is)-2.0)*27.2116
                         else  if(atom.eq.'LiII') then
                            en_exp = enLiII(n,il,is,ip)
+                        else  if(atom.eq.'CV') then
+                           en_exp = enCV(n,il,is,ip)
                         else  if(atom.eq.'beryllium') then
                            en_exp = enBe(n,il,is,ip)
                         else  if(atom.eq.'oxygenV') then
@@ -2455,7 +2572,6 @@ c     find  minimum energy of the states:
                            en_exp = enCd(n,il,is,ip)
                         else  if(atom.eq.'galliumII') then
                            en_exp = enGaII(n,il,is,ip)
-                        else  if(atom.eq.'strontium') then
                         else  if(atom.eq.'strontium') then
                            en_exp = enSr(n,il,is,ip)
                         else  if(atom.eq.'barium') then

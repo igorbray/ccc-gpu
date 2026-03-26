@@ -28,7 +28,7 @@ C     Igor's stuff
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym,lpbot,lptop,
      >   npbot(0:lamax),nptop(0:lamax)
-      character chan(knm)*3, opcl*6, enq*14
+      character chan(knm)*3, opcl*6, enq*14,ench1*12,ench2*12
       common /charchan/ chan
       common /chanen/ enchan(knm),enchandiff(knm)
       dimension psi(maxr),ovlp(ncmax,0:lamax),
@@ -182,7 +182,24 @@ c$$$         print*,'nst,l,n,e:',nst,latom,na,enchan(ntmp),ea
             print*,'NST <> NTMP:',nst,ntmp
             stop 'Expect NST = NTMP in mainhe'
          endif
-         etot = eproj + enchan(1)!enpsinb(ninc,linc)
+         etot = eproj + enchan(1) !enpsinb(ninc,linc)
+c$$$         if (abs(etot-enchan(ntmp)).lt.1e-4) then
+c$$$            print*,'Resetting incident energy from, to:',
+c$$$     >         eproj*ry,(enchan(ntmp) - enchan(1))*ry
+c$$$            etot = enchan(ntmp)
+c$$$            eproj = etot - enchan(1)
+c$$$         endif
+         write(ench1,'(1p,"_",e11.5)') eproj*ry
+         write(ench2,'(1p,"_",e11.5)')
+     >      (enchan(ntmp) - enchan(1))*ry
+!         print*,ench1,ench2 !,eproj*ry,(-enpsinb(ninc,linc)+enpsinb(n,l))*ry
+         if (ench1.eq.ench2) then
+            etot = enchan(ntmp)
+            eproj = etot - enchan(1)
+            if (nodeid.eq.1)
+     >         print*,'Changing incident energy to:', eproj*ry
+         endif
+
          if (etot.ge.enchan(ntmp)) then
             onshellk = sqrt(etot-enchan(ntmp))
             opcl = 'open'
