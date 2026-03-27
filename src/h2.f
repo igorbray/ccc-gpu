@@ -26,6 +26,9 @@ C          grid   - r-grid to calculate wavefunctions on it.
      >          B(0:Ncf, 0:Ncf, Ncf, Ncf),
      >         en(0:Ncf,Ncf),z(0:Ncf,Ncf)
 
+c     defining to allow gcc build
+      real*8 pa
+
       CHARACTER*4 a4
       CHARACTER*5 a5
       character *25  filnam
@@ -440,21 +443,37 @@ C Angular momentum loop. Always arrange:
 !                  anorm = 1.0 !No exchange
                   C = CM(l1,l2,n1,n2)/anorm
                   if(C.ne.0.)then
-                     if(l2.eq.j2 .and. triang(l1,1,j1).eq.1) then       !     \         
-                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w1,w2,    !l1  __\__ j1   
-     :                     l1,l2,j1,j2,J,C,r,v,x)                       !l2  __.__ j2   
+c     removing comments to allow gcc build
+                     if(l2.eq.j2 .and. triang(l1,1,j1).eq.1) then
+                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w1,w2,
+     :                     l1,l2,j1,j2,J,C,r,v,x)
+c                     if(l2.eq.j2 .and. triang(l1,1,j1).eq.1) then       !     \         
+c                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w1,w2,    !l1  __\__ j1   
+c     :                     l1,l2,j1,j2,J,C,r,v,x)                       !l2  __.__ j2   
                      end if
-                     if(l2.eq.j1 .and. triang(l1,1,j2).eq.1) then       !     \         
-                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w2,w1,    !l1  __\__ j2   
-     :                     l1,l2,j2,j1,J,C,r,v,x)                       !l2  __.__ j1   
+c     removing comments to allow gcc build
+                     if(l2.eq.j1 .and. triang(l1,1,j2).eq.1) then
+                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w2,w1,
+     :                     l1,l2,j2,j1,J,C,r,v,x)
+c                     if(l2.eq.j1 .and. triang(l1,1,j2).eq.1) then       !     \         
+c                        call h2DIPOLE(wm(1,l1,n1),wm(1,l2,n2),w2,w1,    !l1  __\__ j2   
+c     :                     l1,l2,j2,j1,J,C,r,v,x)                       !l2  __.__ j1   
                      end if               
-                     if(l1.eq.j2 .and. triang(l2,1,j1).eq.1) then       !     \         
-                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w1,w2,    !l2  __\__ j1   
-     :                     l2,l1,j1,j2,J,C,r,v,x)                       !l1  __.__ j2   
+c     removing comments to allow gcc build
+                     if(l1.eq.j2 .and. triang(l2,1,j1).eq.1) then
+                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w1,w2,
+     :                     l2,l1,j1,j2,J,C,r,v,x)
+c                     if(l1.eq.j2 .and. triang(l2,1,j1).eq.1) then       !     \         
+c                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w1,w2,    !l2  __\__ j1   
+c     :                     l2,l1,j1,j2,J,C,r,v,x)                       !l1  __.__ j2   
                      end if
-                     if(l1.eq.j1 .and. triang(l2,1,j2).eq.1) then       !     \          
-                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w2,w1,    !l2  __\__ j2   
-     :                     l2,l1,j2,j1,J,C,r,v,x)                       !l1  __.__ j1   
+c     removing comments to allow gcc build
+                     if(l1.eq.j1 .and. triang(l2,1,j2).eq.1) then
+                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w2,w1,
+     :                     l2,l1,j2,j1,J,C,r,v,x)
+c                     if(l1.eq.j1 .and. triang(l2,1,j2).eq.1) then       !     \          
+c                        call h2DIPOLE(wm(1,l2,n2),wm(1,l1,n1),w2,w1,    !l2  __\__ j2   
+c     :                     l2,l1,j2,j1,J,C,r,v,x)                       !l1  __.__ j1   
                      end if               
                   end if
                end do

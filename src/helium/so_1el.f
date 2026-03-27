@@ -159,11 +159,11 @@ c     Get fine structure splitting for A^{+} (positive ion).
             
             split = (l + 0.5) * SUM(funf(m1:m2))*alpha*alpha
             
-            print*, 'k =',k,', l =', l,
-     >         ', splitting =', split, '(au) ',split*27.2116, '(eV) ',
-     >         split*27.2116 * 8068.7, '(cm^{-1})) ',' ; <r> =',
-     >         SUM(fun(m1:m2)*gridr(m1:m2,1)), ' ; <r**3> =',
-     >         SUM(fun(m1:m2)*gridr(m1:m2,1)**3)
+c$$$            print*, 'k =',k,', l =', l,
+c$$$     >         ', splitting =', split, '(au) ',split*27.2116, '(eV) ',
+c$$$     >         split*27.2116 * 8068.7, '(cm^{-1})) ',' ; <r> =',
+c$$$     >         SUM(fun(m1:m2)*gridr(m1:m2,1)), ' ; <r**3> =',
+c$$$     >         SUM(fun(m1:m2)*gridr(m1:m2,1)**3)
 
          end do
       end do
