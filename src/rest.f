@@ -2545,7 +2545,7 @@ C  parity case
       open(42,file=csfile)
       j=-1
 c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
-      read(42,"(3i4,7x,a8)",end=20) j, nchpmaxt, nchipmaxt, chun
+      read(42,"(3i4,7x,a8)",end=20) lgprev, nchpmaxt, nchipmaxt, chun
       if (chun.eq.chunit(1)) then
          nunitold = 1
       elseif (chun.eq.chunit(2)) then
@@ -2609,12 +2609,12 @@ c$$$      read(42,*,end=20) j, nchpmaxt, nchipmaxt
       call openatend(43,file_J)
       write(42,"(3i4,' Units:',a8,2x,a8,' - ',a6,
      >   99(1p,e12.4,' eV on ',a3))")
-     >   max(lg,j), nchpmax, nchipmax,chunit(nunit),
+     >   max(lg,lgprev), nchpmax, nchipmax,chunit(nunit),
      >   projectile,target,(ry * (etot-enchan(instate(i))),
      >   chan(instate(i)),i=1,nchipmax) 
       write(43,"(3i4,' Units:',a8,2x,a8,' - ',a6,1p,
      >   99(/,e12.5,' eV on ',a3))")
-     >   max(lg,j), nchpmax, nchipmax,chunit(nunit),
+     >   max(lg,lgprev), nchpmax, nchipmax,chunit(nunit),
      >   projectile,target,(ry * (etot-enchan(instate(i))),
      >   chan(instate(i)),i=1,nchipmax) 
       do incount = 1, nchipmax
@@ -2658,7 +2658,7 @@ c$$$                  if (nchip.eq.2) print*,lg,ipar,nchp
                if (partcs(nchp,nchip,0).ne.0) then
                   extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
-     >               oldpjp(nchp,nchip,ipar), 0.0)
+     >               oldpjp(nchp,nchip,ipar), lg,lgprev,0.0)
                else
                   extrapcs = 0.0
                endif
@@ -2910,10 +2910,11 @@ C  SIGIONOLD will be the total ionization cross section for all previous J
 C  SIGIONE will be the extrapolated total ionization cross section
             sigione(nchip,ns) = sigionold(nchip,ns) +
      >         extrap(sigtop(nchip,ns) * unit - sumo,
-     >         sigtopoldj(nchip,ns) - sume,0.0)
+     >         sigtopoldj(nchip,ns) - sume,lg,lgprev,0.0)
 C  SIGTOPE will be the extrapolated total cross section
             sigtope(nchip,ns) = sigtopold(nchip,ns) +
-     >         extrap(sigtop(nchip,ns) * unit,sigtopoldj(nchip,ns),0.0)
+     >         extrap(sigtop(nchip,ns) * unit,sigtopoldj(nchip,ns),
+     >         lg,lgprev,0.0)
 C  For pure Born approximation we get zero for the optical theorem. In this
 C  case use the form below. Can't define sigionold in this case, need more work
 C  Need to make SIGTOLD from the info above
@@ -3122,7 +3123,7 @@ c$$$     >         oldBornPCS(nchp,nchip),BornPCS(nchp,nchip) * unit
             else 
                extrapcs = extrap((partcs(nchp,nchip,0)+
      >            partcs(nchp,nchip,1))*unit,
-     >            oldpjp(nchp,nchip,ipar), 0.0)
+     >            oldpjp(nchp,nchip,ipar), lg, lgprev, 0.0)
 c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
                if (ipar.eq.0) then 
                   if (partcs(nchp,nchip,0).ne.0.0) ! to help when rearrangement suddenly stops
@@ -3177,11 +3178,11 @@ C  total sum from elements X = X(J) > X(J+1) > X(J+2) ...
 C  If, however, the Born approximation is known, then we use the integrated
 C  BornICS - BornPCS as the extrapolation instead. Born-based
 C  extrapolation works well for dipole transitions.
-      function extrap(x,xp,Borne)
+      function extrap(x,xp,j,jp,Borne)
       extrap = x
       if (Borne.gt.0.0.and.x.gt.0.0) then
-         extrap = max(0.0,Borne)
-      else if (0.0.lt.x.and.x.lt.xp*0.99) then
+         extrap = Borne
+      else if (0.0.lt.x.and.x.lt.xp*0.99.and.jp.eq.j-1) then
          r = x/xp
          extrap = x / (1.0 - r)
       endif

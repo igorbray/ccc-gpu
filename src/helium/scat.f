@@ -458,8 +458,8 @@ C$OMP& shared(Qlpi,Q0pi,aqi,ionshi,nqgeni,nqimi,xpi,wpi,imaxi,Alpi)
 C$OMP END PARALLEL DO
          PRINT*,'Calculations of Qlp are done!'
       ENDIF
-      print '("nodeid:",i4," nchii,nchif:",2i6)',
-     >   nodeid,nchii,nchif
+c$$$      print '("nodeid:",i4," nchii,nchif:",2i6)',
+c$$$     >   nodeid,nchii,nchif
 
 #ifdef GPU
 !$omp parallel do num_threads(1)
