@@ -2519,15 +2519,15 @@ C Determine nchistart and nchistop for each node
 c$$$            if (natompstot.eq.0.or.lg.gt.lstoppos) then ! no Ps states in the calculation or 1 node
          if (natompstot.eq.0.or.lg.gt.lstoppos.or.lg.eq.0) then ! no Ps states in the calculation or 1 node
             do nn = 1, nodes-1
-               if (.not.hlike.and.projectile.eq.'photon'.and.
-     >            nodes*2.lt.nchtop) then !improve load balance for photons on He-like targets
-                  nchprspernode = nint(nchprspernodeor*
-     >               (1.0+(nn-nodes/2)*0.5/nodes))
-                  if (nodeid.eq.1) print*,'nchprs:',
-     >               nn, nchprspernode, nchprspernodeor
-               else
+c$$$               if (.not.hlike.and.projectile.eq.'photon'.and.
+c$$$     >            nodes*2.lt.nchtop) then !improve load balance for photons on He-like targets
+c$$$                  nchprspernode = nint(nchprspernodeor*
+c$$$     >               (1.0+(nn-nodes/2)*0.5/nodes))
+c$$$                  if (nodeid.eq.1) print*,'nchprs:',
+c$$$     >               nn, nchprspernode, nchprspernodeor
+c$$$               else
                   nchprspernode = nchprspernodeor
-               endif
+c$$$               endif
                nchistop(nn) = nchistart(nn)
                do while(nchprs(nchistart(nn),nchistop(nn),nchtop).le.
      >            nchprspernode) 
