@@ -206,7 +206,7 @@ C Significant number of radial points
             end if
          end do
  111     if (nodeid.eq.1)
-     >      write(6,'(A1,I1,2A1,F9.4,A,I4)')'E',n,hh(l),'=',E(l, n),
+     >      write(6,'(A1,I1,2A1,F10.4,A,I4)')'E',n,hh(l),'=',E(l, n),
      :      ' Max NR=', maxNR(l,n)
 
       end do

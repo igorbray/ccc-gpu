@@ -2651,7 +2651,7 @@ C     check if time_all exists to get an estimate of how long each NCHI takes
             endif
             if (exists) then
                open(42,file=nodetfile,action='read')
-               print*,'Nodeid, reading: ',nodeid,nodetfile
+c$$$               print*,'Nodeid, reading: ',nodeid,nodetfile
  34            read(42,*,end=35,err=36) 
      >            lgold(ipar),iparold,nodeidold,ntimeold,n1, n2
                if (ntimeold.lt.10) go to 36 !time too short to bother
