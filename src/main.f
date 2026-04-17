@@ -3089,12 +3089,13 @@ c$$$                     print*,'nch,kn,k',nch,kn,gf(kn,kn,nch),real(wk(k))
                enddo
             else
                inquire (file='sprint',exist=exists)
-               if (exists) then
-                  print*,"CAUTION: sprint exists, T will be WRONG"
-               else
+! now fixed using gf arising from the call below, see subroutine splot in tmatccc.f
+c$$$               if (exists) then 
+c$$$                  print*,"CAUTION: sprint exists, T will be WRONG"
+c$$$               else
                   call vmatfromgf(gf,kmaxgf,npk,vmat,
      >             1,npk(nchtop+1)-1,1,npk(nchtop+1),1,nchtop,nchtop,wk)
-               endif
+c$$$               endif
             endif
          endif
 c$$$            if (scalapack) then

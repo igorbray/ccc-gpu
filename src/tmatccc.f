@@ -2114,6 +2114,7 @@ c$$$      return
 c$$$      end
       
       subroutine splot(vmat,npk,nchtop,ns,gk)
+      use gf_module
       include 'par.f'
       integer npk(nchtop+1)
       dimension gk(kmax,nchan),vmat(npk(nchtop+1)-1,npk(nchtop+1))
@@ -2133,10 +2134,12 @@ c$$$      end
                   kff = kf - npk(nchf) + 1
                   rkf = gk(kff,nchf)
                   d = rkf * rki
+                  sub = 0.0
+                  if (kff.eq.kii) sub = gf(kff,kff,nchf)/d
                   if (ns.eq.0) then
                      if (kf.ge.ki) then
                         write(42,'(2f10.6,1p,e15.4,2i5)')
-     >                     rkf,rki,vmat(kf,ki)/d,kff,kii
+     >                     rkf,rki,vmat(kf,ki)/d-sub,kff,kii
                      else
                         write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(ki,kf)/d,kff,kii
@@ -2144,7 +2147,7 @@ c$$$      end
                   else 
                      if (kf.ge.ki) then
                         write(42,'(2f10.6,1p,e15.4,2i5)')
-     >                     rkf,rki,vmat(ki,kf+1)/d,kff,kii
+     >                     rkf,rki,vmat(ki,kf+1)/d-sub,kff,kii
                      else
                         write(42,'(2f10.6,1p,e15.4,2i5)')
      >                     rkf,rki,vmat(kf,ki+1)/d,kff,kii
