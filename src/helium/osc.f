@@ -9,6 +9,8 @@ c*****************************************************************************
          call dataLiII
       else  if(atom.eq.'CV') then
          call dataCV
+      else  if(atom.eq.'NVI') then
+         call dataNVI
       else  if(atom.eq.'beryllium') then  
          call  dataBe
       else  if(atom.eq.'oxygenV') then  
@@ -970,6 +972,118 @@ c      gs_wave_number =  0.0     ! to print exciation energies
                do n=1,nmax
                   enCV(n,l,is,lpar)=
      >               (enCV(n,l,is,lpar)-gs_wave_number)/8065.7
+               end do
+            end do
+         end do
+      end do
+            
+
+
+      return
+      end
+c**************************************************************************
+      subroutine dataNVI
+c     This is data for NVI
+c     index 'ip' is not used here: it is assumed that lparity = (-1)**l
+      parameter (nmax=8,llmax=5)
+      common /enNVI/ enNVI(nmax,0:llmax,0:1,-1:1)
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enNVI(n,l,is,lpar)= 1e10
+               end do
+            end do
+         end do
+      end do
+            
+c     sS
+      enNVI(1,0,0,1)= 0.0
+      enNVI(2,0,0,1)= 3439265.452
+      enNVI(3,0,0,1)= 4005973.4
+      enNVI(4,0,0,1)= 4202502.8
+      enNVI(5,0,0,1)= 4293002.0
+      enNVI(6,0,0,1)= 4342001.5
+      enNVI(7,0,0,1)= 4371479.4
+      enNVI(8,0,0,1)= 4390581.8
+c     sP
+      enNVI(1,1,0,-1)= 3473794.8085
+      enNVI(2,1,0,-1)= 4015991.0
+      enNVI(3,1,0,-1)= 4206693.2
+      enNVI(4,1,0,-1)= 4295138.3
+      enNVI(5,1,0,-1)= 4343234.7
+      enNVI(6,1,0,-1)= 4372255.3
+      enNVI(7,1,0,-1)= 4391100.1
+c     sD
+      enNVI(1,2,0,1)= 4013730.6
+      enNVI(2,2,0,1)= 4205796.0
+      enNVI(3,2,0,1)= 4294698
+      enNVI(4,2,0,1)= 4342965.6
+      enNVI(5,2,0,1)= 4372094.8
+      enNVI(6,2,0,1)= 4390992.9
+c     sF
+      enNVI(1,3,0,-1)= 4 205 799.5
+      enNVI(2,3,0,-1)= 4 294 695.0
+      enNVI(3,3,0,-1)= 4 342 979.6
+!      enNVI(4,3,0,-1)= 
+!      enNVI(5,3,0,-1)= 
+c     sG
+      enNVI(1,4,0,1)= 4 294 701.5
+      enNVI(2,4,0,1)= 4 342 983.0
+      enNVI(3,4,0,1)= 4 372 099.2
+c     sH
+      enNVI(1,5,0,-1)= 4 342 986.7
+      enNVI(2,5,0,-1)= 4 372 102.5
+      enNVI(3,5,0,-1)= 4 390 998.2
+
+c     tS
+      enNVI(1,0,1,1)= 3 385 849.915
+      enNVI(2,0,1,1)= 3 991 836.7
+      enNVI(3,0,1,1)= 4 196 781.7
+      enNVI(4,0,1,1)= 4 290 132.6
+      enNVI(5,0,1,1)= 4 340 360.9
+      enNVI(6,0,1,1)= 4 370 454.7
+      enNVI(7,0,1,1)= 4 389 898.3
+c     tP
+      enNVI(1,1,1,-1)= 3 438 279.098
+      enNVI(2,1,1,-1)= 4 006 049.0
+      enNVI(3,1,1,-1)= 4 202 589.3
+      enNVI(4,1,1,-1)= 4 293 059.1
+      enNVI(5,1,1,-1)= 4 342 038.7
+      enNVI(6,1,1,-1)= 4 371 504.8
+      enNVI(7,1,1,-1)= 4 390 598.8
+c     tD
+      enNVI(1,2,1,1)= 4 013 406.7
+      enNVI(2,2,1,1)= 4 205 620
+      enNVI(3,2,1,1)= 4 294 599
+      enNVI(4,2,1,1)= 4 342 922.1
+      enNVI(5,2,1,1)= 4 372 059.4
+      enNVI(6,2,1,1)= 4 390 968.9
+c     tF 
+      enNVI(1,3,1,-1)= 4 205 790.0
+      enNVI(2,3,1,-1)= 4 294 691.7
+      enNVI(3,3,1,-1)= 4 342 977.8
+!      enNVI(4,3,1,-1)= 
+!      enNVI(5,3,1,-1)= 
+c     tG
+      enNVI(1,4,1,1)= 4 294 700.1
+      enNVI(2,4,1,1)= 4 342 981.8
+      enNVI(3,4,1,1)= 4 372 099.2
+c     tH
+      enNVI(1,5,1,-1)= 4 342 985.8
+      enNVI(2,5,1,-1)= 4 372 102.5
+      enNVI(3,5,1,-1)= 4 390 998.2
+
+c     Convert to ionization energies (NVI) in eV.
+c     Ground state ionization energy is 4 452 723.93 cm^{-1}
+      gs_wave_number = 4 452 723.93
+c      gs_wave_number =  0.0     ! to print exciation energies
+      do lpar=-1,2,2
+         do is=0,1
+            do l=0,llmax               
+               do n=1,nmax
+                  enNVI(n,l,is,lpar)=
+     >               (enNVI(n,l,is,lpar)-gs_wave_number)/8065.7
                end do
             end do
          end do
@@ -2503,6 +2617,7 @@ c**************************************************************************
       common /enHe/ enHe(nmax,0:llmax,0:1,-1:1)
       common /enLiII/ enLiII(nmax,0:llmax,0:1,-1:1)
       common /enCV/ enCV(nmax,0:llmax,0:1,-1:1)
+      common /enNVI/ enNVI(nmax,0:llmax,0:1,-1:1)
       common /enHe_th/ enci(nmax,0:llmax,0:1)
       common /Nsarray/ Ns(0:lomax,0:1,komax,2)
       common /helium/ ll(KNM), ls(KNM), lparity(KNM), np(KNM)    
@@ -2556,6 +2671,8 @@ c     find  minimum energy of the states:
                            en_exp = enLiII(n,il,is,ip)
                         else  if(atom.eq.'CV') then
                            en_exp = enCV(n,il,is,ip)
+                        else  if(atom.eq.'NVI') then
+                           en_exp = enNVI(n,il,is,ip)
                         else  if(atom.eq.'beryllium') then
                            en_exp = enBe(n,il,is,ip)
                         else  if(atom.eq.'oxygenV') then
