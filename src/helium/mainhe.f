@@ -5,9 +5,9 @@
       include 'par.f'
       integer la, sa, lpar
       common /helium/ la(KNM), sa(KNM), lpar(KNM), np(KNM)
-      double precision E, ortint, e1r, Z
+      double precision E, ortint, e1r, Z, edelta
       common/hame1/ e1r(nspmax,nspmax)
-      common /CcoefsE/ E(KNM)
+      common /CcoefsE/ E(KNM),edelta
       common /ortog/  ortint(nspmax,nspmax)
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
       common /funLag/  fl(nmaxr,nspmax)
@@ -326,8 +326,11 @@ C  EDELTA is used to shift the energy levels
          write(*,'("finished structure calculation")')
          write(*,'("**********************************************")')
 c
-         print*,'Error in ground state energy and ',
-     >      'effective incident energy (eV):', edelta, etot * ry + enion
+         print'("Ground state energy (eV), exp and calc,",
+     >          " and effective incident e:",1p,3e14.5)',
+     >      -enion, enchan(1)*ry, etot * ry + enion
+c$$$         print*,'Error in ground state energy and ',
+c$$$     >      'effective incident energy (eV):', edelta, etot * ry + enion
       endif
 c      close(4)
 c      close(136)

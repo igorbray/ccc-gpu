@@ -969,6 +969,9 @@ c$$$            print*,'energies for B IV'
          elseif  (nzasym.eq.4) then !C V
             enlevel = 3 162 423.60
             enion = enlevel / 8 065.73
+         elseif  (nzasym.eq.5) then !N VI
+            enlevel = 4 452 723.93
+            enion = enlevel / 8 065.73
          elseif (nzasym.eq.8) then ! Ne IX
             enlevel = 9644957  ! cm-1
             enion = 1195.822   ! eV

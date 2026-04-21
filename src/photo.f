@@ -37,8 +37,8 @@ c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
 
 c DPI of Lithium       
       common /LITHIUM/ lithium
-      common /CcoefsE/  E(KNM)
-      double precision E
+      common /CcoefsE/  E(KNM), edelta
+      double precision E, edelta
             
       if(nznuc.eq.2)GS  =  5.807 !He  atom GS energy in Ry
 !      if(nznuc.eq.2)GS  =  21.17/Ry !He atom 2s2 ^1S energy in Ry
@@ -68,11 +68,17 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
 c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
       if(nznuc.eq.2 .and. ntype.lt.0)
      >               GS  =  3.77 !H2  molecule
-
+C See how the case for N4+ has defined GS, consider doing the same for other similar targets
       if(lithium.eq.1 .and. NZNUC.eq.3) GS =  14.955 !Li  atom GS energy in Ry (ion Li + ion Li+ + ion Li++)
       if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
       if(lithium.eq.1 .and. NZNUC.eq.6) GS =  34.78596*2.0 !3.476679E+01*2.0 !C3+ in Ry (ion C3+ + ion C4+ + ion C5+)
-      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
+c$$$      print*,'Orig GS:',GS
+      if(lithium.eq.1 .and. NZNUC.eq.7) then
+         GS =  -E(1)*2.0+97.8902/ry !N4+ in Ry (E(1) = calculated ion N4+ + ion N5+) + experimental ion N6+)
+         GS = GS - edelta/ry
+         print*,'Photon energy (eV) increased by:',-edelta !yields same total electron energy as in experiment
+      endif 
       if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
 
       if (lithium.eq.1) meta = 0
