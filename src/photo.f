@@ -2,22 +2,23 @@
      >   phaseq)
                                                              
 C Integral form of the photoionization cross section                           
+      use photo_module
       include 'par.f'
       parameter (knm6 = knm * 6, ncs = (lamax+1)*6)
                                                              
-      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
+c$$$      COMMON/dipole/  dr (kmax,nchan),dv (kmax,nchan),dx (kmax,nchan)
       COMMON/channel/ iopen(nchan)    !Indicates open channels (=1) 
       COMMON/even/ ieven(nchan)    !Indicates even bound state channels (=0)
       COMMON /gstspin/   iSpin, meta
                                                              
       character*3 chan(knm), chs(0:lamax)
       common /charchan/ chan
-      common /chanen/ enchan(knm)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
      >   ntype,ipar,nze,ninc,linc,lactop,nznuc,zasym
       character lh(0:10), csfile*(*), file*50
       data lh / 's','p','d','f','g','h','n','o',
      >          'x','x','x'/
+
       integer npk(nchtop+1)
 !      dimension gk(kmax,nchan), temp(maxr), ovlpn(knm), cs(knm,3),
 !     >   tcs(0:lamax,3),tics(0:lamax,3),tnbcs(0:lamax,3)
@@ -32,42 +33,96 @@ C Integral form of the photoionization cross section
       real*8 deta
       data ltop,ry,cs,tnbcs,tics,tcs/0,13.6058,knm6*0.0,
      >   ncs*0.0, ncs*0.0, ncs*0.0/
+      common /chanen/ enchan(knm),enchandiff(knm)
 
 c DPI of Lithium       
       common /LITHIUM/ lithium
-      common /CcoefsE/  E(KNM)
-      double precision E
+      common /CcoefsE/  E(KNM), edelta
+      double precision E, edelta
             
       if(nznuc.eq.2)GS  =  5.807 !He  atom GS energy in Ry
-      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
+!      if(nznuc.eq.2)GS  =  21.17/Ry !He atom 2s2 ^1S energy in Ry
+!      if(nznuc.eq.3)GS  = 14.559 !Li+  ion GS energy in Ry
+      if(nznuc.eq.3 .and. zasym.eq.0)GS  = 6.01/Ry !Li-  ion GS energy in Ry
+      if(nznuc.eq.11 .and. zasym.eq.0)GS  = 5.492/Ry !Na-  ion GS energy in Ry
       if(nznuc.eq.8)GS  =118.312 !O^6+ ion GS energy in Ry
       if(nznuc.eq.1)GS  =1.05544 !H-   ion GS energy in Ry
       if(nznuc.eq.4) GS = 2.0236 !BeIII-BeI   energy in Ry Radzig, Smirnov
+      if(nznuc.eq.5) GS = 4.6366 !BIV-BII  energy in Ry Radzig, Smirnov 4.539 !Ry 
       if(nznuc.eq.12)GS = 1.6670 !MgIII-MgI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.20)GS = 1.3218 !CaIII-CaI   energy in Ry Radzig, Smirnov
 !      if(nznuc.eq.10)GS = 4.596  !NeIII-NeI   energy in Ry Radzig, Smirnov
       if(nznuc.eq.18)GS = 5.464  !ArIII ^1S   energy in Ry by Saloman
       if(nznuc.eq.4  .and. Zasym.eq.3) GS =27.308 !Be^2+
-      if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
-      if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+ 
-      if(nznuc.eq.14 .and. Zasym.eq.13)GS =376.28 !Si^12+ 
+      if(nznuc.eq.10 .and. Zasym.eq.9)GS =187.813 !Ne^8+ 
+c$$$      if(nznuc.eq.12 .and. Zasym.eq.11)GS =273.31 !Mg^10+ 
+      if(nznuc.eq.12 .and. Zasym.eq.11)GS = 201.01 !Mg 1s^-2
+c$$$      if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.49 !Al^11+
+      if(nznuc.eq.13 .and. Zasym.eq.12)GS =322.06 !Al^11+ 
+      if(nznuc.eq.14 .and. Zasym.eq.13)GS =374.80 !Si^12+
+c$$$      if(nznuc.eq.14 .and. Zasym.eq.13)GS =376.28 !Si^12+ 
+      if(nznuc.eq.5  .and. Zasym.eq.4) GS = 44.0574 !B^3+ 
+
+      if(nznuc.eq.6  .and. Zasym.eq.5) GS = 64.808 !C^4+ 
 c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
-      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
-      if(meta.eq.1) then
-         if(iSpin.eq.0) then
-            GS   =4.283         !He atom 1s2s ^1S energy in Ry
-            print*, 'Meta Singlet'
-         else
-            GS   =4.350         !He atom 1s2s ^3S energy in Ry
-            print*, 'Meta Triplet'
-         end if
-      end if
-      
+c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
       if(nznuc.eq.2 .and. ntype.lt.0)
      >               GS  =  3.77 !H2  molecule
 
-      if(lithium.eq.1) GS =  14.955 !Li  atom GS energy in Ry
-              
+      if (lithium.eq.1) then    !Li-like targets
+         meta = 0
+         GS = -E(1)*2.0         ! Calculated all electron energy (Ry) of the He-like ion, i.e. without the valence electron, which will be added below from https://www.nist.gov/pml/atomic-spectra-database
+         GS = GS - edelta/ry !Ensure that the double photoionisation threshold is correct
+         print*,'Photon energy (eV) increased by:',-edelta !yields same total electron energy as in experiment
+         select case(nznuc)     !add the valence electron energy
+            case(3)             ! Li
+               GS = GS + 5.391714996/ry
+            case(4)             ! Be+
+               GS = GS + 18.21115/ry
+            case(5)             ! B2+
+               GS = GS + 37.93059/ry
+            case(6)             ! C3+
+               GS = GS + 64.49352/ry
+            case(7)             ! N4+
+               GS = GS + 97.8902/ry
+            case(8)             ! O5+
+               GS = GS + 138.1189/ry
+            case(9)             ! F6+
+               GS = GS + 185.1868/ry
+            case(10)            ! Ne7+
+               GS = GS + 239.0970/ry
+            case default
+               stop 'GS not coded for this target'
+         end select
+      endif
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.3) GS =  14.955 !Li  atom GS energy in Ry (ion Li + ion Li+ + ion Li++)
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.6) GS =  34.78596*2.0 !3.476679E+01*2.0 !C3+ in Ry (ion C3+ + ion C4+ + ion C5+)
+c$$$c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
+c$$$c$$$      print*,'Orig GS:',GS
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) then
+c$$$         GS =  -E(1)*2.0+97.8902/ry !N4+ in Ry (E(1) = calculated ion N4+ + ion N5+) + experimental ion N6+)
+c$$$         GS = GS - edelta/ry
+c$$$
+c$$$      endif 
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
+
+      if(meta.eq.1) then
+         if(iSpin.eq.0) then
+            if(nznuc.eq.2)GS   =4.283  !He atom 1s2s ^1S energy in Ry
+            if(nznuc.eq.5)GS   =29.154 !B3+ ion 1s2s ^1S energy in Ry
+            print*, 'Meta Singlet', GS
+         else
+            if(nznuc.eq.2)GS   =4.350 !He atom 1s2s ^3S energy in Ry
+            if(nznuc.eq.5)GS   =29.467!B3+ ion 1s2s ^3S energy in Ry
+            if(nznuc.eq.5 .and. Zasym.eq.2 ) GS = 4.2967 !B^1+ 2s2p ^3P ion
+            print*, 'Meta Triplet (Ry)', GS
+         end if
+      else
+         print*,'Target ground state energy (Ry):',GS
+      end if
+      
+
       pi = acos(-1.0)                                       
       ci = cmplx(0.0, 1.0)
       do n = 1, knm
@@ -99,12 +154,12 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
          open(43,file=file)
          file = 'Aphotocs'//csfile(i:60)
          open(44,file=file)
-         file = 'T1photocs'//csfile(i:60)
-         open(45,file=file)
-         file = 'T2photocs'//csfile(i:60)
-         open(46,file=file)
-         file = 'T3photocs'//csfile(i:60)
-         open(47,file=file)
+c$$$         file = 'T1photocs'//csfile(i:60)
+c$$$         open(45,file=file)
+c$$$         file = 'T2photocs'//csfile(i:60)
+c$$$         open(46,file=file)
+c$$$         file = 'T3photocs'//csfile(i:60)
+c$$$         open(47,file=file)
          file = 'photocs'//csfile(i:60)
          open(22,file=file)
       else 
@@ -114,12 +169,12 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
          open(43,file=file)
          file = csfile(1:i-8)//'Aphotocs'//csfile(i:60)
          open(44,file=file)
-         file = csfile(1:i-8)//'T1photocs'//csfile(i:60)
-         open(45,file=file)
-         file = csfile(1:i-8)//'T2photocs'//csfile(i:60)
-         open(46,file=file)
-         file = csfile(1:i-8)//'T3photocs'//csfile(i:60)
-         open(47,file=file)
+c$$$         file = csfile(1:i-8)//'T1photocs'//csfile(i:60)
+c$$$         open(45,file=file)
+c$$$         file = csfile(1:i-8)//'T2photocs'//csfile(i:60)
+c$$$         open(46,file=file)
+c$$$         file = csfile(1:i-8)//'T3photocs'//csfile(i:60)
+c$$$         open(47,file=file)
          file = csfile(1:i-8)//'photocs'//csfile(i:60)
          open(22,file=file)
       endif 
@@ -128,7 +183,7 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
 
       lg = 1
 
-*      write(6,1000)
+      write(6,1000)
 
 * Final channel loop
       
@@ -147,14 +202,18 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
       do nchf = 1, nchtop
          call getchinfo (nchf,nt,lg,temp,maxpsif,ef,lf,nf,llf)
          EI=GS+ef
-         if(lithium.eq.1)    EI=GS+E(nt)*2 !Li  patch     
+         if(lithium.eq.1) then
+!            if(nt.eq.1) E(nt) = -7.279 ! Yan
+            EI=GS+E(nt)*2       !Li  patch
+!            print'(A,F9.4)', 'E(nt)', E(nt)
+         end if
          if (nchf.eq.1) then
             etot = ef + gk(1,nchf)**2
             om = EI + gk(1,nchf)**2
             do ng = 1, 3
 !            do ng = 1, 6
-               write(41+ng,"('Photon energy:',f10.5,' eV. Total '
-     >            ,'electron energy:',f10.5,' eV.')") om*ry, etot*ry
+               write(41+ng,"('Photon energy:',f12.5,' eV. Total '
+     >            ,'electron energy:',f12.5,' eV.')") om*ry, etot*ry
                if (slowery.gt.0.0) write (41+ng,
      >            "('    L inner  L outer      Re(T)       Im(T) for ',
      >            'inner electron energy of',f6.2,' eV')") slowery*ry
@@ -162,6 +221,7 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
          endif 
 
          nqm = npk(nchf+1) - npk(nchf)
+*         write(6,'(A,F9.4)') 'Ground state energy', GS
 *         write(6,1954) nchf,EI,nf,lh(lf),lh(LLf),nqm            
 *         write(6,'(11x,A,F9.4)') 'Bound state energy',ef
          ipseudo=0              !Eigenstates
@@ -175,8 +235,8 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
          TV =(0.0,0.0)                                          
          TX =(0.0,0.0)                                          
          
-*         write(6,35)                                            
-*         write(6,30) !Print T-matrix                                            
+!         write(6,35)                                            
+!         write(6,30) !Print T-matrix                                            
 
 * Initial channel loop
       
@@ -211,7 +271,16 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
                x =dx (k,NCHI)*rn                             
                GF= wk(nv) * tmp**2
                T =vt(nv,nchf)/q0/tmp
-*               write(6,40) q,gf,T,r,v,x
+!               write(6,40) q,gf,T,r,v,x
+c$$$               if(nznuc.eq.12 .and.  nchi.eq.1)then
+c$$$                  qf = 50.      !Fano profile for 3p->3d resonance
+c$$$                  r  = r*qf
+c$$$                  v  = v*qf
+c$$$                  x  = x*qf
+c$$$                  GF = GF * ci
+c$$$               end if
+
+
                if(k.eq.1.and.NCHI.eq.NCHF)then   !Diagonal term f-f
                   p =q
                   ro=r
@@ -220,8 +289,9 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
                   To= T
                   SU=1-2*pi*p*ci*To
                end if           
-               T2 = T
-               T3 = T
+               T1 = (0.0,0.0)
+               T2 = (0.0,0.0)
+               T3 = (0.0,0.0)
                if(k.eq.1.and.NCHI.eq.1)then   !electron-scattering ME
                   T1= T
                end if           
@@ -256,8 +326,8 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
             TX = (TX +  dTX)
          end do
 
-*         write(6,42) 0, ro,0d0,vo,0d0,xo,0d0
-*         write(6,43) TR+ro,TV+vo,TX+xo
+!         write(6,42) 0, ro,0d0,vo,0d0,xo,0d0
+!         write(6,43) TR+ro,TV+vo,TX+xo
 
          delta= 0.5*atan2(aimag(SU),real(SU))
 *         write(6,1960) To                                                    
@@ -272,9 +342,9 @@ C Restore normalization
 
          if (p.eq.0.0) then
             const = const / 2.0
-         else 
+         else
             const=const*p/2.0
-         endif 
+         endif
          om=EI+p**2
 
          TR = (TR+ro) 
@@ -282,12 +352,14 @@ C Restore normalization
          TX = (TX+xo) 
          
          phase = phasel(1,nchf)
+         cphase = atan(aimag(phase)/real(phase))
+!         print'(A,3F9.4)', 'Coulomb phase',cphase
+!         print'(A,3F9.4)', 'HF phase',cphase+delta
          if (ef.gt.0.0) then
             deta = - 2.0 / sqrt(ef)
 c$$$            phase = phase * coulphase(deta,lf) * ovlpn(nt)
             phase = phase * phaseq(nt) * ovlpn(nt)
          endif 
-
          D(nt,llf-lf,1) = TR * sqrt(const*om*2.0/3.0) * phase
          D(nt,llf-lf,2) = TV * sqrt(const*8.0/3.0/om) * phase
          D(nt,llf-lf,3) = TX * sqrt(const*32.0/3.0/om**3) * phase
@@ -311,8 +383,8 @@ C  The asymptotic charge seen by the inner target-space electron is +2. OVLP is
 C  the overlap between the EF-energy state with the true continuum function
 C  of same energy. This contains the continuum normalisation sqrt(2/pi), but
 C  NOT division by sqrt(ef).
-!            do ng = 1,3
-            do ng = 1,6
+            do ng = 1,3
+!            do ng = 1,6
                write(41+ng,70) lf,llf, D(nt,llf-lf,ng)
             enddo 
 c$$$            deta = - 2.0 / sqrt(ef)
@@ -376,12 +448,12 @@ c$$$     >         ovlp * phase * TX
          chs(l) = ' + '
          if (l.eq.0) chs(l) = ' = '
       enddo 
-!      do ngauge = 1, 3
-      do ngauge = 1, 6
+      do ngauge = 1, 3
+!      do ngauge = 1, 6
          tcst = 0.0
          tnbcst = 0.0
-         write(41+ngauge,'("state XSEC(Mb)       D(Lp-La=-1)       ",
-     >      "    D(Lp-La=+1)     overlap beta   en(Ry)")')
+         write(41+ngauge,'("state XSEC(Mb)       D(Lp-La=-1)          ",
+     >      " D(Lp-La=+1)     overlap beta     en(Ry)     energydiff")')
          do nt = 1, ntmax
             call getchnl(chan(nt),n,la,nc)
             div = abs(D(nt,1,ngauge))**2+abs(D(nt,-1,ngauge))**2
@@ -399,19 +471,19 @@ c$$$     >         ovlp * phase * TX
      >         tnbcst = tnbcst + cs(nt,ngauge) * ovlpn(nt)
             if (ngauge.ge.4) cs(nt,ngauge) = div
             write(41+ngauge,'(a3,1p,5e11.3,0p,
-     >         2f7.3,f10.6)') chan(nt),cs(nt,ngauge),D(nt,-1,ngauge),
-     >         D(nt,1,ngauge), ovlpn(nt),beta,enchan(nt)
+     >         2f7.3,2f12.6)') chan(nt),cs(nt,ngauge),D(nt,-1,ngauge),
+     >         D(nt,1,ngauge), ovlpn(nt),beta,enchan(nt),enchandiff(nt)
          enddo 
          write(41+ngauge,'(79a)') ('-',i=1,79)
          ticst = max(tcst - tnbcst,0.0)
-         write(41+ngauge,'(f10.4,"eV on",a3," TNBCS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3," TNBCS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), tnbcst, (chs(l),tnbcs(l,ngauge),l=0,ltop)
-         write(41+ngauge,'(f10.4,"eV on",a3,"  TICS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3,"  TICS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), max(0.0,tcst - tnbcst),
      >      (chs(l), max(0.0,tcs(l,ngauge)-tnbcs(l,ngauge)),l=0,ltop)
-         write(41+ngauge,'(f10.4,"eV on",a3,"   TCS: ",
+         write(41+ngauge,'(f10.5,"eV on ",a3,"   TCS: ",
      >      1p,e9.3,9(a3,e9.3))') om * ry,
      >      chan(1), tcst, (chs(l), tcs(l,ngauge),l=0,ltop)
       enddo 
@@ -427,13 +499,13 @@ c$$$     >         ovlp * phase * TX
       
       write(20,'(F7.2,3F11.4)') om*ry,sigma_l, sigma_v, sigma_x   
       write(21,'(F7.2,3F11.4)') om*ry,sigma1_l,sigma1_v, sigma1_x
-      write(22,'(''#ph energy  double L single     double V single'',
+      write(22,'(''#ph energy    double L single     double V single'',
      >   ''     double A single   el energy'')') 
-      write(22,'(F10.4,1x,1p,6E10.3,0p,f10.4)') om*ry, sigma_l-sigma1_l,
+      write(22,'(F10.5,1x,1p,6E10.3,0p,f10.5)') om*ry, sigma_l-sigma1_l,
      >   sigma1_l,sigma_v-sigma1_v,sigma1_v,sigma_x-sigma1_x,sigma1_x,
      >   ein
-      write(22,'(F10.4,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
-      write(23,'(F8.2,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
+      write(22,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
+      write(23,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
  30   format(
      >   /' k final',9x,'ReG',11x,'ImG',10x,'ReT',11x,'ImT'/)
  35       format(/'Initial',8x,'Length',19x,'Velocity',

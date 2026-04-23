@@ -22,6 +22,7 @@ c     overlap integrals between s.p. states (call checkortsq),
 c     one electron integrals (call e1mat).
 c     note - called only ones in calculation of HE states of all symmetries
       subroutine  setmaxsp(fl,maxf,minf)
+      use vmat_module, only: nodeid
       include 'par.f'
       real  fl(nmaxr,nspmax)
       integer  maxf(nspmax),minf(nspmax)
@@ -37,7 +38,8 @@ c
          nkd(l) = 0
       end do
 c     read information on one electron orbitals
-      write(4,'(" description of s.p. orbitals")') 
+      if (nodeid.eq.1)
+     >write(4,'(" description of s.p. orbitals")') 
       
       call inputdatamax(nk1,nkd,al,ndif)
       call configsp(nk1,nkd,ndif)
@@ -110,6 +112,7 @@ c****************  Read overall input data  **********************
 c-----------------------------------------------------------------
       subroutine inputdatamax(nk1,nkd,al,ndif)
 c     this is to read overall maximum on s.p. functions - for all HE states.
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension  nk1(0:lomax), nkd(0:lomax)
       dimension ral(0:lomax), raldif(0:lomax)
@@ -127,24 +130,32 @@ c--
       end do
       l2max = 0
 c--
-      write(4,'(" description of s.p. states")') 
+      if (nodeid.eq.1)
+     >write(4,'(" description of s.p. states")') 
 c     nset=1
       read(3,*) l1max
-      write(4,'("lmax =",I5)') l1max
+      if (nodeid.eq.1)
+     >write(4,'("lmax =",I5)') l1max
       read(3,*) (ral(l), l=0,l1max)
-      write(4,'("al(l) =",10F10.5)') (ral(l), l=0,l1max)
+      if (nodeid.eq.1)
+     >write(4,'("al(l) =",10F10.5)') (ral(l), l=0,l1max)
       read(3,*) (nk1(l), l=0,l1max)
-      write(4,'("nk(l) =",10I5)') (nk1(l), l=0,l1max)
+      if (nodeid.eq.1)
+     >write(4,'("nk(l) =",10I5)') (nk1(l), l=0,l1max)
       call checklomax(l1max,l2max)
 c     nset=2
       read(3,*) ndif
-      write(4,'("ndif =",I5)') ndif
+      if (nodeid.eq.1)
+     >write(4,'("ndif =",I5)') ndif
       read(3,*) ldif
-      write(4,'("ldif =",I5)') ldif
+      if (nodeid.eq.1)
+     >write(4,'("ldif =",I5)') ldif
       read(3,*) (raldif(l), l=0,ldif)
-      write(4,'("aldif(l) =",10F10.5)') (raldif(l), l=0,ldif)
+      if (nodeid.eq.1)
+     >write(4,'("aldif(l) =",10F10.5)') (raldif(l), l=0,ldif)
       read(3,*) (nkd(l), l=0,ldif)
-      write(4,'("nkd(l) =",10I5)') (nkd(l), l=0,ldif)
+      if (nodeid.eq.1)
+     >write(4,'("nkd(l) =",10I5)') (nkd(l), l=0,ldif)
       do l=0,lomax
          al(l,1) = DBLE(ral(l))
          al(l,2) = DBLE(raldif(l))
@@ -215,6 +226,7 @@ c**************       Set s.p. basis              ****************
 c-----------------------------------------------------------------
       subroutine spcoef(al,M)
 c     This routine generates normalisation factors for Laguerre polinomials.
+      use vmat_module, only: nodeid
       include 'par.f'
       double precision  als,M(nspmCI),al(0:lomax,2)
       double precision  Cgr ! ,gamma
@@ -222,7 +234,8 @@ c     This routine generates normalisation factors for Laguerre polinomials.
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
 c      common /factorial/ gamma(maxfac)
       common /factratio/ Cgr(0:lomax,komax)
-      write(4,'("Set s.p. basis")')
+      if (nodeid.eq.1)
+     >write(4,'("Set s.p. basis")')
       do nsp=1,nspm
          ns = nset(nsp)
          l = lo(nsp)
@@ -299,6 +312,7 @@ c-----------------------------------------------------------
       end
 c-----------------------------------------------------------
       subroutine checkortsq(fl,maxf,minf)
+      use vmat_module, only: nodeid
       include 'par.f'
       double precision  ortint
       common /ortog/  ortint(nspmax,nspmax)
@@ -307,8 +321,10 @@ c-----------------------------------------------------------
       real  fl(nmaxr,nspmax)
       integer  maxf(nspmax),minf(nspmax)
 c      
-      write(4,'("check orthogonality of s.p. states")') 
-      write(20,'("check orthogonality of s.p. states")') 
+      if (nodeid.eq.1)
+     >write(4,'("check orthogonality of s.p. states")') 
+      if (nodeid.eq.1)
+     >write(20,'("check orthogonality of s.p. states")') 
       do n1=1,nspm
          do n2=n1,nspm
             rnorm = 0.0D0
@@ -333,6 +349,7 @@ c$$$     >         real(rnorm),rnorm1
       end      
 c-----------------------------------------------------------------
       subroutine e1mat(fl,maxf,minf,gl,maxg,ming,nr,nspm)
+      use vmat_module, only: nodeid
       include 'par.f'
       real  fl(nmaxr,nspmax)
       integer  maxf(nspmax),minf(nspmax)
@@ -340,7 +357,8 @@ c-----------------------------------------------------------------
       integer  maxg(nspmCI),ming(nspmCI)
       double precision  re1,oneelint,e1r
       common/hame1/ e1r(nspmax,nspmax)
-      write(4,'("enter e1mat")')
+      if (nodeid.eq.1)
+     >write(4,'("enter e1mat")')
       do n1=1,nspm
          do n1p=1,n1
             re1 = oneelint(n1,n1p,fl,maxf,minf,gl,maxg,ming) 

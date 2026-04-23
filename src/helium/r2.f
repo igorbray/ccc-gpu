@@ -1,6 +1,7 @@
 c************** r**2 for states of HE ****************************************
 c*****************************************************************************
       subroutine r2s(Nmax,nspmW,C,fl,minf,maxf,lo)
+      use vmat_module, only: nodeid
       include 'par.f'
       dimension  fl(nmaxr,nspmax)
       dimension  minf(nspmax), maxf(nspmax), lo(nspmax)
@@ -8,10 +9,12 @@ c*****************************************************************************
       double precision  C(Nmax+1,nspmW,nspmW)
       double precision r2
 c
-      write(4,'("here <N|r**2|N> are calculated")')
+      if (nodeid.eq.1)
+     >write(4,'("here <N|r**2|N> are calculated")')
       do N=1,Nmax
          rsq = real(r2(Nmax,nspmW,N,C,fl,minf,maxf,lo))/2.
-         write(4,'("N=",I3,", l=",I3,", s=",I3,", r**2 =",F10.5)')
+         if (nodeid.eq.1)
+     >write(4,'("N=",I3,", l=",I3,", s=",I3,", r**2 =",F10.5)')
      >      N,ll(N),ls(N),rsq
       end do
       return
