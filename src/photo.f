@@ -68,21 +68,45 @@ c$$$      if(nznuc.eq.10)GS = 5.103  !NeIII ^1S   energy in Ry Kilin et al.
 c$$$      if(nznuc.eq.10)GS = 8.957 !NeIII ^1S   energy in Ry by Kramida and Nave
       if(nznuc.eq.2 .and. ntype.lt.0)
      >               GS  =  3.77 !H2  molecule
-C See how the case for N4+ has defined GS, consider doing the same for other similar targets
-      if(lithium.eq.1 .and. NZNUC.eq.3) GS =  14.955 !Li  atom GS energy in Ry (ion Li + ion Li+ + ion Li++)
-      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
-      if(lithium.eq.1 .and. NZNUC.eq.6) GS =  34.78596*2.0 !3.476679E+01*2.0 !C3+ in Ry (ion C3+ + ion C4+ + ion C5+)
-c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
-c$$$      print*,'Orig GS:',GS
-      if(lithium.eq.1 .and. NZNUC.eq.7) then
-         GS =  -E(1)*2.0+97.8902/ry !N4+ in Ry (E(1) = calculated ion N4+ + ion N5+) + experimental ion N6+)
-         GS = GS - edelta/ry
-         print*,'Photon energy (eV) increased by:',-edelta !yields same total electron energy as in experiment
-      endif 
-      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
 
-      if (lithium.eq.1) meta = 0
-      
+      if (lithium.eq.1) then    !Li-like targets
+         meta = 0
+         GS = -E(1)*2.0         ! Calculated all electron energy (Ry) of the He-like ion, i.e. without the valence electron, which will be added below from https://www.nist.gov/pml/atomic-spectra-database
+         GS = GS - edelta/ry !Ensure that the double photoionisation threshold is correct
+         print*,'Photon energy (eV) increased by:',-edelta !yields same total electron energy as in experiment
+         select case(nznuc)     !add the valence electron energy
+            case(3)             ! Li
+               GS = GS + 5.391714996/ry
+            case(4)             ! Be+
+               GS = GS + 18.21115/ry
+            case(5)             ! B2+
+               GS = GS + 37.93059/ry
+            case(6)             ! C3+
+               GS = GS + 64.49352/ry
+            case(7)             ! N4+
+               GS = GS + 97.8902/ry
+            case(8)             ! O5+
+               GS = GS + 138.1189/ry
+            case(9)             ! F6+
+               GS = GS + 185.1868/ry
+            case(10)            ! Ne7+
+               GS = GS + 239.0970/ry
+            case default
+               stop 'GS not coded for this target'
+         end select
+      endif
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.3) GS =  14.955 !Li  atom GS energy in Ry (ion Li + ion Li+ + ion Li++)
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.5) GS =  46.840 !B++
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.6) GS =  34.78596*2.0 !3.476679E+01*2.0 !C3+ in Ry (ion C3+ + ion C4+ + ion C5+)
+c$$$c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) GS =  48.39861*2.0 !N4+ in Ry (ion N4+ + ion N5+ + ion N6+)
+c$$$c$$$      print*,'Orig GS:',GS
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.7) then
+c$$$         GS =  -E(1)*2.0+97.8902/ry !N4+ in Ry (E(1) = calculated ion N4+ + ion N5+) + experimental ion N6+)
+c$$$         GS = GS - edelta/ry
+c$$$
+c$$$      endif 
+c$$$      if(lithium.eq.1 .and. NZNUC.eq.10) GS = 205.60 ! 205.5834 !Ne7+ Ry (all electrons) (NIST total binding energy)
+
       if(meta.eq.1) then
          if(iSpin.eq.0) then
             if(nznuc.eq.2)GS   =4.283  !He atom 1s2s ^1S energy in Ry
