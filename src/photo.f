@@ -475,12 +475,12 @@ c$$$     >         ovlp * phase * TX
       
       write(20,'(F7.2,3F11.4)') om*ry,sigma_l, sigma_v, sigma_x   
       write(21,'(F7.2,3F11.4)') om*ry,sigma1_l,sigma1_v, sigma1_x
-      write(22,'(''#ph energy    double L single     double V single'',
-     >   ''     double A single   el energy'')') 
-      write(22,'(F10.5,1x,1p,6E10.3,0p,f10.5)') om*ry, sigma_l-sigma1_l,
+      write(22,'("#ph energy      double L single     double V single",
+     >   "     double A single   el energy")') 
+      write(22,'(F12.7,1x,1p,6E10.3,0p,f12.7)') om*ry, sigma_l-sigma1_l,
      >   sigma1_l,sigma_v-sigma1_v,sigma1_v,sigma_x-sigma1_x,sigma1_x,
      >   ein
-      write(22,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
+      write(22,'(F12.7,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
       write(23,'(F10.5,3F11.4,2x,a20)') om*ry, ddl, ddv,ddx,file
  30   format(
      >   /' k final',9x,'ReG',11x,'ImG',10x,'ReT',11x,'ImT'/)
