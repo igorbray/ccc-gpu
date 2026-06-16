@@ -1950,6 +1950,7 @@ c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sq
      >   nchmf,Nmaxf,Nf,Lf,laf,sf,lparf,nspmf,lof,
      >   Cf,flf,maxff,minff,npkf,chilf,mincf,ortint,KJ,dwpot,
      >   vdon,VVD,nchf,nchi,na,nam,namax)
+      use chil_module
       include 'par.f'
       double precision Z
       common /Zatom/ Z
@@ -1960,10 +1961,10 @@ c     Matrix elements here are non-reduced (<|V|>) The difference is: <|V|> = sq
       dimension loi(nspmi), lof(nspmf),npki(nchmi+1),npkf(nchmf+1)
       dimension fli(maxr,nspmax),maxfi(nspmi),minfi(nspmi)
       dimension flf(maxr,nspmax),maxff(nspmf),minff(nspmf)
-      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1)
+      dimension chili(nr,npki(nchmi+1)-1), minci(npki(nchmi+1)-1) !not used due to chil_module
       dimension chilf(nr,npkf(nchmf+1)-1), mincf(npkf(nchmf+1)-1)
-      dimension formout(maxr),dwpot(maxr,nchan)!,chiform(maxr,kmax)
-      allocatable :: chiform(:,:)
+      dimension formout(maxr),dwpot(maxr,nchan),chiform(maxr)
+c$$$      allocatable :: chiform(:,:)
       dimension VVD(kmax,kmax,0:1)
 c$$$      dimension VVD(npkf(nchmf+1)-1,npki(nchmi+1))
       dimension  Vang(0:ltmax), upot(maxr), vdon(nchan,nchan,0:1)
@@ -2215,13 +2216,13 @@ c     momentum loops
          temp(i) = formout(i) / gridr(i,3)
       enddo
       
-      allocate(chiform(maxr,kmax))
-      do ki=npki(nchi), npki(nchi+1) - 1
-         minki = max(minform, minci(ki))
-         do i = minki, maxform
-            chiform(i,ki-kistep) = temp(i) * chili(i,ki)
-         enddo
-      enddo
+c$$$      allocate(chiform(maxr,kmax))
+c$$$      do ki=npki(nchi), npki(nchi+1) - 1
+c$$$         minki = max(minform, minci(ki))
+c$$$         do i = minki, maxform
+c$$$            chiform(i,ki-kistep) = temp(i) * chili(i,ki)
+c$$$         enddo
+c$$$      enddo
        kistart = npki(nchi)
       kistop = npki(nchi+1) - 1
       quart = 0.0
@@ -2230,18 +2231,21 @@ C     Note si(Ni) = sf(Nf) here
 c$$$  c$par doall
       tmp = 0.0
       do ki=kistart, kistop
-         minki = max(minform, minci(ki))
+         minki = max(minform, minchil(ki,1)) !minci(ki))
          kii = ki - kistep
+         chiform(minki:maxform) = 
+     >      temp(minki:maxform)*chil(minki:maxform,ki,1)
          do 90 kf = npkf(nchf), npkf(nchf+1) - 1
             kff = kf - npkf(nchf) + 1
-            mini = max(minki, mincf(kf))
+            mini = max(minki, minchil(kf,1)) !mincf(kf))
             n = maxform - mini + 1
             if (kf.lt.ki.or.n.le.0) go to 90
                                 !                  if(ki.eq.kistart .and. kf.eq.npkf(nchf)) then
                                 !                     print*,"!!>",chilf(100,kf),chiform(100,kii)
                                 !                  endif
-            tmp = dot_product(chilf(mini:maxform,kf),
-     >           chiform(mini:maxform,kii))
+            tmp = dot_product(chil(mini:maxform,kf,1),
+     >           chiform(mini:maxform))
+c$$$     >           chiform(mini:maxform,kii))
             
                                 !                  if(nchi.eq.nchf) then
                                 !                     print*, nchf,nchi,tmp
@@ -2262,12 +2266,16 @@ c     end ki,kf loops
  90      continue 
       end do
 
-      deallocate(chiform)
+c$$$      deallocate(chiform)
 
-      vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + tmp * const
+      vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + vvd(1,1,0) !vdon(nchf,nchi,0) + tmp * const
       vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
-      vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+tmp*const) * quart
+      vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+vvd(1,1,1))*quart !(vdon(nchf,nchi,1)+tmp*const) * quart
       vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
+c$$$      vdon(nchf,nchi,0) = vdon(nchf,nchi,0) + tmp * const
+c$$$      vdon(nchi,nchf,0) = vdon(nchf,nchi,0)
+c$$$      vdon(nchf,nchi,1) = (vdon(nchf,nchi,1)+tmp*const) * quart
+c$$$      vdon(nchi,nchf,1) = vdon(nchf,nchi,1)
 
 
       return

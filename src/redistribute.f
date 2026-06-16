@@ -31,10 +31,11 @@
       
       subroutine redistributeAndSolve(ni,nf,nd
      >             ,blacs_ctx,ns,nsmax
-     >             ,nodes,npklen,npk
+     >             ,nodest,npklen,npk
      >             ,nchtop
      >             ,wk,wklen,soln)
       use vmat_module
+!      use mpi_f08 !avoids MPI argument missmatch warnings
       implicit none
       include 'mpif.h'
 c$$$      real, dimension(nf+1:nd,ni:nf) :: vmat0
@@ -53,7 +54,7 @@ c$$$      real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
       integer :: wklen
       complex, dimension(wklen) :: wk
       integer :: i, nsmax
-      integer :: nodes,matrix,vector
+      integer :: matrix,vector,nodest !nodes in vmat_module
       integer :: npklen
 c$$$      integer, dimension(nodes) :: nchistart
 c$$$      integer, dimension(nodes) :: nchistop
@@ -67,8 +68,18 @@ c$$$      integer, dimension(nodes) :: nchistop
 
       call mpi_comm_rank(MPI_COMM_WORLD,myid,ierr)
       call blacs_gridinfo(blacs_ctx,rows,cols,myrow,mycol)
-      kblock(1)=min(64,nd/rows)
-      kblock(2)=min(64,nd/cols)
+#ifdef SLATE
+      kblock(1)=min(1000,nd/rows) ! min(1000,nd/rows)
+      kblock(2)=min(1000,nd/cols) ! min(1000,nd/cols)
+#else
+#if defined _single
+      kblock(1)=min(64*10,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(64*10,nd/cols) ! min(64,nd/cols)
+#else
+      kblock(1)=min(384,nd/rows) ! min(64,nd/rows)
+      kblock(2)=min(384,nd/cols) ! min(64,nd/cols)
+#endif      
+#endif
       kblock(1)=min(kblock(1),kblock(2))
       kblock(2)=kblock(1)
 !      vblock(1)=min(64,nd/rows)
@@ -116,8 +127,8 @@ C  Save the driving term on to the zeroth process
          if (allocated(vmat01)) deallocate(vmat01)
          if (allocated(vmat0)) deallocate(vmat0)
          if (allocated(vmat1)) deallocate(vmat1)
-      else
-         if (allocated(vmat0)) deallocate(vmat0)
+c$$$      else
+c$$$         if (allocated(vmat0)) deallocate(vmat0)
       endif 
 C  Solve the linear equations
 C  The following was an unsuccessful attempt to generate single executables
@@ -198,7 +209,7 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
       integer :: kf
       integer :: OMP_GET_MAX_THREADS
 
-      nomp=max(1,OMP_GET_MAX_THREADS())
+      nomp=1 !max(1,OMP_GET_MAX_THREADS()) ! revert for many tasks per node
 !      nomp = 8  ! temporary fix for epic scalapack problem'
 
       call blacs_gridinfo(bctx,pgriddim(1),pgriddim(2)
@@ -277,9 +288,9 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
      >                      kdist,kldim,desc_kl,
      >             nodes,nchistart,nchistop,npklen,npk,
      >                      bctx,ns,part,kf,wk,wklen)
+!      use mpi_f08 !avoids MPI argument missmatch warnings
       implicit none
       include 'mpif.h'
-
       real, dimension(nf+1:nd,ni:nf) :: vmat0
       real, dimension(ni:nf,ni:nf+1) :: vmat01
       real, dimension(ni:nf,nf+1+1:nd+1) :: vmat1
@@ -311,13 +322,20 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
       integer :: idx
       integer :: wklen
       complex, dimension(wklen) :: wk
+
       integer, dimension(:), allocatable :: sends, requests
+!      type(MPI_Request), dimension(:), allocatable :: sends, requests
+
       integer, dimension(:,:), allocatable :: reqbuffer
       integer, dimension(5) :: reqcord
       logical :: waiting, reqdone
       integer :: gproc
+
       integer, dimension(2) :: fillrequests
+!      type(MPI_Request), dimension(2) :: fillrequests !mpi_f08
       integer, dimension(MPI_STATUS_SIZE,2) :: fillstats
+!      type(MPI_Status), dimension(2) :: fillstats !mpi_f08
+
       integer, dimension(20) :: rowmap
       real, dimension(:,:,:), allocatable :: sendbuffer
       integer :: nodes
@@ -370,7 +388,10 @@ c$$$     >      ", diff (secs):",i5)', time, idiff(valuesin,valuesout)
           do while (waiting)
             call service_requests(vmat0,vmat1,vmat01,ni,nf,nd,sends,
      >              kblock,mpisize,requests,reqbuffer,sendbuffer)
+
             call mpi_test(fillrequests(2),reqdone,fillstats(:,2),ierr)
+!            call mpi_test(fillrequests(2),reqdone,fillstats(2),ierr) !mpi_f08
+
             if (reqdone) then
               waiting=.false.
             end if
@@ -388,6 +409,8 @@ c$$$     >                                *real(wk(gidx(2)+j-lidx(2)))))
 c$$$     >                              +real(wk(gidx(1)+i-lidx(1))+1e-30)
 c$$$     >                         /abs(real(wk(gidx(1)+i-lidx(1))+1e-30))
      >                + 1.0/real(wk(gidx(1)+i-lidx(1))+1e-30)
+c$$$                  print*,'gidx(1),i,lidx(1),wk:',gidx(1),i,lidx(1),
+c$$$     >               real(wk(gidx(1)+i-lidx(1)))
                end if
               end do
             end do
@@ -421,6 +444,7 @@ c$$$     >                       *sqrt(abs(real(wk(gidx(1)+i-lidx(1)))))
         end if
       end do
       call mpi_wait(fillrequests(1),fillstats(:,1),ierr)
+!      call mpi_wait(fillrequests(1),fillstats(1),ierr) !mpi_f08
       call mpi_barrier(MPI_COMM_WORLD,ierr)
 
       deallocate(sends)
@@ -440,6 +464,7 @@ c$$$     >                       *sqrt(abs(real(wk(gidx(1)+i-lidx(1)))))
       ! check if any more processors have requested a block of data and
       ! repeat
       ! if a processor requests a block at -1, its done
+!      use mpi_f08               !avoids MPI argument missmatch warnings
       implicit none
       include 'mpif.h'
       real, dimension(nf+1:nd,ni:nf) :: vmat0
@@ -448,13 +473,22 @@ c$$$     >                       *sqrt(abs(real(wk(gidx(1)+i-lidx(1)))))
       integer :: ni,nf,nd
       integer, dimension(2) :: kblock
       integer :: finished
+
       integer, dimension(MPI_STATUS_SIZE) :: mpistat
+!      type(MPI_Status) :: mpistat !mpi_f08
+
       integer :: ierr
       integer :: nprocs
+
       integer, dimension(nprocs) :: sends
+!      type(MPI_Request), dimension(nprocs) :: sends !mpi_f08
+
       integer, dimension(5,nprocs) :: reqbuffer
       integer :: idxsize
+
       integer, dimension(nprocs) :: reqhandle
+!      type(MPI_Request), dimension(nprocs) :: reqhandle !mpi_f08
+
       integer :: i,j
       integer :: idx
       logical :: flag
@@ -544,7 +578,7 @@ c$$$                       print*,i-gidx(1)+1,j-gidx(2)+1,idx,j,i
 
       subroutine scalapackSolve(a,dima,desca,b,dimb,descb)
       implicit none
-      include 'mpif.h'
+!      include 'mpif.h' !not required
       integer, dimension(2) :: dima, dimb
       real, dimension(dima(1),dima(2)) :: a
       real, dimension(dimb(1),dimb(2)) :: b
@@ -554,11 +588,13 @@ c$$$                       print*,i-gidx(1)+1,j-gidx(2)+1,idx,j,i
       integer, dimension(:), allocatable :: ipiv
       allocate(ipiv(dima(1)+desca(4)))
 #ifdef _double
-c$$$      print*,'Entering PDGESV'
+!      print*,'Entering PDGESV'
       call pdgesv(desca(4),descb(4),a,1,1,desca,ipiv,b,1,1,descb,ierr)
-c$$$      print*,'Exiting PDGESV'
+!      print*,'Exiting PDGESV'
 #elif defined _single
+!      print*,'Entering PSGESV'
       call psgesv(desca(4),descb(4),a,1,1,desca,ipiv,b,1,1,descb,ierr)
+!      print*,'Exiting PSGESV'
 #endif
       if (ierr.ne.0) then
         print*,'p*gesv failed with error value',ierr

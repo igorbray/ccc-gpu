@@ -5,7 +5,7 @@ C  A to infinity of COS(R*X)/X**N dX, if COSL is true, or
 C  SIN(R*X)/X**N dX, if otherwise. RER is the relative error required.
       function csint(a,rpm,n,cosl,rer)
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       logical*4 cosl
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       if (n.le.1) then
@@ -66,7 +66,7 @@ C  this series diverges before RER is satisfied then the last term is
 C  evaluated numerically with CSNUM.
       real*8 function csass(a,r,n,cosl,rer)
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       logical*4 cosl
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       sum=0d0
@@ -144,7 +144,7 @@ C  The function RINT(I,A) returns the Ith derivative of X**-N (I<N),
 C  evaluated at X=A.
       function rint(i,a,n)
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       rint=(-1)**i*a**(-n+i)*exp(factl(n-1-i)-factl(n-1))
       end
@@ -154,7 +154,7 @@ C  infinity of the Ith derivative of COS((R1+R2)*X) times the Ith derivative
 C  of X**-N. Called once only for I=N-1.
       function ciorsi(i,a,r)
       implicit real*8 (a-h,o-z)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),res(63)
       if (mod(i,2).eq.0) then
          ciorsi=dci(a*r)
@@ -170,7 +170,7 @@ C  from A to infinity numerically.
       real*8 function csnum(a,r,n,cosl,rer)
       implicit real*8 (a-h,o-z)
       logical*4 cosl
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),result(63)
 C  In the following line we multiply RER by 100 as APP is accurate to at
 C  least 2 significant figures.
@@ -211,7 +211,7 @@ C  near machine precision.
       real*8 function cosint(a,b,r,n)
       implicit real*8 (a-h,o-z)
       dimension i2(0:5)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),result(63)
       data i2/0,3,7,15,31,63/
       tp=1d9
@@ -236,7 +236,7 @@ C  near machine precision.
       real*8 function sinint(a,b,r,n)
       implicit real*8 (a-h,o-z)
       dimension i2(0:5)
-      include 'par.for'
+      include 'par.f'
       common /cnsts2/ factl(0:2*lcoul),pi,x2(63,5),w2(63,5),result(63)
       data i2/0,3,7,15,31,63/
       tp=1d9

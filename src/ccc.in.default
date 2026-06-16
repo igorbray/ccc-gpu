@@ -1,92 +1,114 @@
-54.42,0.0,1,0.0,-1,1,0        ENERGY, DE, NZNUC, ZASYM, NZE, NINC, LINC 
-0,1,1,0,2,0,3,0,4,0,5,0,6,0   LABOT, LATOP, (NABOT(l), NATOP(l),l=LABOT, LATOP)
-0,2,2,10,2,10                  NTST, NUNIT, LNABTOP, NNBTOP, LTTOP, NCSTATES
-0,0,0,1,0                     LSTART, LSTOP, IPAR, NENT, IBORN
-4,1,15,0.5,15,0.5,10,0.5,10,1.0 NPTOP,LPTOP,NPS(L),ALPHA(L)...
-0,0,-1,30,2.0                 NPOT, LPOT for D.W., LDW, NPSBND, ALBND
-1E-10,1E-14,1e-14,0.0,1.0     FORMCUT, REGCUT, EXPCUT, GAMMA, RHO
-0,-1,1,-3,0.0                  IFIRST, ISECOND, NOLD, ITAIL, THETA
-0,2,2,-999.0                      NE2E, LSLOW, LFAST, SLOWE(n), n = 1, ne2e
--1,30.0,100.0,8,f,f,f           NQM, QCUT, RMAX, NDBL, FAST
-2,0,40,1.5,40,6.0,4,6.0,20,0.2  J <= 0 :0 to 2, 1.5 to 6.0, 6.0 to inf <- These are number of kgrid elements to consider! 
-9,0,30,1.0,30,3.0,4,8.0,20,0.2  J <= 9
-29,0,18,0.7,18,3.0,6,8.0,10,0.1
+54.42,0.0,1,0.0,-1,1,0        ENERGY,DE,NZNUC,ZASYM,NZE,NINC,LINC                  Record 1
+0,0, 1,0, 2,0, 3,0, 4,0,      LABOT,LATOP, (NABOT(l), NATOP(l),l=LABOT, LATOP)     Record 2
+0,1,2,10,2,10                 NTST, NUNIT, LNABTOP, NNBTOP, LTTOP, NCSTATES        Record 3
+0,0,0,1,0                     LGSTART, LGSTOP, IPAR, NENT, IBORN                   Record 4
+4,1, 10,0.5, 10,0.5, 10,0.5,  NOPTPTOP,LOPTPTOP,(NPS(l),ALPHA(l),l=LABOT,LATOP)    Record 5
+0,0,-1,30,2.0                 NPOT, LPOT for D.W., LDW, NPSBND, ALBND              Record 6
+1E-10,1E-14,1e-14,0.0,1.0     FORMCUT, REGCUT, EXPCUT, GAMMA, RHO                  Record 7
+1,-1,1,0,0.0                  IFIRST, ISECOND, NOLD, ITAIL, THETA                  Record 8
+0,2,2,-999.0                  NE2E, LSLOW, LFAST, SLOWE(n), n = 1, ne2e            Record 9
+-1,20.0,200.0,9,f,f,f         NQM, QCUT, RMAX, NDBL, FAST, MATCH, PACKED           Record 10
+20,0,50,0.5,50,3.0,4,4.0,10,0.1  LG <= 20, 0 bound states,                         Record 11, Record 12 for LG > 20
+                              50 k-points from 0.0 to 0.5, 
+                              50 k-points from 0.5 to 3.0, 
+                              4  k-points from 3.0 to oo with a power fall-off of 4.0, if -ve, will integrate to 4.0
+                              10 k-points around the on-shell point with a width of 0.1, if -ve, this is omitted.
 
-This is the same input file for both CCC and CCO. Here are a few comments
-for some of the parameters. 
-ENERGY is the projectile energy in eV
-DE     is zero
-NZNUC  is the Z of the nucleus
-ZASYM  is the asymptotic charge of the atom/ion
-NZE    is the charge on the projectile, -1 for electrons and 1 for positrons
-NINC   is the principal quantum number of the incident target state
-LINC   is the angular momentum quantum number of the incident target state
+The default input file is called "ccc.in". If it does not exist then the input file is the first argument to the executable.
+The second argument to the executable is a time estimate such as 00:30:00 for 30 minutes.
+The above format is for electron (NZE=-1) scattering. For positron (NZE=1) scattering, three extra lines follow Record 1:
+0,-1,1,0,2,0,3,0              LPBOT,LPTOP,(NPBOT(l), NPTOP(l),l=LPBOT, LPTOP)                    Record 1b
+10,0.25,10,0.25,10,0.25,      (NPSP(LP),ALPHAP(LP)),LP=LPBOT,LPTOP)                              Record 1c
+64,8,F,F,20,F,5000,600,300    IGZ,IGP,ANALYTICD,NUMERICALV,lstoppos,interpol,maxp,UBB_MAX,maxql1 Record 1d
 
-     if NZE = 1 read three lines of positronium input:
-     LPBOT, LPTOP are starting and stoping L-values of Ps
-     NPSP and ALPHAP are the Ps Laguerre basis size and exp falloff. 
-     MAXP is used  both for pos-Hydrogen and pos-alkali calculations,  UBB_MAX1 and  MAXQL1 are  for pos-alkali calculations.  The key is as follows:
-MAXP  :: size of the arrays for Fourier transforms ftps(0:maxp) and ftpsv(0:maxp). 
-UBB_MAX1 ::  table for pos-pos spher. ex. potentials UBB(l, r1(i:ubb_max), r2(i:ubb_max))
-MAXQL1 ::  size of ql_res() which are used for interpolation of Laguerre functions of the second kind which are stored in qlres files
+Record 1
+ENERGY      is the projectile energy in eV
+DE          is zero
+NZNUC       is the Z of the nucleus
+ZASYM       is the asymptotic charge of the atom/ion
+NZE         is the charge on the projectile, -1 for electrons; 0 for photons (on the ion);1 for positrons (requires extra input)
+NINC        is the principal quantum number of the incident target state
+LINC        is the angular momentum quantum number of the incident target state
 
-For pos-hydrogen case the logical parameters are used in the following way: 
+Record 2
+LABOT       is the starting value of orbital angular momentum of the target states
+LATOP       is the ending value of orbital angular momentum of the target states
+NABOT(l)    is the starting principal quantum number for a particular l
+NATOP(l)    if positive, is the ending principal quantum number for the
+            corresponding l. If negative, then only open channels will be used
+            If zero then all of the states generated with NPS below will be used
+            
+Record 3
+NTST        is 0 for both discrete and continuum states in the optical potential
+            is 1 for only discrete states and 2 for only continuum states
+NUNIT       is 1 for the totalcs file having cross sections in a0**2,
+            is 2 for the totalcs file having cross sections in pi a0**2, and
+            is 3 for the totalcs file having cross sections in cm**2
+            is 0 for this file not being created
+NNBTOP      principal quantum number of eigenstates used to form the overlap
+            with the pseudostates. Also used for CCO when NTST = 0 or 1
+LTTOP       max value of l in the optical potential
+NCSTATES    is the number of integration points in the continuum (CCO only)
 
-NUMERICALV :
+Record 4
+LGSTART     Starting value of LG = J, the total orbital angular momentum
+LGSTOP      Last value of LG = J, the total orbital angular momentum
+IPAR        0 for natural parity and 1 for unnatural parity
+NENT        Number of incident channels for which the data is to be calculated
+IBORN       0 if no Born, 1 if Born is calculated (used for partial-wave extrapolation)
 
-   if TRUE: Fourier transforms of W.F. and V*W.F. in posvmat are calculated numerically without interpolation for both hydrogen and alkali targets. For alkalies this is extremely slow;
-  if FALSE: Hydrogen: they are calculated with the use of (INTERPOL = TRUE)  interpolation or (INTERPOL = FALSE) by analytical formula; For alkali targets it does not matter if  INTERPOL is set or not.  The functions are calculated with the use of interpolation in any case if NUMERICALV = FALSE .
+Record 5
+NOPTPTOP    is the principal quantum number of P space state with optical potential
+LOPTPTOP    is the corresponding l
+NPS(l)      The size of the Laguerre basis is NPS(l) - l
+ALPHA(l)    is the corresponding exponential fall-off factor
 
-ANALYTICD: 
+Record 6    
+NPOT, LPOT  used to define the distorting potential. Set to 0, 0 for plane waves
+LDW         Distorting potential implemented for 0 <= L <= LDW
+NPSBND      Laguerre basis size to find bound states of the distorting potential
+ALBND       Laguerre exponential fall-off alpha
 
-        if TRUE: the table of gnlp functions are calculated with the use of the analytical formula;
-if FALSE: gnlp table is calculated by direct numerical integration (see andrey.f, makeftps).
- 
-Note that ANALYTICD was used before for s-model calculations (in  vmat.f). Now it is used differently and  only  for pos-Hydrogen calculations when INTERPOL = TRUE.
+Record 7    
+FORMCUT     A smallness parameter for cutting of form factors
+REGCUT      A smallness parameter for determining the start of projectile continuum waves
+EXPCUT      A smallness	parameter for determining exponential falling-off wave functions
+GAMMA       Phenomenological polarization potential polarizability. When negative, hard coded values are used.
+RHO         Phenomenological choice for improving target structure energies
+
+Record 8    There is no ALPHA(l) in this record; ITAIL should come before THETA
+IFIRST      is 0 for direct only and 1 with exchange
+ISECOND     is < 0 for no optical potentials
+NOLD        0 for exact states, 1 for pseudostates
+ITAIL       1 for tail integral, 0 for none
+THETA       0.0 for old form of equations, > 0.0 (typically 1.0) for new form
 
 
-LABOT  is the starting value of orbital angular momentum of the target states
-LATOP  is the ending value of orbital angular momentum of the target states
-NABOT(l)  is the starting principle quantum number for a particular l
-NATOP(l)  if positive, is the ending principle quantum number for the
-       corresponding l. If negative, then only open channels will be used.
-       If zero then all of the states generated with NPS below will be used
-NTST   is 0 for both discrete and continuum states in the optical potential
-       is 1 for only discrete states and 2 for only continuum states
-NUNIT  is 1 for the totalcs file having cross sections in a0**2,
-       is 2 for the totalcs file having cross sections in pi a0**2, and
-       is 3 for the totalcs file having cross sections in cm**2
-       is 0 for this file not being created
-NNBTOP principle quantum number of eigenstates used to form the overlap
-       with the pseudostates. Also used for CCO when NTST = 0 or 1
-LTTOP  max value of l in the optical potential
-NCSTATES is the number of integration points in the continuum (CCO only)
-LSTART Starting value of LG = J, the total orbital angular momentum
-LSTOP  Last value of LG = J, the total orbital angular momentum
-IPAR   0 for natural parity and 1 for unnatural parity
-NENT   Number of incident channels for which the data is to be calculated
-NPTOP  is the principle quantum number of P space state with optical potential
-LPTOP  is the corresponding l
-NPS(l) The size of the Laguerre basis is NPS(l) - l
-ALPHA(l)  is the corresponding exponential fall-off factor
-N, L   used to define the distorting potential. Set to 0, 0 for plane waves
-IFIRST is 0 for direct only and 1 with exchange
-ISECOND is < 0 for no optical potentials
-NOLD   0 for exact states, 1 for pseudostates
-THETA  0.0 for old form of equations, > 0.0 (typically 1.0) for new form
-ALPHA(l)  lambda = alpha * 2.0, is the fall off of laguerre basis
-ITAIL  1 for tail integral, 0 for none
-QCUT   largest value of k such that sin(k*r) can be integrated reliably
-RMAX   largest value of r
+Record 9 
+NE2E        Number of energies for which ionization amplitudes will be calculated
+LSLOW       Set to LATOP
+LFAST       Set to LGSTOP
+SLOWE       The specific energies
+
+Record 10
+NQM         -1 means use all generated k-grid points. Set to 1 for UBA.
+QCUT        largest value of k such that sin(k*r) can be integrated reliably
+RMAX        largest value of r
+NDBL        Number of doublings of the radial grid
+FAST        A faster, but less accurate way of calculating form-factors, keep F
+MATCH	    Invoke projectile wave matching if for some reason they do not start correctly.
+PACKED 	    Storage for matrix for LAPACK, not used as too slow, keep F.
+
+Record 11:  K grid parameters  
 10,3,24,0.2,12,2.0,4,4.0   LSW, NINT, K grid parameters
-K grid parameters as above imply 12 points within 0.2 of the on-shell point,
-       extra 24 points spread between 0.0 and 2.0, and 4 points after 2.0 with
-       a transformation that assumes fall off as 1/k**4.0. This is until
-       total orbital angular momentum LG = LSW = 10.
+           K grid parameters as above imply 12 points within 0.2 of the on-shell point,
+           extra 24 points spread between 0.0 and 2.0, and 4 points after 2.0 with
+           a transformation that assumes fall off as 1/k**4.0. This is until
+           total orbital angular momentum LG = LSW = 10.
 15,3,10,-0.5,20,2.0,4,4.0   LSW, NINT, K grid parameters
-K grid parameters as above imply 20 points from zero to about 2 * 0.5,
-       extra 10 points spread between 2 * 0.5 and 2.0, and 4 points after 2.0 
-       with a transformation that assumes fall off as 1/k**4.0. This is until
-       total orbital angular momentum LG = LSW = 15.
-LSW    is used to indicate at what value of LG a new set of kgrid 
-       parameters will be used. Last value of LSW must be > LSTOP.
+           K grid parameters as above imply 20 points from zero to about 2 * 0.5,
+           extra 10 points spread between 2 * 0.5 and 2.0, and 4 points after 2.0 
+           with a transformation that assumes fall off as 1/k**4.0. This is until
+           total orbital angular momentum LG = LSW = 15.
+LSW        is used to indicate at what value of LG a new set of kgrid 
+           parameters will be used. Last value of LSW must be > LSTOP.

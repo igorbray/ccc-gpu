@@ -1,1 +1,0 @@
-	parameter (lcoul = 100)

@@ -40,13 +40,13 @@ C Angular momentum loop
          if(I1.eq.1)then
             call EQUAL(w,f)               !    \          
             call EQUAL(w1,f1)             ! J __\__ f1=J+1
-         end if                           ! J __.__ f =J  
+         end if                 ! J __.__ f =J  
          if(I2.eq.1)then
             call EQUAL(w1,f)
             call EQUAL(w,f1)
          end if
          if(I1+I2.eq.0)goto 111
-         
+
 C J->J+1 transition
 
          do n=J+1,nmax(J)
@@ -133,7 +133,7 @@ C Angular momentum check
       
       hat = dble(2*lg+1)                      !    l   ______   
       ang=(-1)**lg/sqrt(hat)                  !(-1) / V(2l+1)
-      
+
       call OVER(g,f,ove)                       
       call LENGTH  (g,f1,lg,l1,ar)           
       call VELOCITY(g,f1,lg,l1,av)           

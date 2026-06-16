@@ -1,4 +1,5 @@
       subroutine gsort(nspm,f,maxf,minf,ortint,e1r,lo)
+      use vmat_module, only: nodeid
       include 'par.f'
       common /meshrr/ nr, gridr(nmaxr,3)
       
@@ -6,9 +7,10 @@
      >     sum, r1elk
       dimension  f(nmaxr,nspmax), lo(nspmax)
       dimension maxf(nspmax),minf(nspmax)
-      write(4,'(" G - S orthogonalization")') 
-      write(20,'(" G - S orthogonalization")')
-
+      if (nodeid.eq.1) then
+         write(4,'(" G - S orthogonalization")') 
+         write(20,'(" G - S orthogonalization")')
+      endif
 c     form overlap array <u_j|v_k>, u_j - old nonorthogonal set,
 c     v_k - new set but not yet normalized
 c     Only elements with  j >= k  required.

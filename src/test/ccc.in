@@ -1,0 +1,67 @@
+1563.9,0.0,1,0.0,-1,1,0          ENERGY, DE, NZNUC, ZASYM, NZE, NINC, LINC
+0,5,1,24,2,24,3,24,4,24,5,24,6,24,7,24,8,24  LABOT, LATOP, 
+0,1,2,10,2,10              NTST, NUNIT, LNABTOP, NNBTOP, LTTOP, NCSTATES
+4,4,0,1,0                     LSTART, LSTOP, IPAR, NENT, IBORN
+4,1,25,0.5,25,0.5,25,0.5,25,0.5,25,0.5,25,0.5,25,0.5,25,0.5, N_l,alpha_l
+1,0,1,90,-4.0               NPOT, LPOT for D.W., LDW, NPSBND, ALBND
+1E-10,1E-15,1e-15,0.0,1.0   FORMCUT, REGCUT, EXPCUT, GAMMA, RHO
+1,-1,1,0,0.5               IFIRST, ISECOND, NOLD, ITAIL, THETA
+0,2,2,4.0,5.0,10.0,45.0
+-1,40.0,200.0,8,f,f,f           NQM, QCUT, RMAX, NDBL, FAST, MATCH, PACKED
+15,0,50,1.0,50,10.0,6,4.0,-10,0.2
+45,0,40,1.0,40,5.0,4,8.0,10,0.2
+
+
+This is the same input file for both CCC and CCO. Here are a few comments
+for some of the parameters. 
+ENERGY is the projectile energy in eV
+NZNUC  is the Z of the nucleus
+ZASYM  is the asymptotic charge of the atom/ion
+NZE    is the charge on the projectile, -1 for electrons and 1 for positrons
+NINC   is the principal quantum number of the incident target state
+LINC   is the angular momentum quantum number of the incident target state
+LABOT  is the starting value of orbital angular momentum of the target states
+LATOP  is the ending value of orbital angular momentum of the target states
+NABOT(l)  is the starting principle quantum number for a particular l
+NATOP(l)  if positive, is the ending principle quantum number for the
+       corresponding l. If negative, then only open channels will be used.
+       If zero then all of the states generated with NPS below will be used
+NTST   is 0 for both discrete and continuum states in the optical potential
+       is 1 for only discrete states and 2 for only continuum states
+NUNIT  is 1 for the totalcs file having cross sections in a0**2,
+       is 2 for the totalcs file having cross sections in pi a0**2, and
+       is 3 for the totalcs file having cross sections in cm**2
+       is 0 for this file not being created
+NNBTOP principle quantum number of eigenstates used to form the overlap
+       with the pseudostates. Also used for CCO when NTST = 0 or 1
+LTTOP  max value of l in the optical potential
+NCSTATES is the number of integration points in the continuum (CCO only)
+LSTART Starting value of LG = J, the total orbital angular momentum
+LSTOP  Last value of LG = J, the total orbital angular momentum
+IPAR   0 for natural parity and 1 for unnatural parity
+NENT   Number of incident channels for which the data is to be calculated
+NPTOP  is the principle quantum number of P space state with optical potential
+LPTOP  is the corresponding l
+NPS(l) The size of the Laguerre basis is NPS(l) - l
+ALPHA(l)  is the corresponding exponential fall-off factor
+N, L   used to define the distorting potential. Set to 0, 0 for plane waves
+IFIRST is 0 for direct only and 1 with exchange
+ISECOND is < 0 for no optical potentials
+NOLD   0 for exact states, 1 for pseudostates
+THETA  0.0 for old form of equations, > 0.0 (typically 1.0) for new form
+ALPHA(l)  lambda = alpha * 2.0, is the fall off of laguerre basis
+ITAIL  1 for tail integral, 0 for none
+QCUT   largest value of k such that sin(k*r) can be integrated reliably
+RMAX   largest value of r
+10,3,24,0.2,12,2.0,4,4.0   LSW, NINT, K grid parameters
+K grid parameters as above imply 12 points within 0.2 of the on-shell point,
+       extra 24 points spread between 0.0 and 2.0, and 4 points after 2.0 with
+       a transformation that assumes fall off as 1/k**4.0. This is until
+       total orbital angular momentum LG = LSW = 10.
+15,3,10,-0.5,20,2.0,4,4.0   LSW, NINT, K grid parameters
+K grid parameters as above imply 20 points from zero to about 2 * 0.5,
+       extra 10 points spread between 2 * 0.5 and 2.0, and 4 points after 2.0 
+       with a transformation that assumes fall off as 1/k**4.0. This is until
+       total orbital angular momentum LG = LSW = 15.
+LSW    is used to indicate at what value of LG a new set of kgrid 
+       parameters will be used. Last value of LSW must be > LSTOP.

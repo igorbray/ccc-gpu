@@ -27,16 +27,16 @@ ATOM_OBJDIR=obj/atom/$(PRECISION)
 #aGPU := -Mllvm -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR)
 #l := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core  -pgf90libs  
 
-a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
-aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
-aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -I$(OBJDIR) -module $(OBJDIR)
+a:= $(FCFLAGS_OPT2) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
+aO1 := $(FCFLAGS_OPT1) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
+aGPU := $(FCFLAGS_GPU) -Iatom -Ihelium -I$(OBJDIR) $(FCFLAGS_MODFLAG) $(OBJDIR)
 l := $(LDFLAGS)
 
 ifeq ($(PRECISION),double)
-  a := $(a) -r8  
+  a := $(a) $(FCFLAGS_REAL8)
 #  pga := -r8  
-  aO1 := $(aO1) -r8
-  aGPU := $(aGPU) -r8
+  aO1 := $(aO1) $(FCFLAGS_REAL8)
+  aGPU := $(aGPU) $(FCFLAGS_REAL8)
 else
 #  pga := -r4  
   a := $(a)  #-align array32byte #no need for this if rest.f is compiled with -O0
@@ -46,6 +46,7 @@ endif
 
 a := $(a) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
 aO1 := $(aO1) -DNEW_SLEEPY_BARRIER -D_$(PRECISION)
+aGPU := $(aGPU) -D_$(PRECISION)
 
 OBJS=$(SOURCE:%.f=$(OBJDIR)/%.o) $(F90SOURCE:%.f90=$(OBJDIR)/%.o)
 
@@ -53,7 +54,7 @@ export a
 export FC
 export PRECISION
 export OBJDIR
-
+export aGPU
 
 #info:
 #	echo $(OBJECTDIR)
@@ -86,49 +87,57 @@ $(OBJDIR)/hflib.a:
 $(OBJDIR)/main.o : main.f par.f $(OBJDIR)/modules.o
 #helium/$(OBJDIR)/modules.o
 	$(FC) $(aO1) -c main.f  -o $@
-
+#	$(FC) $(a) -c main.f  -o $@
+$(OBJDIR)/redistribute.o : redistribute.f par.f $(OBJDIR)/modules.o
+#helium/$(OBJDIR)/modules.o
+	$(FC) $(aO1) -c redistribute.f  -o $@
+#	$(FC) $(a) -c redistribute.f  -o $@
 $(OBJDIR)/modules.o:  helium/modules.f
 	$(FC) $a -c helium/modules.f -o $@
 
 # The -O0 -C -g stops crashes in BORN ICS at high energies
-#$(OBJDIR)/processt.o : processt.f par.f
-#	$(FC) $a -O0 -c processt.f  -o $@
+$(OBJDIR)/processt.o : processt.f par.f
+	$(FC) $a -c processt.f  -o $@
+#	$(FC) $a -C -g -O0 -c processt.f  -o $@
 #	$(FC) $a -Mllvm -O0 -traceback -C -g -c processt.f  -o $@
 
 $(OBJDIR)/posvmat.o : posvmat.f par.f par.pos $(OBJDIR)/modules.o
 	$(FC) $a  -c posvmat.f  -o $@
 
-$(OBJDIR)/new-posvmat.o : new-posvmat.f par.f par.pos $(OBJDIR)/modules.o
-	$(FC) $a  -c new-posvmat.f  -o $@
+$(OBJDIR)/fc.o : fc.f fcin.f par.f $(OBJDIR)/modules.o
+	$(FC) $a  -c fc.f  -o $@
 
 $(OBJDIR)/cc.o : cc.f 
-	$(FC) $a -O0 -c cc.f  -o $@
+	$(FC) -O0 $a -c cc.f  -o $@
 
 
-$(OBJDIR)/vmat.o : vmat.f $(OBJDIR)/modules.o
-	$(FC) $a -c vmat.f  -o $@
+$(OBJDIR)/vmat.o : vmat.f par.f $(OBJDIR)/modules.o
+	$(FC) $a $(FCFLAGS_FAST) -c vmat.f  -o $@
 
 
 $(OBJDIR)/logam.o : logam.f 
-	$(FC) $a -O0 -c logam.f  -o $@
+	$(FC) $a -O0 $(FCFLAGS_SAVE) -c logam.f  -o $@
+
+#$(OBJDIR)/rest.o : rest.f par.f $(OBJDIR)/modules.o
+#	$(FC) -O0 $a -c rest.f  -o $@
 
 $(OBJDIR)/rest.o : rest.f par.f $(OBJDIR)/modules.o
-	$(FC) $a -Msave -O0 -c rest.f  -o $@
+	$(FC) $a $(FCFLAGS_SAVE) -O0 -c rest.f  -o $@
 
 $(OBJDIR)/corratom.o : corratom.f par.f paratom.f 
 	$(FC) $a -c corratom.f  -o $@
 
-$(OBJDIR)/gpuvdirect.o : gpuvdirect.f
+$(OBJDIR)/gpuvdirect.o : gpuvdirect.f par.f
 #	pgf90 -Mllvm $(pga)  -mp -Minfo=accel,mp -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -c gpuvdirect.f  -o $@
 	$(FC) $(aGPU) -c gpuvdirect.f -o $@
 
-$(OBJDIR)/first.o : first.f $(OBJDIR)/modules.o
+$(OBJDIR)/first.o : first.f par.f $(OBJDIR)/modules.o
 #	pgf90 -Mllvm $(pga) -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -Iatom -Ihelium -Ihelium/$(OBJDIR) -module $(OBJDIR) -c  first.f -o $@
 	$(FC) $(aGPU) -c first.f -o $@
 
-$(OBJDIR)/form.o : form.f
+$(OBJDIR)/form.o : form.f par.f
 #	pgf90 -Mllvm $(pga) -mp -O2 -Mnoinline -Minfo=accel -mcmodel=medium -c  form.f -o $@
-	$(FC) $a -c form.f -o $@
+	$(FC) $a $(FCFLAGS_FAST) -c form.f -o $@
 
 $(OBJDIR)/jnt.o : jnt.f par.f paratom.f 
 	$(FC) $a -c jnt.f  -o $@
@@ -139,6 +148,6 @@ $(OBJDIR):
 $(OBJDIR)/eremenko.o : eremenko.f90
 	$(FC) $a -c eremenko.f90 -o $@
 
-$(OBJDIR)/%.o : %.f par.f par.for 
+$(OBJDIR)/%.o : %.f par.f
 	$(FC) $a -c $< -o $@
 
