@@ -598,7 +598,7 @@ C  For two-electron targets get the one-electron functions for the ion
       if (.not.hlike) then
          if(i_sw_ng .eq. 1)  then 
             zasym = zasym + 2*(2*linc + 1) - 1
-            print*,"In Dmitry's Neon part"
+            if (nodeid.eq.1) print*,"In Dmitry's Ne, Ar, Kr part"
          else
             zasym = zasym + 1.0            
          endif
@@ -1672,7 +1672,9 @@ c$$$         ery=energy/ry
 c$$$         etot = ery + enpsinb(ninc,linc)
          write(ench,'(1p,"_",e10.4)') energy
 c$$$         if (myid.eq.-1) then
-            tfile = 'potl'//ch(lstart)//ench
+c$$$         tfile = 'potl'//ch(lstart)//ench
+         write(tfile,'("potl",i3.3,a11)') lstart, ench
+         print*,'New potl file:',tfile
             csfile = 'totalcs'//ench
 c$$$         else 
 c$$$            tfile = '/u/igor/potls/potl'//
@@ -2060,7 +2062,9 @@ c$$$
 c$$$            if (lg.eq.lstart) then
                write(ench,'(1p,"_",e10.4)') energy
 c$$$               if (myid.eq.-1) then
-                  tfile = 'potl'//ch(lstart)//ench
+c$$$                  tfile = 'potl'//ch(lstart)//ench
+                  write(tfile,'("potl",i3.3,a11)') lstart, ench
+                  print*,'New potl file:',tfile
                   csfile = 'totalcs'//ench
 c$$$                  do n = 1, abs(ne2e)
 c$$$                     if (n.lt.10) then
@@ -2934,7 +2938,7 @@ c$$$     >            vmat01,vmat0,vmat1,ni,nf,nd,nodes,
             else
                call scattering(myid,0,theta,nold,etot,lg,gk,enionry,
      >            npkb,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
-     >            nze,td,te1,te2,t2nd,vdon,
+     >            nze,td,te1,te2,t2nd,vdon,lptop,
 !     >            vmat,
      >            nsmax,itail,phasel)
             end if
@@ -3190,7 +3194,7 @@ c$$$     >         vmat01,vmat0,vmat1,ni,nf,nd,nodes,
          else
             call scattering(myid,ifirst,theta,nold,etot,lg,gk,enionry,
      >         npk,vdcore_pr,dwpot,nchtop,nmaxhe,namax,
-     >         nze,td,te1,te2,t2nd,vdondum,
+     >         nze,td,te1,te2,t2nd,vdondum,lptop,
 !     >         vmat,
      >         nsmax,itail,phasel)
          end if 
@@ -3313,7 +3317,7 @@ c$$$            call blacs_gridinit(nblacs_context,'C',nrows,ncols) ! for SLATE 
             else
                if (.not.allocated(bb)) allocate(bb(1,1,2,0:1)) !not used
             endif
-            do ns = 0, nsmax
+            do ns = 0, min(nsmax,ifirst) ! no need to run again when no exchange
                call redistributeAndSolve(ni,nf,nd
      >             ,nblacs_context,ns,nsmax
      >             ,nodes,nchtop+1,npk

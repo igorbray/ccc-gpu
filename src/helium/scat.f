@@ -1,6 +1,6 @@
       subroutine scattering(myid,ifirst,theta,nold,etotal,KJ,gridk,
      >   enionry,npk,vdcore,dwpot,nchm,Nmax,namax,
-     >   nze,td,te1,te2,te3,vdon,
+     >   nze,td,te1,te2,te3,vdon,lptop,
 !     >   vmat,
      >   nsmax,itail,phasel)
       use CI_MODULE
@@ -120,7 +120,7 @@ CRRRRRR - Rav's add
 
 c$$$      if (npk(2)-npk(1).gt.1) open(42,file=nodetfile)
 
-      IF(nze.eq.1) THEN
+      IF(nze.eq.1.and.lptop.ge.0) THEN
          nqm1= npk(1+1) - npk(1)
          nqmm=npk(nchm+1)-npk(nchm)
 

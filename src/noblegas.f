@@ -1,4 +1,5 @@
       subroutine noble1el(l,nps)
+      use vmat_module, only: nodeid
       include 'par.f'
       common/meshrr/ nr,rmesh(maxr,3)
       common /pspace/ nabot(0:lamax),labot,natop(0:lamax),latop,
@@ -36,9 +37,9 @@
 
       Ry = 13.6058
       
-      print*
-      write(*,'("noble1el(): nps=",I5,", nspm=",I5,", l=",I5)') 
-     >     nps,nspm,l
+      if (nodeid.eq.1)
+     >   write(*,'("noble1el(): nps=",I5,", nspm=",I5,", l=",I5)')
+     >     nodeid,nps,nspm,l
 
       itest = 0                 ! do not replace 2p orbital by hf orbital if itest = 1      
 !!$   For helium only we do not call hf(), define here reqired values
@@ -161,7 +162,8 @@ c     Note l = l_ng below
          tmp = tmp + ovlp(n)*ovlp(n)
 !         print*,'! n,psen2(n)',n,psen2(n)*Ry, ovlp(n), i1, i2
       enddo
-      print*,'Laguere basis covers HF orbital:', tmp
+      if (nodeid.eq.1)
+     >   print*,'Laguere basis covers HF orbital:', tmp
       if(abs(tmp-1.0000000) .gt. 0.0001) then
          print*,'Really, you need to increase the size of Laguere ',
      >        'basis for l=',l
@@ -191,7 +193,8 @@ c     Note l = l_ng below
          tmp = tmp + ovlp(n)*ovlp(n)
 !         print*,'! n,psen2(n)',n,psen2(n)*Ry, ovlp(n), i1, i2
       enddo
-      print*,'Laguere basis covers HF orbital:', tmp
+      if (nodeid.eq.1)
+     >   print*,'Laguere basis covers HF orbital:', tmp
       if(abs(tmp-1.0000000) .gt. 0.0001) then
          print*,'Need to increase the size of Laguere basis',
      >        ' for l=',l
@@ -338,7 +341,7 @@ c---------------------------------------------------------------------
       real f(nr,nspm)
       integer maxf(nspm),minf(nspm)
 
-      print*,"!!! gsort1()"
+c$$$      print*,"!!! gsort1()"
 c     form overlap array <u_j|v_k>, u_j - old nonorthogonal set,
 c     v_k - new set but not yet normalized
 c     Only elements with  j >= k  required.
@@ -435,6 +438,7 @@ c-----------------------------------------------------------
 c-----------------------------------------------------------
       subroutine noble2el(Nmax,namax,nchanmax,eproj,etot,
      >     enion,enlevel)
+      use vmat_module, only: nodeid
       include 'par.f'
       parameter(nspmW = 1)
       common/orbsp/nspm,lo(nspmax),ko(nspmax),nset(nspmax)
@@ -485,7 +489,7 @@ c-----------------------------------------------------------
 
       real  psi(maxr)   ! for getchinfo() 
       
-      print*,'Start noble2el'
+c$$$      print*,'Start noble2el'
 
 
       na(:,:) = 0
@@ -524,12 +528,14 @@ c      In a second go make target states.
       end if
       open(10,file=cnode//'he-states'//ench,action='WRITE')
 
-      print*, "!!! First make orbitals: FC orbitals",
-     >     " for singlet states to form a basis."
+      if (nodeid.eq.1)
+     >   print*, "!!! First make orbitals: FC orbitals",
+     >   " for singlet states to form a basis."
 
       make_orbitals = 1  !  first go is to make orbitals
  110  read(3,'(a20)') atom
-      write(4,'(a20)') atom
+      if (nodeid.eq.1)
+     >   write(4,'(a20)') atom
 
 
 c     find maximum value of l
@@ -546,7 +552,8 @@ c         print*, n, lo(n)
                ntmp = ntmp+1
             endif
          enddo
-         print*, 'l=',l, ', number of orbitals=', ntmp
+         if (nodeid.eq.1)
+     >      print*, 'l=',l, ', number of orbitals=', ntmp
          write(4,'("l=",I5,", number of orbitals=",I5)') l, ntmp
          if(l .eq. l_ng ) then
             nsp_l_ng = ntmp   ! number of orbitals for l = l_ng
@@ -614,7 +621,7 @@ c               print*, ip,is,l,isum
       Nmax=isum
       Nstate_str_to_scat = Nmax
       write(4,'("Nmax =",I3)') Nmax
-      print*, 'Nmax =', Nmax
+c$$$      print*, 'Nmax =', Nmax
       if (Nmax.gt.KNM) then
          print*,'Have too many target states, need to increse KNM to',
      >      ' at least',Nmax
@@ -637,7 +644,7 @@ c     program should be called
             end do
          end do
       end do
-      print*,'nslm=',nslm
+c$$$      print*,'nslm=',nslm
 c
       nicm = 1
       ncore(1) = 1
@@ -657,9 +664,9 @@ c!
       Nst = 0  ! current number of states
       do nsll=1,nslm
          
-         print*
+c$$$         print*
          write(4,*)
-         print*,'nsll=',nsll
+c$$$         print*,'nsll=',nsll
 
          call  inputdata(ll,ls,lparity,l1max,l2max,nk1,nk2)
          
@@ -705,8 +712,9 @@ c     set up list of configurations
          enddo
          ncm = nc
 
-         print*,'la=',la,', sa=',sa,', lpar=',lpar,
-     >        ', ncm=',ncm, ', nspm=',nspm
+      if (nodeid.eq.1)
+     >      print*,'la=',la,', sa=',sa,', lpar=',lpar,
+     >      ', ncm=',ncm, ', nspm=',nspm
          if(ncm .eq. 0) then
             print*, 'Stop: ncm=0'
             stop
@@ -784,11 +792,13 @@ c$$$         label(3:3) = arr(la)
          label(3:3) = chnl(2:2)
 c     
 
-         print*, 'noffset = ', noffset         
+      if (nodeid.eq.1)
+     >      print*, 'noffset = ', noffset         
          write(4,'("noffset = ",I5)')  noffset
          
          nstmax_can_order = ncm - noffset
-         print*,'Maximum number of states you can order is:',
+      if (nodeid.eq.1)
+     >      print*,'Maximum number of states you can order is:',
      >        nstmax_can_order,
      >         " |  have actually ordered:",nstmax,
      >      nstmax_can_order-nstmax
@@ -841,10 +851,10 @@ c      print*,'!! make_orbitals=',make_orbitals
       if(make_orbitals .eq. 1) then
          deallocate(Cst)
          make_orbitals = 0      ! orbitals are made go back for final run
-         print*
+c$$$         print*
          write(4,*)
-         print*, "!!! FC orbitals are made go back for final run"
-         print*
+c$$$         print*, "!!! FC orbitals are made go back for final run"
+c$$$         print*
          write(4,*)
          goto 110
       endif
@@ -920,7 +930,7 @@ c     Set up for getchinfo() to work properly
 
 
 
-      print*, 'Finish structure'
+c$$$      print*, 'Finish structure'
       lg = 0
       ry = 13.6058
 
@@ -948,23 +958,27 @@ c     put here e2e overlaps: see  heliuym/main.f
          endif 
          elevel = (enpsinb(na_st,latom) * ry + enion) * 
      >      enlevel / enion
-         print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",a8,f9.4,
-     >      f8.2)', 
+         if (nodeid.eq.1)
+     >      print '(i3,a4,f12.4," Ry",f12.4," eV",f12.1," / cm",
+     >      a8,f9.4,f8.2)', 
      >     nst, chan(nst),enpsinb(na_st,latom),
      >        enpsinb(na_st,latom)*ry,
      >      elevel, opcl, onshellk, ovlp_st 
 
       enddo 
-      write(*,'("finish structure calculation")')
-      write(*,'("**********************************************")')
-c
 C  EDELTA is used to shift the energy levels
       edelta = - enion - enpsinb(ninc,linc) * ry
-      print*,'Error in ground state energy and ',
-     >   'effective incident energy (eV):', edelta, etot * ry + enion
+      if (nodeid.eq.1) then
+         write(*,'("finish structure calculation")')
+         write(*,'("**********************************************")')
+c
+         print*,'Error in ground state energy and ',
+     >      'effective incident energy (eV):', edelta, etot * ry + enion
 
 
-      print*,'Finish noble2el'
+
+         print*,'Finish noble2el'
+      endif
 c      stop
       return
       end
@@ -1167,25 +1181,25 @@ c-----------------------------------------------------------------
       double precision sum
       double precision H(ncm,ncm),bb(ncm,ncm),w(ncm),
      >   CI(ncm,ncm),fv1(ncm),fv2(ncm)
-      write(*,'("start diagonalization")')
+c$$$      write(*,'("start diagonalization")')
 
       matz=2
       call  rsg(ncm,ncm,H,bb,w,matz,CI,fv1,fv2,ierr)
-      write(*,'("ierr =",I3)') ierr
-      write(*,'("eigenvalues in a.u.")')
-      write(*,'(5F12.6)') (real(w(i)), i=1,ncm)
-
-c      write(*,'("eigenvalues in Ry")')
-c      write(*,'(5F12.6)') (real(2d0*w(i)), i=1,ncm)
-
-      write(*,'("eigenvalues - enionry/2.  -  in eV, enionry=",F10.5,
-     >     " Ry")') enionry
-      write(*,'(5F12.6)') ((real(w(i))-enionry/2.0)*27.2116,i=1,ncm)
-      write(*,'("eigenvectors can be printed")')
-      do i=1,-2 ! ncm
-         write(*,*)
-         write(*,'(5F12.6)') (real(CI(i,j)), j=1,ncm)
-      end do
+c$$$      write(*,'("ierr =",I3)') ierr
+c$$$      write(*,'("eigenvalues in a.u.")')
+c$$$      write(*,'(5F12.6)') (real(w(i)), i=1,ncm)
+c$$$
+c$$$c      write(*,'("eigenvalues in Ry")')
+c$$$c      write(*,'(5F12.6)') (real(2d0*w(i)), i=1,ncm)
+c$$$
+c$$$      write(*,'("eigenvalues - enionry/2.  -  in eV, enionry=",F10.5,
+c$$$     >     " Ry")') enionry
+c$$$      write(*,'(5F12.6)') ((real(w(i))-enionry/2.0)*27.2116,i=1,ncm)
+c$$$      write(*,'("eigenvectors can be printed")')
+c$$$      do i=1,-2 ! ncm
+c$$$         write(*,*)
+c$$$         write(*,'(5F12.6)') (real(CI(i,j)), j=1,ncm)
+c$$$      end do
       write(4,'("number of configurations: ncm=",I10)') ncm
       write(4,'("eigenvalues - enionry/2.  -  in eV, enionry=",F10.5,
      >     " Ry")') enionry
@@ -1228,7 +1242,7 @@ c-----------------------------------------------------------------
 
       real*8 ovlpmin
 
-      print*,'Start rearange_ng'
+c$$$      print*,'Start rearange_ng'
 
       ovlpmin=1.0d-7
 
@@ -1459,7 +1473,7 @@ c     form new array e1r(nsp1,nsp2) and ortint(nsp1,nsp2)
       enddo
 
 
-      print*,'Finish  rearange_ng'
+c$$$      print*,'Finish  rearange_ng'
       return
       end
 c-------------------------------------------------------------------

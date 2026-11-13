@@ -1117,7 +1117,9 @@ c$$$            vdon(nch,nch,0) = vmat(npk(nch),npk(nch))
 c$$$            vdon(nch,nch,1) = vdon(nch,nch,0)
 c$$$        endif
 c$$$        endif
-         if (scalapack.and.ifirst.eq.1) then !had ifirst commented out, not sure why. Put back for Ga with DW.
+
+         
+         if (npk(2)-npk(1).ne.1) then !scalapack.and.ifirst.eq.1) then !had ifirst commented out, not sure why. Put back for Ga with DW.
             vdon(nch,nch,0) = vmat01(npk(nch),npk(nch))
             vdon(nch,nch,1) = vdon(nch,nch,0)
          else
@@ -1773,7 +1775,7 @@ C  Int dk <phi(n)|k><k|phi(n)> .ne. 1
       if (nch.eq.0) stop 'NCH = 0 in KGRID'
 C  The following is a loop of the form REPEAT ... UNTIL(condition)
  10   e = etot - ea             ! Ry
-      if (abs(e).lt.1e-15) e = 0.0
+      if (abs(e).lt.1e-5) e = 0.0
       EeV = e * 13.6058
       posfac = 1.0
       if (positron(na,la,npos)) posfac = 2.0
@@ -2319,6 +2321,10 @@ C     The T(kf,ki) matrix has been divided by KF and KI
 !               wk(kp) = wk(kp) * gk(i,nch) ! divided projectile waves by sqrt(gk)
             else
                wk(kp) = 2.0 * weightk(i-1)/(4.0*e)! * posfac
+! The following hardly makes any difference for large scalef variation
+c$$$  print*,'Enter scaling factor'
+c$$$               read*,scalef
+c$$$               wk(kp) = wk(kp) * scalef
                print*,'Dropped GF for rk/k:',rk/gridk(i-1)
                print*,'test:',(1.0/(e-gridk(i-2)**2)+
      >            1.0/(e-gridk(i)**2))/(0.5/e)

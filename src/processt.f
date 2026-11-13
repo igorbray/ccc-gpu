@@ -43,7 +43,7 @@ C  XIN,...,YOUT are used for (e,2e) and BORN interpolation
       parameter (lentr=10,lexit=lamax)
 C ton(nchanmax,nchimax,0:nsmax,0:npar,0:jstop), 
       complex phase, sigc, !vdon(nchanmax,nchimax,0:nsmax,0:npar,0:jstop),
-     >   phaseq(nchan),
+     >   phaseq(nchan),smat,
      >   Bornamp(0:ntdcs,-lexit:lexit,-lentr:lentr),
      >   phasen(ncmax,0:lamax),phasediv(nchan),
      >   phasetim(ntype,npoints),te2ec(-latop:latop,ntype),fe2e(0:1),
@@ -681,7 +681,19 @@ c$$$     >                           ton(nchf,nchi,ns,np,j-1)
 c$$$                           endif
 c$$$                        endif 
                         partcs(nchpf,nchpi,ns) = partcs(nchpf,nchpi,ns) 
-     >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
+     >                        + abs(ton(nchf,nchi,ns,np,j))**2 * const
+                        if (onshellk(2).lt.0.0) then !obtain phaseshift for low-energy elastic scattering
+c$$$                           esum(ns) = asin(sqrt(partcs(nchpf,nchpi,ns) ! no sign info
+c$$$     >                        /(4.0*pi)*onshellk(nchpi)**2
+c$$$     >                        /spinw(ns)/(2.0*j+1.0)))
+                           smat = 1.0 - ton(nchf,nchi,ns,np,j) *
+     >                        2.0 * pi * (0.0,1.0) * onshellk(nchpi)
+                           esum(ns) = atan2(aimag(smat),real(smat))/2.0
+                           print*,'NS,test:',ns,partcs(nchpf,nchpi,ns),
+     >                        sin(esum(ns))**2*4.0*pi*spinw(ns)*
+     >                        (2.0*j+1.0)/onshellk(nchpi)**2/
+     >                        partcs(nchpf,nchpi,ns),abs(smat)
+                        endif
                         tcs(ns) = tcs(ns)
      >                     + abs(ton(nchf,nchi,ns,np,j))**2 * const
                         BornPCS(nchpf,nchpi) = BornPCS(nchpf,nchpi) +
@@ -1311,7 +1323,7 @@ c$$$     >            (sdcs(nt,ne)+sdcs(nt,ne+ne2e), nt = 1, nttop(ip))
                bornsub = 0.0
             endif 
             call processt(ton,vdon,nchimax,nchanmax,jstart,jstop,
-     >         npar,non,jlm,onshellk,knm,nopen,nze,etot,sweight(0,nn),
+     >         npar,non,jlm,onshellk,knm,nopen,nze,etot,sweight,!(0,nn),
      >         nstep(nn),nsmax,nunit,projectile,target,hlike,
      >         vdcore,minvdc,maxvdc,bornsub,nchfi,ovlpn,phaseq,
      >         ne2e,slowery,nonnew,tfile)
@@ -1390,9 +1402,9 @@ c$$$         read*,MSTEP
             if (ni.eq.0) cycle
             rli = lai
             posi = positron(nai,lai,nposi)
-C The following has been commented out due to strange problems with two-electron targets. Waiting for nother version of compiler; 10.0.023 and lower were used.
+C The following has been commented out due to strange problems with two-electron targets. Waiting for another version of compiler; 10.0.023 and lower were used.
 C  The following directives are for OPENMP
-C$OMP PARALLEL DO
+C$OMP PARALLEL DO default(shared)
 C$OMP& SCHEDULE(dynamic)
 C$OMP& PRIVATE(nf,ntmpf,psif,maxpsif,eaf,laf,naf,lf,rlf,posf,sf)
 C$OMP& PRIVATE(const,Bornamp,mi,mf,res,res2,err1,err2,qmin,qmax,si)
@@ -1633,7 +1645,7 @@ C  Incident on a hydrogenic target. Total spin S = ns.
       integer nchfi(nomax,0:1),nopen(0:1)
       parameter(ntdcs=250)
       dimension onshellk(nchan), temp(maxr), partcs(0:1), partbcs(0:1),
-     >   ovlp(20,100), chi(maxr), sweight(0:ntdcs), spinw(0:1),units(3),
+     >   ovlp(20,100),chi(maxr),sweight(0:ntdcs,10),spinw(0:1),units(3),
      >   psii(maxr), psif(maxr), vdcore(maxr,0:lamax),slowery(ne2e),
      >   ovlpn(knm),dcs(0:ntdcs,knm),sign(0:1),
      >   sigm(-lexit:lexit,-lentr:lentr),
@@ -3009,7 +3021,9 @@ c$$$      print*,'The slow and fast TCS:',sums,sumf
 C  Here the amplitude is assumed to be on a linear theta grid
          thdiv = 1.0
          do n = 1, 3
-            do i = 4, 180, n ! Starting the integration at 4 degrees
+            istart = 4
+            if (n.gt.1) istart = 0
+            do i = istart, 180, n ! Starting the integration at 4 degrees
                test(n) = test(n) + sweight(i,n) *
      >            abs(amp(i)) ** 2 * sin(i * pi / 180.0)
             enddo
@@ -3020,6 +3034,9 @@ c$$$            print*,'testing theta integral for n:',n,test(n)
          test(n) = test(n) - sweight(i,n) *
      >            abs(amp(i)) ** 2 * sin(i * pi / 180.0)/2.0
 c$$$         dth = 1.0/(ntdcs-180+1.0)/1.1**(ntdcs-nth)*pi/180.0
+c$$$               print "('n,test:',i2,1p,2e10.2)",
+c$$$     >   n,test(n)
+
          nprev = 2
          sum = 0.0
          thprev = 0.0
@@ -3104,8 +3121,10 @@ c$$$            test(n) = test(n) / rki / rkf * (qmax-qmin) / pi / thfac
 c$$$            print*,'testing q:',test(n)
          enddo
       endif 
-      err1 = abs((test(1)-test(2))/(test(1)+1e-30))*100.0
-      err2 = abs((test(1)-test(3))/(test(1)+1e-30))*100.0
+c$$$      print "('test(1)+sum,test(2),test(3),sum',1p,4e10.2)",
+c$$$     >   test(1)+sum,test(2),test(3),sum
+      err1 = abs((test(1)+sum-test(2))/(test(1)+sum+1e-30))*100.0
+      err2 = abs((test(1)+sum-test(3))/(test(1)+sum+1e-30))*100.0
       res = test(1)+sum
 
 c$$$      if ((err1.gt.0.1.or.err2.gt.0.1).and.thfac.eq.0.0) then

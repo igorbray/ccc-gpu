@@ -3095,6 +3095,7 @@ c$$$     >      sigtopt, sigtope(nchip,0) + sigtope(nchip,1),
      >         partcs(nchp,nchip,1) * unit + oldp(nchp,nchip,1)
             Borne = max(0.0,BornICS(nchp,nchip) - 
      >         oldBornPCS(nchp,nchip) - BornPCS(nchp,nchip) * unit)
+            if (Borne/(BornICS(nchp,nchip)+1e-30).lt.1e-3) Borne = 0.0 !this is to use series extrapolation
 C  The following is not right if Born extrapolation is used due to
 C  the fact that the spin weights are not available here
 c$$$            extrapcs0 = extrap(partcs(nchp,nchip,0) * unit,
@@ -3118,7 +3119,7 @@ c$$$               endif
 c$$$               extrapcs = Borne
 c$$$            else
 C Keep it simple. The above screws up high-n elastic channels when IPAR=1
-            if (BornICS(nchp,nchip).ne.0.0) then
+            if (BornICS(nchp,nchip).ne.0.0.and.Borne.ne.0.0) then
                extrapcs = Borne
 c$$$               if (nchp.eq.49.and.nchip.eq.42)
 c$$$     >            print*,chan(nchp),chan(nchip),BornICS(nchp,nchip),
@@ -3134,7 +3135,12 @@ c$$$     >            oldpj(nchp,nchip,0) + oldpj(nchp,nchip,1), 0.0)
                else
                   extrapcs = extrapcs + ext(nchp,nchip)
                endif
-c$$$               if (chan(nchp).eq.'p7S'.and.chan(nchip).eq.'p6H') then
+c$$$               if (chan(nchp).eq.' 9S'.and.chan(nchip).eq.' 8S')
+c$$$     >            print*,chan(nchp),chan(nchip),lgprev,lg,ipar
+c$$$     >            extrap((partcs(nchp,nchip,0)+
+c$$$     >            partcs(nchp,nchip,1))*unit,
+c$$$     >            oldpjp(nchp,nchip,ipar), lg, lgprev, 0.0)
+c$$$  if (chan(nchp).eq.'p7S'.and.chan(nchip).eq.'p6H') then
 c$$$                  print'("J,IPAR,PCS1,PCS2:",2i3,1p,2e12.3)',lg,ipar,
 c$$$     >                 (partcs(nchp,nchip,0)+partcs(nchp,nchip,1))*unit,
 c$$$     >                 oldpjp(nchp,nchip,ipar)
@@ -3182,12 +3188,12 @@ C  If, however, the Born approximation is known, then we use the integrated
 C  BornICS - BornPCS as the extrapolation instead. Born-based
 C  extrapolation works well for dipole transitions.
       function extrap(x,xp,j,jp,Borne)
-      extrap = x
+      extrap = 0.0
       if (Borne.gt.0.0.and.x.gt.0.0) then
          extrap = Borne
-      else if (0.0.lt.x.and.x.lt.xp*0.99.and.jp.eq.j-1) then
+      else if (0.0.lt.x.and.x.lt.xp) then !.and.jp.eq.j-1) then !fails for npar=1
          r = x/xp
-         extrap = x / (1.0 - r)
+         extrap = x * r / (1.0 - r) ! 1/(1-r)-1 to avoid x being included twice
       endif
       end
       
@@ -3437,6 +3443,7 @@ c$$$     >      test,dk,startk,stopk,nmin
 #endif
       stopkold = -1.0
       stopkorig = stopk
+      if (abs(rk).lt.1e-5) return
       it = 0
       do while (abs(test).gt.err.and.stopkold.ne.stopk)!.and.dk/stopk.gt.err)
          stopkold = stopk
@@ -3460,7 +3467,7 @@ c$$$     >      test,dk,startk,stopk,nmin
             test = 2.0 * ww(n)/(e - xx(n)**2) + test
          enddo
          if (abs(stopk/stopkorig-1.0).gt.0.5) then
-            print"('RK too small? RK, STOPK, IT:',2f10.5,i10)",
+            print"('RK too small? RK, STOPK, IT:',1p,2e12.5,i10)",
      >         rk,stopk,it
             stop 'Could not determine STOPK. Is RK too small?'
          endif 
