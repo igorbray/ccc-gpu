@@ -1810,7 +1810,7 @@ C  Treat large target L using the UBA. Use negative LUBA so as not to
 C  make a mistake in the input file.        
       uba(nch) = la .ge. -luba .and. luba .lt. 0
       if (nqm.eq.1.or.uba(nch).or.nquad.eq.0) then
-         print*,'nqm,uba(nch),nquad:',nqm,uba(nch),nquad
+c$$$         print*,'nqm,uba(nch),nquad:',nqm,uba(nch),nquad
          go to 20
       endif 
 c$$$      npoints = npointsl(lset)
