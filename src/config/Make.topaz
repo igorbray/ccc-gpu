@@ -1,5 +1,10 @@
 FC := mpifort
 FCFLAGS_OPT2 := -Mllvm -mp -Mpreprocess -O2 -mcmodel=medium -DGPU
 FCFLAGS_OPT1 := -Mllvm -mp -Mpreprocess -O1 -mcmodel=medium -DGPU
+#FCFLAGS_OPT2 := -Mllvm -mp -Mpreprocess -C -g -mcmodel=medium -DGPU
+#FCFLAGS_OPT1 := -Mllvm -mp -Mpreprocess -C -g -mcmodel=medium -DGPU
 FCFLAGS_GPU := -Mllvm -mp -O2 -Minfo=accel -acc -ta=tesla:cc35,cc50,cc60,nordc -mcmodel=medium -Mpreprocess -DGPU
+FCFLAGS_SAVE := -Msave
+FCFLAGS_REAL8 := -r8
+FCFLAGS_MODFLAG := -module 
 LDFLAGS := -Mllvm -acc -mp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_intel_thread -lmkl_core -pgf90libs 

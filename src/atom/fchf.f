@@ -53,9 +53,9 @@ c
 4     FORMAT(' wave functions of excited state',
      * /' in Hartree-fock approximation',
      * /,
-     * 'the number of sells',17X,
-     *I5/,'the number of coeffitiants',12X, I5,
-     * /' the number of exchange coeffitiants ',I5)
+     * 'the number of shells',17X,
+     *I5/,'the number of coefficients',12X, I5,
+     * /' the number of exchange coefficients ',I5)
       READ(2 )(A(JJ1),JJ1=1,15)
       IF(A(1).EQ.1.) GOTO 1980
       write(66, 1981) A(1)

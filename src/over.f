@@ -16,7 +16,6 @@
       do i=1,meshr
          result = result + P(i)*Q(i) * rmesh(i,3)
       end do 
-
       RETURN
       END
 
@@ -111,7 +110,9 @@ c                   o
       common/meshrr/ meshr,rmesh(maxr,3)
       COMMON           /TELNUM/KOUNT
       COMMON /QGR/ fqr,fqr2
-      DIMENSION    fqr(maxr),fqr2(maxr,maxr)
+      DIMENSION    fqr(maxr),fqr2(maxr,1)!maxr)
+      stop 'redefine fqr2(maxr,maxr) in rOVER2r of over.f'
+
       result = 0.d0
       do i=1,maxNR
          rt = rmesh(i,1)
@@ -137,7 +138,8 @@ c                   o              o
       common/meshrr/ meshr,rmesh(maxr,3)
       COMMON           /TELNUM/KOUNT
       COMMON /QGR/ fqr,fqr2
-      DIMENSION    fqr(maxr),fqr2(maxr,maxr)
+      DIMENSION    fqr(maxr),fqr2(maxr,1)!maxr)
+      stop 'redefine fqr2(maxr,maxr) in rOVER22r of over.f'
 
       SUM = 0.d0
       res = 0.d0

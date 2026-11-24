@@ -228,6 +228,7 @@ c radial part of wave functions. u's are used (u=r*R)
 
       subroutine dqage(f,a,b,epsabs,epsrel,key,limit,result,abserr,
      *   neval,ier,alist,blist,rlist,elist,iord,last)
+      implicit real*8 (a-h,o-z)
       external f
       stop 'dqage is missing'
       end

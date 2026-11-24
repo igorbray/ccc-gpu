@@ -1,4 +1,210 @@
 c===================================================================
+c     Ground state Hartee-Fock wave functions of W 5+
+c===================================================================
+c     
+      subroutine hfz74_5 (rmax, nr, grid, expcut, nznuc, gamma, r0)
+c     i    i    i     i   
+c     
+c     INPUT:   rmax   - maximal value of 'r'(the radial cut-off)
+c     nr     - the number of points in r-grid
+c     grid   - r-grid to calculate wavefunctions on it.
+c     
+c     OUTPUT:  wff - contains 1s, 2s, 2p, 3s, 3p, 4s one-electron     
+c     wave functions
+c     
+      include 'par.f'
+      include 'paratom.f'
+c     
+      common /psinbc/ enpsinb(nnmax,0:lnabmax),
+     >   psinb(maxr,nnmax,0:lnabmax),istoppsinb(nnmax,0:lnabmax)
+      
+      character *15  os, con,  du1,  du2
+c
+      common /there1Cowan/ there1
+      logical there1
+      logical there
+      real wff(nsizek7, nshells) , grid(nr), enn(nshells)
+      real*8 z,r,bet,eps,h,dz,
+     *   gam(NSIZEqf),dir(NSIZEis),teta(NSIZEis),alm3(NSIZEis),
+     *   r1(NSIZE),r2(NSIZE),r3(NSIZE),r4(NSIZE),r5(NSIZE),r6(NSIZE),
+     *   r7(NSIZEk7),r8(NSIZE*NSIZEis),
+     *   mu, c3(NSIZEis),ala(NSIZEis),
+     *   ala1(NSIZEis),ala2(NSIZEis),alm6du(NSIZEis)
+c     
+      integer in(NSIZEis),il(NSIZEis),iq(NSIZEis),
+     *   ss1,l1,nu,ig,kk(NSIZEqf),
+     *   is1(NSIZEqf),is2(NSIZEqf),ip(NSIZEis),
+     *   pp(NSIZEis),ud(NSIZEis),kz
+c     
+c     Quantuum numbers
+c     
+      data  in(1),in(2),in(3),in(4),in(5),in(6),in(7),in(8),in(9),
+     >   in(10),in(11),in(12),in(13)
+     >   /1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5/
+      data  il(1), il(2), il(3), il(4), il(5),il(6),il(7),il(8),il(9),
+     >   il(10),il(11),il(12),il(13)
+     >   /0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2/
+      data  iq(1), iq(2), iq(3), iq(4), iq(5),iq(6),iq(7),iq(8),iq(9),
+     >   iq(10),iq(11),iq(12),iq(13)
+     >   /2, 2, 6, 2, 6,10, 2, 6,10,14, 2, 6, 1/
+c     
+C     Rmax = h * ne
+C     BET is the factor of the logarithmic part of the grid transformation
+C     EPS precision factor
+C     H is a step in the rho grid
+C     NE is the number of points in the rho grid
+      data  bet, eps, h, is, ne /1d0, 1.0d-5, 1.0d-5, 13, 900/
+C     KSU1 is 1 to calculate the complete set of SCFHF wave functions
+C     KSU1 should be 3 for FCHF as only the single non-core state is needed
+C     MU = 1 for electrons and -1 for positrons
+C     DZ and KZ are steps to increment the charge of the nucleus
+      data  ksu1, mu, dz, kz /1, 1, 5d0, 10/
+      data  os, con, du1, du2 /'a.pri', 'list.lst', 'nul', 'con'/
+      ne = nr
+      h = grid(nr) - grid(nr-1)
+c     
+c     
+c     Some protection
+c     
+      if (nr .gt. nsizek7) then
+         print*, 'Nr > Nsizek7 in hfz74_5.f to at least', nr
+         stop    'Nr > Nsizek7 in hfz74_5.f'
+      end if 
+      if (ne .gt. nsize) then
+         print*,'increase NSIZE in hfz74_5.f to at least',ne
+         stop   'increase NSIZE in hfz74_5.f'
+      end if 
+C     Z is the nuclear charge
+c$$$  z   = 19d0
+      z = dfloat(nznuc)
+C     L1 is the total orbital angular momentum of the atom
+      L1 = 0
+      SS1 = 2
+c     
+C     DIR is unknown here
+      do i = 1, is
+         dir(i) = 1
+      end do 
+c     
+c     The Grid
+c     
+      kt  = nr
+      do i = 1, kt
+         r7(i) = grid(i)
+      end do
+c     
+      r   = rmax + 1.0
+c     
+c
+      inquire(file='hfwf.formated',exist=there1)
+      there1 = .false.
+      if (there1) then
+         call fit_rgrid(maxr,nnmax,lnabmax,psinb,istoppsinb,
+     >      enpsinb,nr,nshells,grid,EXPCUT)
+         return
+      end if
+c
+      open(66,file=con)
+      open(1,file=os,form='unformatted',access='sequential')
+      open(3,file=du1)
+      open(4,file=du2)
+      inquire(file='hfwf',exist=there)
+      if (there) go to 30
+      open(10, file='hfwf',form='unformatted')
+      open(20, file='hfen')
+c     
+      ne5 = ne + 5
+      ne5is = ne5 * is
+c     
+      print*,'***Enter scfhf'
+      call scfhf(z,gam,dir,r,bet,eps,h,teta,
+     *   alm3,r1,r2,r3,r4,r5,r6,r7,r8,mu,c3,ala,ala1,
+     *   ala2,alm6du,
+     *   dz,kz,
+     *   is,in,il,iq,
+     *   ss1,l1,nu,ig,kk,is1,is2,ip,pp,ne,
+     *   ne5,ne5is,kt,ud,ksu1,gamma,r0)
+      print*,'***Out of scfhf'
+      close(10)
+      close(20)
+c     
+c     Find and Store wave functions
+c           
+ 30   open(10, file='hfwf', status='old',form='unformatted')
+      open(20, file='hfen', status='old')
+      wff(:,:) = 0.0
+      do n = 1, is
+         read(20, *)  R5(1)
+ 2       FORMAT(  ' ','Energy=',25X,E15.8,
+     *      /' ','HOPMA  =' ,25X,E15.8)
+         enn(n) = R5(1)
+         read(10) (R7(IW), R2(IW), IW = 1, KT )
+c$$$  read(10, 40) (R7(IW), R2(IW), IW = 1, KT )
+ 40      FORMAT(2X, F8.5, 2X, F20.13, 4X)
+         do i = 1, kt
+            wff(i,n) = r2(i)
+         end do 
+      end do   
+      close(10)
+      close(20)
+c
+      istop_max = 0
+      do j = 1, is
+         nn = in(j)
+         ll = il(j)
+c     
+         istoppsinb(nn,ll) = nr
+         do while (abs(wff(istoppsinb(nn,ll), j)) .lt. expcut)
+            istoppsinb(nn,ll) = istoppsinb(nn,ll) - 1
+         end do 
+         istop_max = max(istop_max,istoppsinb(nn,ll))
+c     
+         do i = 1, istoppsinb(nn, ll)
+            psinb(i, nn, ll) = wff(i, j)
+         end do 
+c     
+         enpsinb(nn, ll) = enn(j)
+c     
+      end do 
+c     
+      close(66)
+      close(1)
+      close(3)
+      close(4)
+
+c
+c
+      inquire(file='hfwf.formated',exist=there1)
+      there1 = .true.
+      if (.not. there1) then
+         open(129,iostat=iostat,file='hfwf.formated',
+     >        status='new',form='formatted',recl=10000)
+         if(iostat .ne. 0) then
+            print*,'fit_rgrid: Can not open NEW file  hfwf.formated'
+            stop
+         end if
+         write(129,'(2i10)') is, istop_max
+         write(129,'(100i5)') (in(i), i=1,is)
+         write(129,'(100i5)') (il(i), i=1,is)
+         write(129,'(100i5)') (iq(i), i=1,is)
+         write(129,'(100E16.8)') (enn(i), i=1,is)
+         
+         write(129,'("This line is ignored and is here to remind",
+     >        " that wave function is zero at r=0.")')
+         
+         do i=1,istop_max
+            write(129,*) grid(i),(wff(i,ndf), ndf=1, is)
+         end do
+         close(129)
+      endif
+c    
+c
+
+
+      return
+      end
+
+c===================================================================
 c     Ground state Hartee-Fock wave functions of Yb
 c===================================================================
 c     

@@ -36,9 +36,10 @@ C
       endif
       ACCUR=ZERO
       HL2P=ZERO
-!      pi = acos(-1d0) !Igor defined this on 8/07/2016
+      if (pi.eq.0d0) print*, 'LOGAM-defined variables not propagating'
+      pi = acos(-1d0) !Igor defined this on 8/07/2016
 
-      if (pi.eq.0d0) stop 'LOGAM-defined variables have not propagated'
+
       X=REAL(Z)
       T=IMAG(Z)
 

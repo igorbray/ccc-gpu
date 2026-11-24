@@ -80,7 +80,10 @@ C----- ARRAYS INDEXED FROM 0 INSIDE SUBROUTINE: STORAGE FROM MINL
       LOGICAL          ETANE0, XLTURN
       PARAMETER      ( LIMIT = 20000, SMALL = 1.0D-150 )
       COMMON  /STEED/  PACCQ,NFP,NPQ,IEXP,MINL    !not required in code
+c$omp threadprivate(/STEED/)
       COMMON  /DESET/  CF1,P,Q,F,GAMMA,WRONSK     !information only
+c$omp threadprivate(/DESET/)
+
 C----------------------------------------------------------------------
 C     COUL90 HAS CALLS TO: DSQRT,DABS,MAX0,IDINT,DSIGN,DFLOAT,DMIN1
 C----------------------------------------------------------------------

@@ -136,7 +136,9 @@ C     (they are not essential to working of the code)
       COMMON /RCFCM1/ PK,EK,CLGAA,CLGAB,CLGBB,DSIG,TPK1,W,RL,FCL1,Q,GAM,
      X                HCL,HPL,FCM,HCL1,ALPHA,BETA,PL
 c$omp threadprivate(/RCFCM1/)
-      EQUIVALENCE            (PK,XRCF(1,1))
+C The following line may need to be commented to run with gfortran and OMP
+c     commenting to allow gcc build
+c      EQUIVALENCE            (PK,XRCF(1,1))
 C
       DATA ZERO,ONE,TWO,LIMIT /0.0D+0, 1.0D+0, 2.0D+0, 20000 /,
      X     HALF, CI / 0.5D+0, (0D+0, 1D+0) /,
@@ -163,6 +165,7 @@ C
          call coul90(dx,deta,xlmin,lrange,dfc,dgc,dfcp,dgcp,kfn,ifail)
          fc(1) = dcmplx(dfc(lrange),0d0)
          gc(1) = dcmplx(dgc(lrange),dfc(lrange))
+c$$$         print'("dx,fc,gc",1p,5e11.2)',dx,fc(1),gc(1)
          sig(1) = log(coulphase(deta,lrange))/ci
          if (ifail.eq.0) return
       endif

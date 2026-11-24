@@ -272,12 +272,12 @@ c     check on convergence of the calculated function ff2(r)
          naccurcy = 1
          if(abs(rksi_ret) .le. accuracy/100.) then
             naccurcy = 0
-            print*,'abs(rksi_ret), accuracy:',
-     >           abs(rksi_ret),accuracy
+c$$$            print*,'abs(rksi_ret), accuracy:',
+c$$$     >           abs(rksi_ret),accuracy
          endif         
          if(naccurcy.eq.0) then
-            print*,'l=',ll, 
-     >           ', iterations are convergent on step', iter
+c$$$            print*,'l=',ll, 
+c$$$     >           ', iterations are convergent on step', iter
 c     allow for matching in regularun() routine
             if(incon .eq. -1) then 
                incon = -2
@@ -435,9 +435,9 @@ c     make sure that we are not near a point where DX doubles
                asympot = 2.0*eta*ecmn/wnn/gridx(jmatch)
                tmp = abs(ucentr(jmatch)/asympot-1.0)
             enddo 
-            if (jmatch.eq.min(nx,jstop).and.jmatch.gt.jstart+40
-     >         .and.ecmn.gt.1.0)
-     >         print*,'WARNING: asymptotic potential must be Coulomb'
+c$$$            if (jmatch.eq.min(nx,jstop).and.jmatch.gt.jstart+40
+c$$$     >         .and.ecmn.gt.1.0)
+c$$$     >         print*,'WARNING: asymptotic potential must be Coulomb'
          endif             
 
          if (match.or.ucentr(1).ne.0.0.or.ecmn.lt.0.0) then

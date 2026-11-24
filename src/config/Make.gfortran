@@ -1,0 +1,11 @@
+FC := mpifort
+FCFLAGS_OPT2 := -cpp -O3 -fopenmp -fno-signed-zeros -fno-trapping-math  -mcmodel=large -std=legacy -fcray-pointer -fno-range-check -Wno-missing-include-dirs -fallow-argument-mismatch
+FCFLAGS_OPT1 := -cpp -O3 -fopenmp -fno-signed-zeros -fno-trapping-math -mcmodel=large -std=legacy -fcray-pointer -fno-range-check -Wno-missing-include-dirs -fallow-argument-mismatch
+FCFLAGS_FAST := -ffast-math
+#FCFLAGS_OPT2 := -Mllvm -mp -Mpreprocess -C -g -mcmodel=medium -DGPU
+#FCFLAGS_OPT1 := -Mllvm -mp -Mpreprocess -C -g -mcmodel=medium -DGPU
+FCFLAGS_GPU := -cpp -O3 -fopenmp -fno-signed-zeros -fno-trapping-math -mcmodel=large -fallow-argument-mismatch
+FCFLAGS_SAVE := -fno-automatic
+FCFLAGS_REAL8 := -fdefault-real-8 -fdefault-double-8
+FCFLAGS_MODFLAG := -I
+LDFLAGS := -O3 -fopenmp  -L$(MKLROOT)/lib/intel64 -lmkl_scalapack_lp64 -lmkl_blacs_openmpi_lp64 -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core 
